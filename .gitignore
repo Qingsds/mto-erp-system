@@ -1,0 +1,32 @@
+cat << 'EOF' > .gitignore
+# 依赖与日志
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# 编译产物
+dist/
+build/
+out/
+
+# 环境变量与本地配置
+.env
+.env.local
+.env.*.local
+
+# 编辑器与系统文件
+.vscode/
+.idea/
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# 数据库与存储 (本地测试用)
+*.sqlite
+/uploads/
+EOF
