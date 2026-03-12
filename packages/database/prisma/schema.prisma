@@ -15,7 +15,10 @@ datasource db {
 /// 零件基础信息表 (作为数据字典使用，不包含库存概念)
 model Part {
   /// 零件唯一主键 ID
-  id           Int      @id @default(autoincrement())
+  id Int @id @default(autoincrement())
+
+  ///材质（必填）
+  material     String
   /// 零件名称
   name         String   @db.VarChar(100)
   /// 规格型号说明

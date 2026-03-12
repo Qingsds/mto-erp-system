@@ -21,3 +21,11 @@ export interface CreateOrderRequest {
     orderedQty: number // 下单数量
   }>
 }
+
+// 创建零件时的请求体结构
+export interface CreatePartRequest {
+  partNumber: string;
+  name: string;
+  material: string;
+  commonPrices: Record<string, number>;
+}
