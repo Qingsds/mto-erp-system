@@ -1,4 +1,4 @@
-import { CreateDeliveryRequest, OrderStatus } from '@erp/shared-types';
+import { CreateDeliveryRequest } from '@erp/shared-types';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 
@@ -68,8 +68,8 @@ export class DeliveriesService {
 
         // 5. 状态机流转：更新主订单状态
         const newOrderStatus = isOrderFullyShipped
-          ? OrderStatus.DELIVERED
-          : OrderStatus.PARTIAL_DELIVERED;
+          ? 'DELIVERED'
+          : 'PARTIAL_DELIVERED';
         if (order.status !== newOrderStatus) {
           await tx.order.update({
             where: { id: payload.orderId },

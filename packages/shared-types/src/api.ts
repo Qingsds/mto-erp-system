@@ -13,6 +13,20 @@ export interface PaginatedData<T> {
   pageSize: number
 }
 
+export type OrderStatusType =
+  | "PENDING"
+  | "PARTIAL_SHIPPED"
+  | "SHIPPED"
+  | "CLOSED_SHORT"
+
+export interface OrderResponse {
+  id: number
+  customerName: string
+  status: OrderStatusType // 使用联合类型
+  createdAt: string
+  items: any[] // 视你的具体明细结构而定
+}
+
 // 创建订单时的请求体结构 (Data Transfer Object)
 export interface CreateOrderRequest {
   customerName: string // 客户名称
