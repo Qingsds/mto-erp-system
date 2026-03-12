@@ -1,6 +1,8 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrderRequest, OrderStatus } from '@erp/shared-types';
+import { Prisma } from '@erp/database';
+
 
 @Injectable()
 export class OrdersService {
@@ -22,7 +24,7 @@ export class OrdersService {
 
     // 【核心业务逻辑】：使用 Prisma 的事务机制 ($transaction)
     // 保证订单主表和所有明细表要么同时创建成功，要么同时回滚失败，防止出现脏数据
-    const newOrder = await this.prisma.client.$transaction(async (tx) => {
+    const newOrder = await this.prisma.client.$transaction(async (tx: Prisma.TransactionClient) => {
       // 1.创建订单主表记录
       const order = await tx.order.create({
         data: {
