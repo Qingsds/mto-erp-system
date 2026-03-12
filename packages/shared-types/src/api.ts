@@ -24,8 +24,19 @@ export interface CreateOrderRequest {
 
 // 创建零件时的请求体结构
 export interface CreatePartRequest {
-  partNumber: string;
-  name: string;
-  material: string;
-  commonPrices: Record<string, number>;
+  name: string
+  material: string
+  commonPrices: Record<string, number>
+}
+
+// 发货明细项的数据结构
+export interface DeliveryItemRequest {
+  orderItemId: number // 针对订单中的哪一行明细发货
+  quantity: number // 本次发货数量
+}
+
+// 创建发货单的请求体结构
+export interface CreateDeliveryRequest {
+  orderId: number // 关联的订单 ID
+  items: DeliveryItemRequest[]
 }

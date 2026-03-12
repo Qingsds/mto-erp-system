@@ -46,14 +46,3 @@ DATABASE_URL="postgresql://postgres:你的密码@你的IP:5433/mto_erp?schema=pu
 cd packages/database
 npx prisma db push
 ```
-
----
-
-## 代码与分支规范
-
-1. **主分支保护**: 严禁直接在 `main` 分支上提交代码。
-2. **分支命名**:
-   - 新功能开发: `feat/功能名称` (如 `feat/order-module`)
-   - Bug 修复: `fix/问题描述` (如 `fix/price-calc-error`)
-   - 基建与配置: `chore/配置说明` (如 `chore/update-deps`)
-3. **提交流程**: 开发完成后推送到远端，由代码审查者确认无误后，通过 Pull Request (PR) 合并至 `main`。

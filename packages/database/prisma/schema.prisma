@@ -9,53 +9,66 @@ datasource db {
 }
 
 // ==========================================
-// 1. 零件与图纸字典 (Part & Drawings)
+// 0. 系统基础框架
 // ==========================================
 
-/// 零件基础信息表 (作为数据字典使用，不包含库存概念)
-model Part {
-  /// 零件唯一主键 ID
-  id Int @id @default(autoincrement())
+model User {
+  id       Int     @id @default(autoincrement())
+  /// 系统登录账号 (全局唯一)
+  username String  @unique @db.VarChar(50)
+  /// 操作人员真实姓名，用于日志和界面展示
+  realName String  @map("real_name") @db.VarChar(50)
+  /// 账号状态标识：true为正常，false为已禁用
+  isActive Boolean @default(true) @map("is_active")
 
-  ///材质（必填）
-  material     String
-  /// 零件名称
+  /// 关联：该用户执行过的所有盖章审计日志
+  sealLogs SealUsageLog[]
+
+  @@map("user")
+}
+
+// ==========================================
+// 1. 零件与图纸字典
+// ==========================================
+
+model Part {
+  id           Int      @id @default(autoincrement())
+  /// 零件内部统一编码/SKU (防重标识，如 PN-2026-xxx)
+  partNumber   String   @unique @map("part_number")
+  /// 生产该零件所需的物理材质 (如: 304不锈钢)
+  material     String   @db.VarChar(100)
+  /// 零件业务名称
   name         String   @db.VarChar(100)
-  /// 规格型号说明
+  /// 零件详细规格或型号说明
   spec         String?  @db.VarChar(100)
-  /// 常用价格配置列表，存储格式为 JSON (例: {"标准价": 10.0, "老客价": 9.5})
+  /// 常用价格配置字典，JSON格式，支持灵活扩展多级价格
   commonPrices Json     @default("{}") @map("common_prices")
-  /// 记录创建时间
   createdAt    DateTime @default(now()) @map("created_at")
-  /// 记录最后更新时间
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  /// 关联：该零件下的所有工程图纸
+  /// 关联：该零件对应的所有版本工程图纸
   drawings   PartDrawing[]
-  /// 关联：包含该零件的订单明细记录
+  /// 关联：所有包含此零件的订单明细
   orderItems OrderItem[]
 
   @@map("part")
 }
 
-/// 零件工程图纸表
 model PartDrawing {
-  /// 图纸唯一主键 ID
   id         Int      @id @default(autoincrement())
-  /// 关联的零件 ID
+  /// 归属的零件 ID
   partId     Int      @map("part_id")
-  /// 原始文件名称 (例: 主轴承V2版_工程图.pdf)
+  /// 图纸上传时的原始文件名称
   fileName   String   @map("file_name") @db.VarChar(255)
-  /// 存储在 MinIO/OSS 中的对象键值路径
+  /// 图纸在对象存储(如OSS/MinIO)中的物理寻址路径
   fileKey    String   @map("file_key") @db.VarChar(255)
-  /// 文件类型，用于前端判断渲染方式 (IMAGE 或 PDF)
+  /// 图纸文件格式类型，用于前端判断是渲染图片还是PDF阅读器
   fileType   String   @map("file_type") @db.VarChar(20)
-  /// 版本标识，是否为当前零件的最新图纸
+  /// 标识此文件是否为该零件当前生效的最新版本图纸
   isLatest   Boolean  @default(true) @map("is_latest")
-  /// 图纸上传时间
+  /// 图纸被上传到系统的具体时间
   uploadedAt DateTime @default(now()) @map("uploaded_at")
 
-  /// 关联：对应的零件主体
   part Part @relation(fields: [partId], references: [id])
 
   @@map("part_drawing")
@@ -65,129 +78,121 @@ model PartDrawing {
 // 2. 核心业务流 (Order -> Delivery -> Billing)
 // ==========================================
 
-/// 内部销售订单/生产需求主表 (作为交易数据的源头与价格锚点)
 model Order {
-  /// 订单唯一主键 ID
-  id           Int      @id @default(autoincrement())
-  /// 客户或采购方公司名称
-  customerName String   @map("customer_name") @db.VarChar(100)
-  /// 订单履约状态 (PENDING待履约, PARTIAL_DELIVERED部分发货, DELIVERED全部发货, CLOSED_SHORT短交结案)
-  status       String   @default("PENDING") @db.VarChar(50)
-  /// 订单创建/开单时间
-  createdAt    DateTime @default(now()) @map("created_at")
+  id           Int         @id @default(autoincrement())
+  /// 交易客户或采购方公司名称
+  customerName String      @map("customer_name") @db.VarChar(100)
+  /// 订单整体履约状态 (PENDING待履约, PARTIAL_SHIPPED部分发货, SHIPPED发货完成)
+  status       OrderStatus @default(PENDING)
+  createdAt    DateTime    @default(now()) @map("created_at")
 
-  /// 关联：订单包含的零件行项目
+  /// 关联：该订单包含的所有的零件购买明细
   items      OrderItem[]
-  /// 关联：基于该订单生成的发货单集合
+  /// 关联：针对该订单进行的所有批次发货记录
   deliveries DeliveryNote[]
+  /// 关联：基于该订单生成的防篡改电子合同等归档文件
+  documents  Document[]
 
   @@map("order")
 }
 
-/// 订单明细表 (包含核心的价格快照逻辑)
-model OrderItem {
-  /// 订单明细唯一主键 ID
-  id           Int     @id @default(autoincrement())
-  /// 关联的订单主表 ID
-  orderId      Int     @map("order_id")
-  /// 关联的零件字典 ID
-  partId       Int     @map("part_id")
-  /// 交易单价快照，开单时从常用价格中提取并硬拷贝至此，防篡改 (精度: 10位总长，2位小数)
-  unitPrice    Decimal @map("unit_price") @db.Decimal(10, 2)
-  /// 客户下单的原始需求数量
-  orderedQty   Int     @map("ordered_qty")
-  /// 已累计发货数量 (防超发校验的核心依据)
-  deliveredQty Int     @default(0) @map("delivered_qty")
+enum OrderStatus {
+  PENDING // 待履约
+  PARTIAL_DELIVERED // 部分发货
+  DELIVERED // 全部发货
+  CLOSED_SHORT // 短交结案 (报废不补)
+}
 
-  /// 关联：所属订单主表
+model OrderItem {
+  id         Int     @id @default(autoincrement())
+  /// 归属的订单 ID
+  orderId    Int     @map("order_id")
+  /// 订购的零件字典 ID
+  partId     Int     @map("part_id")
+  /// 交易单价快照：下单瞬间从零件字典提取并锁死，后续不受字典修改影响
+  unitPrice  Decimal @map("unit_price") @db.Decimal(10, 2)
+  /// 客户合同上要求的初始采购总数量
+  orderedQty Int     @map("ordered_qty")
+  /// 冗余字段：已累计发货的数量。每次发货自动累加，用于高性能防超发校验
+  shippedQty Int     @default(0) @map("shipped_qty")
+
   order      Order          @relation(fields: [orderId], references: [id])
-  /// 关联：对应的零件基准信息
   part       Part           @relation(fields: [partId], references: [id])
-  /// 关联：由该明细生成的发货明细集合
+  /// 关联：该行明细对应的历次真实出库发货明细
   deliveries DeliveryItem[]
 
   @@map("order_item")
 }
 
-/// 发货单主表 (纯粹的物流执行凭证，不包含金额计算)
 model DeliveryNote {
-  /// 发货单唯一主键 ID
   id           Int      @id @default(autoincrement())
-  /// 溯源关联的原始订单 ID
+  /// 溯源关联的业务订单 ID
   orderId      Int      @map("order_id")
-  /// 实际发货/出库日期
+  /// 仓库实际打包装车发货的日期
   deliveryDate DateTime @default(now()) @map("delivery_date")
-  /// 发货单流转状态 (SHIPPED已发货, BILLED已核算对账)
+  /// 发货单据状态
   status       String   @default("SHIPPED") @db.VarChar(50)
-  /// 整单维度的物流或异常备注 (例: 遇暴雨延迟发货)
+  /// 针对整个发货批次的物流信息或异常备注
   remark       String?  @db.VarChar(500)
 
-  /// 关联：来源订单主表
-  order Order          @relation(fields: [orderId], references: [id])
-  /// 关联：发货单包含的零件明细项
-  items DeliveryItem[]
+  order     Order          @relation(fields: [orderId], references: [id])
+  /// 关联：该单据包含的所有出库零件明细行
+  items     DeliveryItem[]
+  /// 关联：针对该发货单生成的电子签收凭证等归档文件
+  documents Document[]
 
   @@map("delivery_note")
 }
 
-/// 发货单明细表
 model DeliveryItem {
-  /// 发货明细唯一主键 ID
   id             Int     @id @default(autoincrement())
-  /// 关联的发货单主表 ID
+  /// 归属的发货单 ID
   deliveryNoteId Int     @map("delivery_note_id")
-  /// 溯源关联的订单明细 ID (结算时通过此关联提取价格快照)
+  /// 精确关联到某一行的订单明细，作为对账结算的价格溯源依据
   orderItemId    Int     @map("order_item_id")
-  /// 本次实际出库的发货数量
+  /// 本次出库实际打包发送的数量
   shippedQty     Int     @map("shipped_qty")
-  /// 行项目异常备注 (核心业务要求：记录报废、损耗等数量差异原因)
+  /// 针对该行物料的异常备注 (如：划痕报废导致少发的情况说明)
   remark         String? @db.VarChar(255)
 
-  /// 关联：所属发货单主表
-  deliveryNote DeliveryNote  @relation(fields: [deliveryNoteId], references: [id])
-  /// 关联：溯源对应的订单明细记录
-  orderItem    OrderItem     @relation(fields: [orderItemId], references: [id])
-  /// 关联：基于该发货明细生成的费用结算条目
-  billingItems BillingItem[]
+  deliveryNote DeliveryNote @relation(fields: [deliveryNoteId], references: [id])
+  orderItem    OrderItem    @relation(fields: [orderItemId], references: [id])
+  /// 反向一对一关联：保证一次发货明细在财务系统中只会被计费一次
+  billingItem  BillingItem?
 
   @@map("delivery_item")
 }
 
-/// 费用清单/对账单主表 (最终合并结算凭证)
 model BillingStatement {
-  /// 费用清单唯一主键 ID
   id           Int      @id @default(autoincrement())
-  /// 结算对象客户名称
+  /// 需要结算的客户名称
   customerName String   @map("customer_name") @db.VarChar(100)
-  /// 该清单合并计算后的应收总金额
+  /// 该对账单合并计算后的应收总金额
   totalAmount  Decimal  @map("total_amount") @db.Decimal(12, 2)
-  /// 清单处理状态 (DRAFT待确认草稿, SEALED已电子签章防篡改, PAID已结清付款)
+  /// 对账单流转状态 (DRAFT草稿, SEALED已盖章防篡改, PAID已结清)
   status       String   @default("DRAFT") @db.VarChar(50)
-  /// 清单生成日期
   createdAt    DateTime @default(now()) @map("created_at")
 
-  /// 关联：该清单包含的所有费用计算明细行
-  items BillingItem[]
+  /// 关联：该对账单合并的所有费用计算条目
+  items     BillingItem[]
+  /// 关联：基于该对账单生成的最终财务电子账单文档
+  documents Document[]
 
   @@map("billing_statement")
 }
 
-/// 费用清单明细表
 model BillingItem {
-  /// 费用明细唯一主键 ID
   id             Int     @id @default(autoincrement())
-  /// 关联的费用清单主表 ID
+  /// 归属的对账单 ID
   billingId      Int     @map("billing_id")
-  /// 溯源关联的发货明细 ID (若为系统基于发货单自动生成，则存在此关联)
-  deliveryItemId Int?    @map("delivery_item_id")
-  /// 费用项目文字描述 (系统生成时取零件名，手动添加时用于记录如“加急费”、“运费”等说明)
+  /// 关联的发货明细 ID。使用 @unique 构成一对一关系，彻底杜绝重复计费
+  deliveryItemId Int?    @unique @map("delivery_item_id")
+  /// 费用条目文字描述 (如常规零件款，或手动添加的加急专车费)
   description    String? @db.VarChar(255)
-  /// 该明细行的核算最终金额 (系统公式：发货实发数 × 订单单价快照)
+  /// 该明细行的具体核算金额
   amount         Decimal @db.Decimal(10, 2)
 
-  /// 关联：所属费用清单主表
   billing      BillingStatement @relation(fields: [billingId], references: [id])
-  /// 关联：溯源对应的发货明细记录
   deliveryItem DeliveryItem?    @relation(fields: [deliveryItemId], references: [id])
 
   @@map("billing_item")
@@ -197,66 +202,69 @@ model BillingItem {
 // 3. 印章与归档安全 (Seal & Documents)
 // ==========================================
 
-/// 公司电子印章库
 model Seal {
-  /// 印章唯一主键 ID
   id       Int     @id @default(autoincrement())
-  /// 印章显示名称 (例: 财务专用章)
+  /// 公司印章名称 (如：财务专用章、合同专用章)
   name     String  @db.VarChar(50)
-  /// 存储在 MinIO 中的透明底 PNG 印章图片路径
+  /// 印章透明底图文件在存储系统中的路径键值
   fileKey  String  @map("file_key") @db.VarChar(255)
-  /// 启用状态标识 (停用后不可用于新文档合成)
+  /// 印章启用状态，停用的印章无法被用于新的防篡改文件合成
   isActive Boolean @default(true) @map("is_active")
 
-  /// 关联：该印章的全部盖章调用审计日志
+  /// 关联：这枚印章被使用的全部历史审计记录
   logs SealUsageLog[]
 
   @@map("seal")
 }
 
-/// 电子签章调用审计日志表 (关键安全与防抵赖机制)
-model SealUsageLog {
-  /// 日志唯一主键 ID
-  id         Int      @id @default(autoincrement())
-  /// 被使用的印章 ID
-  sealId     Int      @map("seal_id")
-  /// 执行盖章操作的系统账号 ID
-  userId     Int      @map("user_id")
-  /// 目标归档文档的业务类型 (BILLING_STATEMENT, CONTRACT 等)
-  targetType String   @map("target_type") @db.VarChar(50)
-  /// 目标归档文档对应的业务主键 ID
-  targetId   Int      @map("target_id")
-  /// 执行盖章合成的精确服务器时间
-  actionTime DateTime @default(now()) @map("action_time")
-  /// 操作发起方 IP 地址
-  ipAddress  String?  @map("ip_address") @db.VarChar(50)
-
-  /// 关联：使用的印章主体
-  seal Seal @relation(fields: [sealId], references: [id])
-
-  @@map("seal_usage_log")
-}
-
-/// 统一 PDF 电子文档与防篡改归档表
 model Document {
-  /// 文档归档唯一主键 ID
   id          Int      @id @default(autoincrement())
-  /// 关联的业务单据类型 (ORDER, DELIVERY, BILLING 等)
-  targetType  String   @map("target_type") @db.VarChar(50)
-  /// 关联的业务单据 ID
-  targetId    Int      @map("target_id")
-  /// 最终展示文件名称
+  /// 最终展示给用户查看的文件名称
   fileName    String   @map("file_name") @db.VarChar(255)
-  /// 原始未盖章的纯净 PDF 在 MinIO 中的路径键值
+  /// 原始未盖章的纯净版 PDF 在存储中的路径
   originalKey String   @map("original_key") @db.VarChar(255)
-  /// 经服务端 pdf-lib 合成印章并展平后的防篡改 PDF 路径键值
+  /// 经服务端合成印章并彻底展平(防修改)后的 PDF 存储路径
   signedKey   String?  @map("signed_key") @db.VarChar(255)
-  /// 合成文件的 SHA-256 哈希值摘要，用于后续法律效力验证
+  /// 最终合成文件的 SHA-256 哈希值，用于后续防伪证与法律效力校验
   fileHash    String?  @map("file_hash") @db.Char(64)
-  /// 文档当前状态 (DRAFT未盖章, SIGNED已盖章防篡改)
+  /// 文件盖章状态 (DRAFT未盖章, SIGNED已盖章防篡改)
   status      String   @default("DRAFT") @db.VarChar(50)
-  /// 文档生成时间
   createdAt   DateTime @default(now()) @map("created_at")
 
+  /// [外键分离设计] 取代容易产生孤儿数据的多态设计，用三个可选外键明确单据归属
+  /// 关联：对应的原始业务订单 (可选)
+  orderId        Int? @map("order_id")
+  /// 关联：对应的物流发货单 (可选)
+  deliveryNoteId Int? @map("delivery_note_id")
+  /// 关联：对应的财务对账单 (可选)
+  billingId      Int? @map("billing_id")
+
+  order            Order?            @relation(fields: [orderId], references: [id])
+  deliveryNote     DeliveryNote?     @relation(fields: [deliveryNoteId], references: [id])
+  billingStatement BillingStatement? @relation(fields: [billingId], references: [id])
+
+  /// 关联：在这份文件上执行过的所有盖章动作的审计日志
+  sealLogs SealUsageLog[]
+
   @@map("document")
+}
+
+model SealUsageLog {
+  id         Int      @id @default(autoincrement())
+  /// 本次调用的是哪一枚印章
+  sealId     Int      @map("seal_id")
+  /// 执行盖章动作的系统账号 ID
+  userId     Int      @map("user_id")
+  /// 印章最终盖在了哪一份防篡改文档上
+  documentId Int      @map("document_id")
+  /// 执行盖章合并操作的精确服务器时间
+  actionTime DateTime @default(now()) @map("action_time")
+  /// 发起盖章请求的操作端 IP 地址，用于事后溯源
+  ipAddress  String?  @map("ip_address") @db.VarChar(50)
+
+  seal     Seal     @relation(fields: [sealId], references: [id])
+  user     User     @relation(fields: [userId], references: [id])
+  document Document @relation(fields: [documentId], references: [id])
+
+  @@map("seal_usage_log")
 }

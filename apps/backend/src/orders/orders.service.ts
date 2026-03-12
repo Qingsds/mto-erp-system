@@ -3,7 +3,6 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrderRequest, OrderStatus } from '@erp/shared-types';
 import { Prisma } from '@erp/database';
 
-
 @Injectable()
 export class OrdersService {
   // 依赖注入：通过构造函数，NestJS 会自动把全局的 PrismaService 塞给这个类
@@ -24,43 +23,45 @@ export class OrdersService {
 
     // 【核心业务逻辑】：使用 Prisma 的事务机制 ($transaction)
     // 保证订单主表和所有明细表要么同时创建成功，要么同时回滚失败，防止出现脏数据
-    const newOrder = await this.prisma.client.$transaction(async (tx: Prisma.TransactionClient) => {
-      // 1.创建订单主表记录
-      const order = await tx.order.create({
-        data: {
-          customerName,
-          status: OrderStatus.PENDING, // 默认订单状态为待处理
-        },
-      });
-
-      for (const item of items) {
-        const part = await tx.part.findUnique({
-          where: { id: item.partId },
-        });
-
-        if (!part)
-          throw new BadRequestException(`零件 ID${item.partId} 不存在`);
-
-        const prices = part.commonPrices as Record<string, number>;
-        const unitPrice = prices['标准价'] || 0;
-
-        await tx.orderItem.create({
+    const newOrder = await this.prisma.client.$transaction(
+      async (tx: Prisma.TransactionClient) => {
+        // 1.创建订单主表记录
+        const order = await tx.order.create({
           data: {
-            orderId: order.id,
-            partId: item.partId,
-            orderedQty: item.orderedQty,
-            unitPrice: unitPrice, // 【防篡改机制】：价格一旦写入这里，后续零件字典怎么改价，都不会影响本订单
+            customerName,
+            status: OrderStatus.PENDING, // 默认订单状态为待处理
           },
         });
-      }
-      // 返回订单信息
-      return tx.order.findUnique({
-        where: {
-          id: order.id,
-        },
-        include: { items: true },
-      });
-    });
+
+        for (const item of items) {
+          const part = await tx.part.findUnique({
+            where: { id: item.partId },
+          });
+
+          if (!part)
+            throw new BadRequestException(`零件 ID${item.partId} 不存在`);
+
+          const prices = part.commonPrices as Record<string, number>;
+          const unitPrice = prices['标准价'] || 0;
+
+          await tx.orderItem.create({
+            data: {
+              orderId: order.id,
+              partId: item.partId,
+              orderedQty: item.orderedQty,
+              unitPrice: unitPrice, // 【防篡改机制】：价格一旦写入这里，后续零件字典怎么改价，都不会影响本订单
+            },
+          });
+        }
+        // 返回订单信息
+        return tx.order.findUnique({
+          where: {
+            id: order.id,
+          },
+          include: { items: true },
+        });
+      },
+    );
     return newOrder;
   }
 }
