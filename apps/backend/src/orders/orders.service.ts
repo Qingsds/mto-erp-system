@@ -1,6 +1,14 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateOrderRequest, OrderStatus } from '@erp/shared-types';
+import {
+  CloseShortOrderRequest,
+  CreateOrderRequest,
+  OrderStatus,
+} from '@erp/shared-types';
 import { Prisma } from '@erp/database';
 
 @Injectable()
@@ -63,5 +71,38 @@ export class OrdersService {
       },
     );
     return newOrder;
+  }
+
+  /**
+   * 订单短交结案close short
+   * 强行终止尚未发完的订单，阻断后续排产与发货
+   */
+  async closeShortOrder(orderId: number, payload: CloseShortOrderRequest) {
+    const order = await this.prisma.client.order.findUnique({
+      where: { id: orderId },
+    });
+
+    if (!order) {
+      throw new NotFoundException(`订单 ID: ${orderId} 不存在`);
+    }
+
+    // 2. 状态校验：已经发货完成或已经结案的订单，不允许再次短交结案
+    if (order.status === 'SHIPPED' || order.status === 'CLOSED_SHORT') {
+      throw new BadRequestException(
+        `当前订单状态为 ${order.status}，无法执行短交结案`,
+      );
+    }
+
+    // 3. 执行状态变更
+    // 提示：当前 Schema 的 Order 表中暂无 reason 字段，payload.reason 可在需要时扩展写入数据库或日志系统
+    const updatedOrder = await this.prisma.client.order.update({
+      where: { id: orderId },
+      data: {
+        reason: payload.reason,
+        status: 'CLOSED_SHORT',
+      },
+    });
+
+    return updatedOrder;
   }
 }

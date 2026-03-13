@@ -85,6 +85,7 @@ model Order {
   /// 订单整体履约状态 (PENDING待履约, PARTIAL_SHIPPED部分发货, SHIPPED发货完成)
   status       OrderStatus @default(PENDING)
   createdAt    DateTime    @default(now()) @map("created_at")
+  reason       String?     @db.VarChar(100)
 
   /// 关联：该订单包含的所有的零件购买明细
   items      OrderItem[]
@@ -98,8 +99,8 @@ model Order {
 
 enum OrderStatus {
   PENDING // 待履约
-  PARTIAL_DELIVERED // 部分发货
-  DELIVERED // 全部发货
+  PARTIAL_SHIPPED // 部分发货
+  SHIPPED // 全部发货
   CLOSED_SHORT // 短交结案 (报废不补)
 }
 
