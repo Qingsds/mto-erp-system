@@ -1,5 +1,10 @@
+import { Prisma } from '@erp/database';
 import { CreateDeliveryRequest } from '@erp/shared-types';
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
@@ -80,5 +85,50 @@ export class DeliveriesService {
         return deliveryNote;
       }
     });
+  }
+
+  // 1. 分页查询发货记录
+  async findAll(page: number = 1, pageSize: number = 10, orderId?: number) {
+    const skip = (page - 1) * pageSize;
+
+    // 使用精确的 WhereInput 类型
+    const where: Prisma.DeliveryNoteWhereInput = {};
+
+    if (orderId) {
+      where.orderId = Number(orderId);
+    }
+
+    const [total, data] = await Promise.all([
+      this.prisma.client.deliveryNote.count({ where }),
+      this.prisma.client.deliveryNote.findMany({
+        where,
+        skip,
+        take: Number(pageSize),
+        orderBy: { deliveryDate: 'desc' },
+      }),
+    ]);
+
+    return { total, data, page: Number(page), pageSize: Number(pageSize) };
+  }
+
+  // 2. 查询发货单详情及深度追溯
+  async findOne(id: number) {
+    const delivery = await this.prisma.client.deliveryNote.findUnique({
+      where: { id },
+      include: {
+        items: {
+          include: {
+            orderItem: {
+              include: { part: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!delivery) {
+      throw new NotFoundException(`发货单 ID: ${id} 不存在`);
+    }
+    return delivery;
   }
 }

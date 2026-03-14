@@ -1,10 +1,12 @@
 import {
   Body,
   Controller,
+  Get,
   Param,
   ParseIntPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import {
@@ -12,6 +14,7 @@ import {
   CloseShortOrderRequest,
   CreateOrderRequest,
 } from '@erp/shared-types';
+import { OrderStatus } from '@erp/database';
 
 @Controller('api/order')
 export class OrdersController {
@@ -41,5 +44,27 @@ export class OrdersController {
       message: '订单短交结案成功',
       data: result,
     };
+  }
+
+  @Get()
+  async findAll(
+    @Query('page') page: number = 1,
+    @Query('pageSize') pageSize: number = 10,
+    @Query('status') status?: OrderStatus,
+    @Query('customerName') customerName?: string,
+  ): Promise<ApiResponse> {
+    const result = await this.ordersService.findAll(
+      page,
+      pageSize,
+      status,
+      customerName,
+    );
+    return { code: 200, message: '查询成功', data: result };
+  }
+
+  @Get(':id')
+  async findOne(@Param('id', ParseIntPipe) id: number): Promise<ApiResponse> {
+    const result = await this.ordersService.findOne(id);
+    return { code: 200, message: '查询成功', data: result };
   }
 }

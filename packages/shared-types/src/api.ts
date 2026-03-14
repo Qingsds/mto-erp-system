@@ -49,6 +49,16 @@ export interface CreatePartRequest {
   commonPrices: Record<string, number>
 }
 
+// packages/shared-types/src/api.ts
+// ... 在 CreatePartRequest 下方新增：
+
+export interface UpdatePartRequest {
+  name?: string
+  material?: string
+  spec?: string
+  commonPrices?: Record<string, number>
+}
+
 // ==========================================
 // 2. 订单管理模块 (Orders)
 // ==========================================

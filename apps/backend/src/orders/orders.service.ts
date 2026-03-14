@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CloseShortOrderRequest, CreateOrderRequest } from '@erp/shared-types';
-import { Prisma } from '@erp/database';
+import { OrderStatus, Prisma } from '@erp/database';
 
 @Injectable()
 export class OrdersService {
@@ -100,5 +100,55 @@ export class OrdersService {
     });
 
     return updatedOrder;
+  }
+
+  // 1. 分页查询订单列表
+  async findAll(
+    page: number = 1,
+    pageSize: number = 10,
+    status?: OrderStatus,
+    customerName?: string,
+  ) {
+    const skip = (page - 1) * pageSize;
+
+    // 构建动态查询条件
+    const where: Prisma.OrderWhereInput = {};
+    if (status) {
+      where.status = status;
+    }
+    if (customerName) {
+      where.customerName = { contains: customerName, mode: 'insensitive' };
+    }
+
+    const [total, data] = await Promise.all([
+      this.prisma.client.order.count({ where }),
+      this.prisma.client.order.findMany({
+        where,
+        skip,
+        take: Number(pageSize),
+        orderBy: { createdAt: 'desc' },
+        include: { items: true }, // 列表页简要带出明细行
+      }),
+    ]);
+
+    return { total, data, page: Number(page), pageSize: Number(pageSize) };
+  }
+
+  // 2. 查询单条订单详情
+  async findOne(id: number) {
+    const order = await this.prisma.client.order.findUnique({
+      where: { id },
+      include: {
+        items: {
+          include: { part: true }, // 深度联表：带出明细对应的零件基础信息
+        },
+        deliveries: true, // 带出该订单名下的所有发货记录
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundException(`订单 ID: ${id} 不存在`);
+    }
+    return order;
   }
 }

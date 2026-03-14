@@ -1,6 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import 'multer';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { CreatePartRequest } from '@erp/shared-types';
+import { CreatePartRequest, UpdatePartRequest } from '@erp/shared-types';
 
 @Injectable()
 export class PartsService {
@@ -29,5 +34,99 @@ export class PartsService {
     });
 
     return newPart;
+  }
+
+  // 分页与模糊查询
+  async findAll(page: number = 1, pageSize: number = 1, keyword?: string) {
+    const skip = (page - 1) * pageSize;
+
+    // 构建查询条件：支持按零件号或名称进行模糊匹配
+    const where = keyword
+      ? {
+          OR: [
+            { partNumber: { contains: keyword, mode: 'insensitive' as const } },
+            { name: { contains: keyword, mode: 'insensitive' as const } },
+          ],
+        }
+      : {};
+
+    const [total, data] = await Promise.all([
+      this.prisma.client.part.count({ where }),
+      this.prisma.client.part.findMany({
+        where,
+        skip,
+        take: Number(pageSize),
+        orderBy: { createdAt: 'desc' }, // 按创建时间倒序
+      }),
+    ]);
+
+    return { total, data, page: Number(page), pageSize: Number(pageSize) };
+  }
+
+  // 3. 查询单条详情及图纸
+  async findOne(id: number) {
+    const part = await this.prisma.client.part.findUnique({
+      where: { id },
+      include: { drawings: true }, // 联表查出关联的图纸数据
+    });
+
+    if (!part) {
+      throw new NotFoundException(`零件 ID: ${id} 不存在`);
+    }
+    return part;
+  }
+
+  // 4. 修改零件信息
+  async updatePart(id: number, payload: UpdatePartRequest) {
+    // 强制校验存在性
+    await this.findOne(id);
+
+    return await this.prisma.client.part.update({
+      where: { id },
+      data: {
+        ...payload,
+      },
+    });
+  }
+
+  /**
+   * 上传零件工程图纸
+   */
+  async uploadDrawing(partId: number, file: Express.Multer.File) {
+    // 1. 校验零件是否存在
+    await this.findOne(partId);
+
+    if (!file) {
+      throw new BadRequestException('未检测到上传的文件');
+    }
+
+    // 2. 模拟文件上传到 OSS/MinIO (实际生产环境中，此处会调用对象存储 SDK 并返回真实 URL)
+    const fileExtension = file.originalname.split('.').pop();
+    const fileKey = `drawings/part-${partId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExtension}`;
+
+    // 简单判断文件类型
+    const fileType = file.mimetype.includes('pdf') ? 'PDF' : 'IMAGE';
+
+    // 3. 开启事务：处理图纸版本更迭
+    return await this.prisma.client.$transaction(async (tx) => {
+      // 步骤 A：将该零件下的所有老图纸状态置为 "非最新"
+      await tx.partDrawing.updateMany({
+        where: { partId: partId },
+        data: { isLatest: false },
+      });
+
+      // 步骤 B：插入本次上传的新图纸，系统默认 isLatest: true
+      const newDrawing = await tx.partDrawing.create({
+        data: {
+          partId: partId,
+          fileName: file.originalname,
+          fileKey: fileKey,
+          fileType: fileType,
+          isLatest: true,
+        },
+      });
+
+      return newDrawing;
+    });
   }
 }
