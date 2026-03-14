@@ -4,11 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import {
-  CloseShortOrderRequest,
-  CreateOrderRequest,
-  OrderStatus,
-} from '@erp/shared-types';
+import { CloseShortOrderRequest, CreateOrderRequest } from '@erp/shared-types';
 import { Prisma } from '@erp/database';
 
 @Injectable()
@@ -37,7 +33,7 @@ export class OrdersService {
         const order = await tx.order.create({
           data: {
             customerName,
-            status: OrderStatus.PENDING, // 默认订单状态为待处理
+            status: 'PENDING', // 默认订单状态为待处理
           },
         });
 

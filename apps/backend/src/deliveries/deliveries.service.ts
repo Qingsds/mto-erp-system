@@ -68,8 +68,8 @@ export class DeliveriesService {
 
         // 5. 状态机流转：更新主订单状态
         const newOrderStatus = isOrderFullyShipped
-          ? 'DELIVERED'
-          : 'PARTIAL_DELIVERED';
+          ? 'SHIPPED'
+          : 'PARTIAL_SHIPPED';
         if (order.status !== newOrderStatus) {
           await tx.order.update({
             where: { id: payload.orderId },
