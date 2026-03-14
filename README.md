@@ -81,7 +81,7 @@ npx prisma db push
 | `/api/orders`                 | POST     | 已完成 | 创建订单，锁定交易明细快照 |
 | `/api/orders`                 | GET      | 待开发 | 分页查询订单列表           |
 | `/api/orders/:id`             | GET      | 待开发 | 获取订单详情及发货进度     |
-| `/api/orders/:id/close-short` | PATCH    | 待开发 | 异常流转：触发订单短交结案 |
+| `/api/orders/:id/close-short` | PATCH    | 已完成 | 异常流转：触发订单短交结案 |
 
 **POST `/api/orders` (创建订单) 请求参数:**
 | 字段名               | 类型   | 必填 | 默认值 | 详细说明                   |
