@@ -4,10 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev:shared": "cd packages/shared-types && tsc --watch",
-    "dev:db": "cd packages/database && tsc --watch",
-    "dev:backend": "cd apps/backend && pnpm run start:dev",
-    "dev": "concurrently -c \"cyan,magenta,yellow\" \"pnpm run dev:shared\" \"pnpm run dev:db\" \"pnpm run dev:backend\""
+    "dev": "pnpm --parallel --stream -r dev"
   },
   "keywords": [],
   "author": "",

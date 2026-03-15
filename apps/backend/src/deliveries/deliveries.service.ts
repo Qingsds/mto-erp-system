@@ -1,5 +1,5 @@
 import { Prisma } from '@erp/database';
-import { CreateDeliveryRequest } from '@erp/shared-types';
+import { CreateDeliveryRequest, UserType } from '@erp/shared-types';
 import {
   BadRequestException,
   Injectable,

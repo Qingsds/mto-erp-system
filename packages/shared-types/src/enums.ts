@@ -5,3 +5,7 @@ export enum FileType {
   IMAGE = "IMAGE",
   PDF = "PDF",
 }
+
+export enum UserType {
+  ADMIN = "ADMIN",
+}
