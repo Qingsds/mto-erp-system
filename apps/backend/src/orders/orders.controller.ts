@@ -16,7 +16,7 @@ import {
 } from '@erp/shared-types';
 import { OrderStatus } from '@erp/database';
 
-@Controller('api/order')
+@Controller('api/orders')
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 

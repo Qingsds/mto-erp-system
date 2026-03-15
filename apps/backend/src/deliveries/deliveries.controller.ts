@@ -10,7 +10,7 @@ import {
 import { DeliveriesService } from './deliveries.service';
 import { ApiResponse, CreateDeliveryRequest } from '@erp/shared-types';
 
-@Controller('deliveries')
+@Controller('api/deliveries')
 export class DeliveriesController {
   constructor(private readonly deliveriesService: DeliveriesService) {}
 

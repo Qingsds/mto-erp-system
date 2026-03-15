@@ -16,7 +16,7 @@ import {
   BillingStatusType,
 } from '@erp/shared-types';
 
-@Controller('billing')
+@Controller('api/billing')
 export class BillingController {
   constructor(private readonly billingService: BillingService) {}
 
