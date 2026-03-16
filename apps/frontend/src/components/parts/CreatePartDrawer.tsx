@@ -7,15 +7,14 @@ import {
   Button,
   Space,
   InputNumber,
-  message,
   Flex,
   Typography,
   theme,
   Divider,
 } from "antd"
 import { MinusCircleOutlined, PlusOutlined } from "@ant-design/icons"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
-import request from "../../utils/request"
+
+import { useCreatePart } from "../../hooks/api/useParts"
 
 const { Text } = Typography
 
@@ -37,20 +36,10 @@ export const CreatePartDrawer: React.FC<CreatePartDrawerProps> = ({
   onClose,
 }) => {
   const [form] = Form.useForm<FormValues>()
-  const queryClient = useQueryClient()
+
   const { token } = theme.useToken()
 
-  // 定义提交操作的 Mutation
-  const { mutate, isPending } = useMutation({
-    mutationFn: (payload: any) => request.post("/api/parts", payload),
-    onSuccess: () => {
-      message.success("零件创建成功")
-      // 核心：让零件列表的缓存失效，触发自动重刷
-      queryClient.invalidateQueries({ queryKey: ["parts"] })
-      form.resetFields()
-      onClose()
-    },
-  })
+  const { mutate, isPending } = useCreatePart()
 
   const onFinish = (values: FormValues) => {
     // 将 Form.List 的数组结构转换为后端需要的 Record<string, number> 结构
@@ -70,7 +59,12 @@ export const CreatePartDrawer: React.FC<CreatePartDrawerProps> = ({
       commonPrices,
     }
 
-    mutate(payload)
+    mutate(payload, {
+      onSuccess: () => {
+        form.resetFields()
+        onClose()
+      },
+    })
   }
 
   return (

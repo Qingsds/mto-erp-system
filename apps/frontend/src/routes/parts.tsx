@@ -1,4 +1,3 @@
-// apps/frontend/src/routes/parts.tsx
 import { useState } from "react"
 import { createFileRoute } from "@tanstack/react-router"
 import {
@@ -35,6 +34,7 @@ import {
   PartsSearch,
 } from "../hooks/api/useParts"
 import { CreatePartDrawer } from "../components/parts/CreatePartDrawer"
+import { PartDetailDrawer } from "../components/parts/PartDetailDrawer"
 
 const { Title, Text } = Typography
 const { useBreakpoint } = Grid
@@ -57,53 +57,50 @@ function PartsListComponent() {
   const isMobile = (screens.xs || screens.sm) && !screens.md
 
   const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [detailPartId, setDetailPartId] = useState<
+    number | undefined
+  >()
+
+  // 此时 data 直接就是 PaginatedData 结构
   const { data, isLoading } = useGetParts({ page, pageSize, name })
   const { mutate: importParts, isPending: isImporting } =
     useImportParts()
 
-  // Excel 文件解析逻辑
   const handleExcelUpload = (file: File) => {
     const reader = new FileReader()
     reader.onload = e => {
       try {
-        const data = new Uint8Array(e.target?.result as ArrayBuffer)
-        const workbook = XLSX.read(data, { type: "array" })
+        const fileData = new Uint8Array(
+          e.target?.result as ArrayBuffer,
+        )
+        const workbook = XLSX.read(fileData, { type: "array" })
         const firstSheet = workbook.Sheets[workbook.SheetNames[0]]
-
-        // 将 Excel 转换为 JSON 数组
         const jsonData = XLSX.utils.sheet_to_json(firstSheet)
 
-        // 映射 Excel 列名为后端需要的字段结构
         const payload = jsonData
           .map((row: any) => {
             const commonPrices: Record<string, number> = {}
             if (row["价格"] !== undefined && row["价格"] !== null) {
               commonPrices["标准价"] = Number(row["价格"])
             }
-
             return {
               name: row["名称"],
               material: row["材质"],
               commonPrices,
             }
           })
-          .filter(item => item.name && item.material) // 过滤掉没有名称或材质的空行
+          .filter(item => item.name && item.material)
 
         if (payload.length === 0) {
-          message.warning(
-            "未检测到有效数据，请检查 Excel 是否包含“名称”和“材质”列头",
-          )
+          message.warning("未检测到有效数据")
           return
         }
-
         importParts(payload)
-      } catch (error) {
+      } catch {
         message.error("Excel 文件解析失败")
       }
     }
     reader.readAsArrayBuffer(file)
-
-    // 返回 false 阻止 Upload 组件自带的默认网络请求
     return false
   }
 
@@ -123,12 +120,7 @@ function PartsListComponent() {
           >
             {record.name}
           </Text>
-          <Text
-            type='secondary'
-            size='small'
-          >
-            {record.spec || "无规格描述"}
-          </Text>
+          <Text type='secondary'>{record.spec || "无规格描述"}</Text>
         </Flex>
       ),
     },
@@ -139,7 +131,7 @@ function PartsListComponent() {
       responsive: ["sm"],
       render: text => (
         <Tag
-          variant='borderless'
+          bordered={false}
           color='blue'
         >
           {text}
@@ -161,13 +153,10 @@ function PartsListComponent() {
                 key={customer}
               >
                 <Tag
-                  variant='filled'
-                  color='default'
+                  bordered={false}
                   style={{
                     margin: 0,
                     backgroundColor: token.colorFillAlter,
-                    border: "none",
-                    borderRadius: 4,
                   }}
                 >
                   <Text
@@ -197,20 +186,18 @@ function PartsListComponent() {
       render: (_, record) => (
         <Space size={0}>
           <Button
-            variant='text'
-            color='default'
+            type='text'
             size='small'
             icon={<EditOutlined />}
           />
           <Button
-            variant='text'
-            color='default'
+            type='text'
             size='small'
             icon={<FileTextOutlined />}
+            onClick={() => setDetailPartId(record.id)}
           />
           <Button
-            variant='text'
-            color='default'
+            type='text'
             size='small'
             icon={<HistoryOutlined />}
           />
@@ -218,8 +205,6 @@ function PartsListComponent() {
       ),
     },
   ]
-
-  const responseData = data?.data
 
   return (
     <Flex
@@ -247,7 +232,6 @@ function PartsListComponent() {
           </Title>
         </Flex>
 
-        {/* PC 端操作区 */}
         {!isMobile && (
           <Space>
             <Upload
@@ -264,10 +248,8 @@ function PartsListComponent() {
                 导入 Excel
               </Button>
             </Upload>
-
             <Button
-              variant='solid'
-              color='primary'
+              type='primary'
               icon={<PlusOutlined />}
               size='large'
               style={{ borderRadius: token.borderRadiusLG }}
@@ -298,7 +280,6 @@ function PartsListComponent() {
                 style={{ color: token.colorTextPlaceholder }}
               />
             }
-            variant='filled'
             style={{ width: isMobile ? "100%" : 300 }}
             allowClear
             defaultValue={name}
@@ -316,16 +297,16 @@ function PartsListComponent() {
       </Flex>
 
       <Table
-        variant='borderless'
+        bordered={false}
         columns={columns}
-        dataSource={responseData?.data || []}
+        dataSource={data?.data || []}
         loading={isLoading}
         rowKey='id'
         size='middle'
         pagination={{
           current: page,
           pageSize: pageSize,
-          total: responseData?.data?.total || 0,
+          total: data?.total || 0,
           onChange: (p, ps) =>
             navigate({
               search: prev => ({ ...prev, page: p, pageSize: ps }),
@@ -341,8 +322,11 @@ function PartsListComponent() {
         open={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
       />
+      <PartDetailDrawer
+        partId={detailPartId}
+        onClose={() => setDetailPartId(undefined)}
+      />
 
-      {/* 移动端专属：采用悬浮按钮组收纳新增和导入操作 */}
       {isMobile && (
         <FloatButton.Group
           trigger='click'

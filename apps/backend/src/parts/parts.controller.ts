@@ -82,4 +82,18 @@ export class PartsController {
       data: result,
     };
   }
+
+  // 新增：批量导入接口
+  @Post('batch')
+  async createBatch(
+    @Body() requestBody: CreatePartRequest[],
+  ): Promise<ApiResponse> {
+    const result = await this.partsService.createBatch(requestBody);
+
+    return {
+      code: 200,
+      data: result,
+      message: `Excel 导入成功，共计新增 ${result.count} 条零件数据`,
+    };
+  }
 }
