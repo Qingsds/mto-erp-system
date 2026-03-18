@@ -123,6 +123,9 @@
     }
   body {
     @apply bg-background text-foreground;
+    /* 👇 补充下面这两行，让 Zustand 操控的变量真正生效 */
+    font-size: var(--erp-fs);
+    line-height: var(--erp-lh);
     }
   html {
     @apply font-sans;

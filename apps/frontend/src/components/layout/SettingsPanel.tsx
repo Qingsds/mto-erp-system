@@ -9,6 +9,7 @@ function Chip({
 }: { label: string; active: boolean; onClick: () => void }) {
   return (
     <button
+      type="button"
       onClick={onClick}
       className={cn(
         "h-7 px-3 rounded-md text-xs font-medium",

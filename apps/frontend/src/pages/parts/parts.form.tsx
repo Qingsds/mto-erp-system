@@ -1,8 +1,8 @@
 import { useFieldArray, useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { z } from "zod/v4"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import {
   Form,
   FormControl,
@@ -24,19 +24,21 @@ interface PartFormProps {
   onCancel: () => void
 }
 
+type PartFormInput = z.input<typeof PartFormSchema>
+
 export function PartForm({
   defaultValues,
   onSubmit,
   onCancel,
 }: PartFormProps) {
-  const form = useForm<PartFormValues>({
-    resolver: zodResolver(PartFormSchema),
+  const form = useForm<PartFormInput, unknown, PartFormValues>({
+    resolver: (zodResolver as any)(PartFormSchema),
     defaultValues: {
       name: "",
       material: "",
       spec: "",
       remark: "",
-      prices: [{ label: "标准价", value: "" as unknown as number }],
+      prices: [{ label: "标准价", value: "" }],
       ...defaultValues,
     },
   })
@@ -52,7 +54,6 @@ export function PartForm({
         onSubmit={form.handleSubmit(onSubmit)}
         className='flex flex-col gap-5'
       >
-        {/* Basic info */}
         <div className='grid grid-cols-2 gap-4'>
           <FormField
             control={form.control}
@@ -127,40 +128,35 @@ export function PartForm({
           />
         </div>
 
-        {/* Price dict */}
         <div>
-          <div className='flex items-center justify-between mb-3'>
-            <Label>
+          <div className='mb-3 flex items-center justify-between'>
+            <FormLabel>
               常用价格 <span className='text-destructive'>*</span>
-            </Label>
+            </FormLabel>
             <Button
               type='button'
               variant='ghost'
               size='sm'
               className='h-7 text-xs'
-              onClick={() =>
-                append({ label: "", value: "" as unknown as number })
-              }
+              onClick={() => append({ label: "", value: "" })}
             >
               <i className='ri-add-line mr-1' />
               添加价格项
             </Button>
           </div>
 
-          {/* Global prices error */}
           {form.formState.errors.prices?.root && (
-            <p className='text-xs text-destructive mb-2'>
+            <p className='mb-2 text-xs text-destructive'>
               {form.formState.errors.prices.root.message}
             </p>
           )}
 
           <div className='flex flex-col gap-2'>
-            {fields.map((field, index) => (
+            {fields.map((fieldItem, index) => (
               <div
-                key={field.id}
+                key={fieldItem.id}
                 className='flex items-start gap-2'
               >
-                {/* Label */}
                 <FormField
                   control={form.control}
                   name={`prices.${index}.label`}
@@ -177,37 +173,46 @@ export function PartForm({
                   )}
                 />
 
-                {/* Value */}
                 <FormField
                   control={form.control}
                   name={`prices.${index}.value`}
-                  render={({ field }) => (
-                    <FormItem className='w-28'>
-                      <FormControl>
-                        <div className='relative'>
-                          <span className='absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none'>
-                            ¥
-                          </span>
-                          <Input
-                            {...field}
-                            type='number'
-                            step='0.01'
-                            placeholder='0.00'
-                            className='pl-6 font-mono'
-                          />
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  render={({ field }) => {
+                    const inputValue =
+                      typeof field.value === "number" || typeof field.value === "string"
+                        ? field.value
+                        : ""
+
+                    return (
+                      <FormItem className='w-28'>
+                        <FormControl>
+                          <div className='relative'>
+                            <span className='pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground'>
+                              ¥
+                            </span>
+                            <Input
+                              className='pl-6 font-mono'
+                              type='number'
+                              step='0.01'
+                              placeholder='0.00'
+                              value={inputValue}
+                              onChange={(e) => field.onChange(e.target.value)}
+                              onBlur={field.onBlur}
+                              name={field.name}
+                              ref={field.ref}
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )
+                  }}
                 />
 
-                {/* Remove */}
                 <Button
                   type='button'
                   variant='ghost'
                   size='icon'
-                  className='h-9 w-9 shrink-0 text-muted-foreground hover:text-destructive mt-0'
+                  className='mt-0 h-9 w-9 shrink-0 text-muted-foreground hover:text-destructive'
                   disabled={fields.length <= 1}
                   onClick={() => remove(index)}
                 >
@@ -218,7 +223,6 @@ export function PartForm({
           </div>
         </div>
 
-        {/* Footer */}
         <div className='flex justify-end gap-2 pt-2'>
           <Button
             type='button'
@@ -233,7 +237,7 @@ export function PartForm({
           >
             {form.formState.isSubmitting ? (
               <>
-                <i className='ri-loader-4-line animate-spin mr-1.5' />
+                <i className='ri-loader-4-line mr-1.5 animate-spin' />
                 保存中…
               </>
             ) : (

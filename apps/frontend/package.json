@@ -15,6 +15,8 @@
     "@fontsource-variable/geist": "^5.2.8",
     "@fontsource-variable/nunito-sans": "^5.2.7",
     "@hookform/resolvers": "^5.2.2",
+    "@radix-ui/react-label": "^2.1.8",
+    "@radix-ui/react-slot": "^1.2.4",
     "@remixicon/react": "^4.9.0",
     "@tanstack/react-query": "^5.90.21",
     "@tanstack/react-router": "^1.167.0",

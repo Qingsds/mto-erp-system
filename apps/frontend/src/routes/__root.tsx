@@ -1,7 +1,9 @@
 // src/routes/__root.tsx
 import { createRootRoute } from "@tanstack/react-router"
-import { AppLayout }       from "@/components/layout/AppLayout"
+import { AppLayout } from "@/components/layout/AppLayout"
 
 export const Route = createRootRoute({
-  component: AppLayout,
+  component: () => {
+    return <AppLayout />
+  },
 })
