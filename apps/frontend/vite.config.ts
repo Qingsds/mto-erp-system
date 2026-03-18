@@ -3,8 +3,14 @@ import { defineConfig } from "vite"
 import react from "@vitejs/plugin-react"
 import { tanstackRouter } from "@tanstack/router-plugin/vite"
 import tailwindcss from "@tailwindcss/vite"
+import path from "path"
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
+  },
   plugins: [
     // 1. TanStack Router 最新写法，开启自动代码分割
     tanstackRouter({

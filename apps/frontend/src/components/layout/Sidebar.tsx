@@ -1,0 +1,156 @@
+import { Link, useRouterState } from "@tanstack/react-router"
+import { cn }                   from "@/lib/utils"
+import { useUIStore }           from "@/store/ui.store"
+
+// ─── Nav config ───────────────────────────────────────────
+const NAV = [
+  {
+    section: "概览",
+    items: [
+      { to: "/",           label: "仪表盘",   icon: "ri-dashboard-line",     iconActive: "ri-dashboard-fill"     },
+    ],
+  },
+  {
+    section: "业务管理",
+    items: [
+      { to: "/parts",      label: "零件库",   icon: "ri-settings-3-line",    iconActive: "ri-settings-3-fill",   badge: undefined },
+      { to: "/orders",     label: "订单管理", icon: "ri-file-list-3-line",   iconActive: "ri-file-list-3-fill",  badge: "24"      },
+      { to: "/deliveries", label: "发货管理", icon: "ri-truck-line",         iconActive: "ri-truck-fill"         },
+      { to: "/billing",    label: "财务对账", icon: "ri-bank-card-line",     iconActive: "ri-bank-card-fill",    badge: "4"       },
+    ],
+  },
+  {
+    section: "文件归档",
+    items: [
+      { to: "/seals",      label: "印章管理", icon: "ri-seal-line",          iconActive: "ri-seal-fill"          },
+    ],
+  },
+]
+
+// ─── Nav item ─────────────────────────────────────────────
+function NavItem({
+  to, label, icon, iconActive, badge, collapsed,
+}: {
+  to: string; label: string
+  icon: string; iconActive: string
+  badge?: string; collapsed: boolean
+}) {
+  const path     = useRouterState({ select: (s) => s.location.pathname })
+  const isActive = path === to || (to !== "/" && path.startsWith(to))
+
+  return (
+    <Link
+      to={to}
+      title={collapsed ? label : undefined}
+      className={cn(
+        "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors",
+        "no-underline whitespace-nowrap select-none",
+        isActive
+          ? "bg-primary/10 text-primary font-medium"
+          : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+      )}
+    >
+      <i className={cn(
+        "text-base shrink-0",
+        isActive ? iconActive : icon,
+      )} />
+
+      {!collapsed && (
+        <>
+          <span className="flex-1 truncate">{label}</span>
+          {badge && (
+            <span className="text-[10px] font-mono bg-muted text-muted-foreground rounded px-1.5 py-0.5">
+              {badge}
+            </span>
+          )}
+        </>
+      )}
+    </Link>
+  )
+}
+
+// ─── Sidebar ──────────────────────────────────────────────
+export function Sidebar() {
+  const { collapsed, toggleCollapsed, toggleSettings } = useUIStore()
+
+  return (
+    <aside
+      className={cn(
+        "flex flex-col shrink-0 overflow-hidden",
+        "bg-sidebar border-r border-sidebar-border",
+        "transition-[width] duration-200",
+      )}
+      style={{ width: collapsed ? "52px" : "220px" }}
+    >
+      {/* Logo */}
+      <button
+        onClick={toggleCollapsed}
+        className={cn(
+          "flex items-center gap-2.5 px-3 border-b border-sidebar-border",
+          "bg-transparent cursor-pointer w-full text-left",
+          "hover:bg-sidebar-accent transition-colors",
+        )}
+        style={{ height: "var(--erp-header-h, 56px)" }}
+        title="切换侧边栏"
+      >
+        <div className="flex items-center justify-center w-6 h-6 rounded bg-primary shrink-0">
+          <i className="ri-grid-fill text-primary-foreground text-xs" />
+        </div>
+        {!collapsed && (
+          <>
+            <span className="text-sm font-semibold text-sidebar-foreground tracking-tight flex-1">
+              MTO ERP
+            </span>
+            <span className="text-[10px] font-medium bg-muted text-muted-foreground px-1.5 py-0.5 rounded">
+              v1.0
+            </span>
+          </>
+        )}
+      </button>
+
+      {/* Nav */}
+      <nav className="flex-1 overflow-y-auto py-2 px-2 flex flex-col gap-0.5">
+        {NAV.map((section) => (
+          <div key={section.section}>
+            {!collapsed && (
+              <p className="text-[10.5px] font-medium tracking-widest text-muted-foreground/60 px-2.5 pt-3 pb-1 uppercase">
+                {section.section}
+              </p>
+            )}
+            {section.items.map((item) => (
+              <NavItem key={item.to} {...item} collapsed={collapsed} />
+            ))}
+          </div>
+        ))}
+      </nav>
+
+      {/* Footer */}
+      <div className="px-2 pb-2 pt-1 border-t border-sidebar-border flex flex-col gap-0.5">
+        <button
+          onClick={toggleSettings}
+          title={collapsed ? "外观设置" : undefined}
+          className={cn(
+            "flex items-center gap-2.5 w-full rounded-md px-2.5 py-2 text-sm",
+            "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+            "bg-transparent border-none cursor-pointer transition-colors text-left whitespace-nowrap",
+          )}
+        >
+          <i className="ri-equalizer-2-line text-base shrink-0" />
+          {!collapsed && <span>外观设置</span>}
+        </button>
+
+        <button
+          title={collapsed ? "张三 · 管理员" : undefined}
+          className={cn(
+            "flex items-center gap-2.5 w-full rounded-md px-2.5 py-2 text-sm",
+            "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+            "bg-transparent border-none cursor-pointer transition-colors text-left whitespace-nowrap",
+          )}
+        >
+          <i className="ri-user-line text-base shrink-0" />
+          {!collapsed && <span className="truncate">张三 · 管理员</span>}
+        </button>
+      </div>
+    </aside>
+  )
+}

@@ -10,35 +10,11 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as PartsRouteImport } from './routes/parts'
-import { Route as OrdersRouteImport } from './routes/orders'
-import { Route as DocumentsRouteImport } from './routes/documents'
-import { Route as DeliveriesRouteImport } from './routes/deliveries'
-import { Route as BillingRouteImport } from './routes/billing'
 import { Route as IndexRouteImport } from './routes/index'
 
 const PartsRoute = PartsRouteImport.update({
   id: '/parts',
   path: '/parts',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OrdersRoute = OrdersRouteImport.update({
-  id: '/orders',
-  path: '/orders',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DocumentsRoute = DocumentsRouteImport.update({
-  id: '/documents',
-  path: '/documents',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DeliveriesRoute = DeliveriesRouteImport.update({
-  id: '/deliveries',
-  path: '/deliveries',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const BillingRoute = BillingRouteImport.update({
-  id: '/billing',
-  path: '/billing',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -49,56 +25,27 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/billing': typeof BillingRoute
-  '/deliveries': typeof DeliveriesRoute
-  '/documents': typeof DocumentsRoute
-  '/orders': typeof OrdersRoute
   '/parts': typeof PartsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/billing': typeof BillingRoute
-  '/deliveries': typeof DeliveriesRoute
-  '/documents': typeof DocumentsRoute
-  '/orders': typeof OrdersRoute
   '/parts': typeof PartsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/billing': typeof BillingRoute
-  '/deliveries': typeof DeliveriesRoute
-  '/documents': typeof DocumentsRoute
-  '/orders': typeof OrdersRoute
   '/parts': typeof PartsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | '/'
-    | '/billing'
-    | '/deliveries'
-    | '/documents'
-    | '/orders'
-    | '/parts'
+  fullPaths: '/' | '/parts'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/billing' | '/deliveries' | '/documents' | '/orders' | '/parts'
-  id:
-    | '__root__'
-    | '/'
-    | '/billing'
-    | '/deliveries'
-    | '/documents'
-    | '/orders'
-    | '/parts'
+  to: '/' | '/parts'
+  id: '__root__' | '/' | '/parts'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  BillingRoute: typeof BillingRoute
-  DeliveriesRoute: typeof DeliveriesRoute
-  DocumentsRoute: typeof DocumentsRoute
-  OrdersRoute: typeof OrdersRoute
   PartsRoute: typeof PartsRoute
 }
 
@@ -109,34 +56,6 @@ declare module '@tanstack/react-router' {
       path: '/parts'
       fullPath: '/parts'
       preLoaderRoute: typeof PartsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/orders': {
-      id: '/orders'
-      path: '/orders'
-      fullPath: '/orders'
-      preLoaderRoute: typeof OrdersRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/documents': {
-      id: '/documents'
-      path: '/documents'
-      fullPath: '/documents'
-      preLoaderRoute: typeof DocumentsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/deliveries': {
-      id: '/deliveries'
-      path: '/deliveries'
-      fullPath: '/deliveries'
-      preLoaderRoute: typeof DeliveriesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/billing': {
-      id: '/billing'
-      path: '/billing'
-      fullPath: '/billing'
-      preLoaderRoute: typeof BillingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -151,10 +70,6 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  BillingRoute: BillingRoute,
-  DeliveriesRoute: DeliveriesRoute,
-  DocumentsRoute: DocumentsRoute,
-  OrdersRoute: OrdersRoute,
   PartsRoute: PartsRoute,
 }
 export const routeTree = rootRouteImport

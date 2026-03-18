@@ -9,6 +9,7 @@ import {
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
 import { routeTree } from "./routeTree.gen"
 import "./index.css"
+import "remixicon/fonts/remixicon.css"
 
 // 1. 实例化 React Query 客户端，并配置全局默认行为
 const queryClient = new QueryClient({
