@@ -1,4 +1,15 @@
-import { useMemo, useState } from "react"
+/**
+ * PartsPage.tsx
+ *
+ * 零件库页面。表格直接使用 PartListItem（API 类型），
+ * 无需 toUIPart 转换层（columns 内部用 apiPricesToForm 处理显示）。
+ *
+ * 提交时：
+ *   prices 数组 → formPricesToApi → commonPrices Record
+ *   对齐 CreatePartRequest / UpdatePartRequest
+ */
+
+import { useMemo, useState }           from "react"
 import {
   useReactTable,
   getCoreRowModel,
@@ -6,96 +17,97 @@ import {
   getFilteredRowModel,
   type SortingState,
 } from "@tanstack/react-table"
-import { Button }        from "@/components/ui/button"
-import { useUIStore }    from "@/store/ui.store"
-import { ErpSheet }      from "@/components/common/ErpSheet"
-import { DataTable }     from "@/components/common/DataTable"
-import { TableToolbar }  from "@/components/common/TableToolbar"
+import { Button }         from "@/components/ui/button"
+import { useUIStore }     from "@/store/ui.store"
+import { ErpSheet }       from "@/components/common/ErpSheet"
+import { DataTable }      from "@/components/common/DataTable"
+import { TableToolbar }   from "@/components/common/TableToolbar"
+import {
+  useGetParts,
+  useCreatePart,
+  useUpdatePart,
+  useImportParts,
+  formPricesToApi,
+  type PartListItem,
+} from "@/hooks/api/useParts"
 import { getPartsColumns }       from "./parts.columns"
 import { PartForm, usePartForm } from "./parts.form"
 import { ImportPanel }           from "./parts.import"
-import type { Part, PartFormValues, ImportRow } from "./parts.schema"
-
-const MOCK: Part[] = [
-  {
-    id: 1, partNumber: "P-0041", name: "六角螺栓 M8×30",
-    material: "304不锈钢", spec: "GB/T 5782", remark: "标准紧固件",
-    prices: [{ label: "标准价", value: 0.85 }, { label: "批量价", value: 0.72 }],
-    createdAt: "2026-03-01",
-  },
-  {
-    id: 2, partNumber: "P-0040", name: "轴承座 UCF205",
-    material: "铸铁", spec: "UCF205", remark: "",
-    prices: [{ label: "标准价", value: 68 }],
-    createdAt: "2026-02-28",
-  },
-  {
-    id: 3, partNumber: "P-0039", name: "密封圈 O-Ring 50×3",
-    material: "丁腈橡胶", spec: "Φ50×3mm", remark: "",
-    prices: [{ label: "标准价", value: 2.4 }, { label: "批量价", value: 1.9 }],
-    createdAt: "2026-02-20",
-  },
-  {
-    id: 4, partNumber: "P-0038", name: "精密导轨 HGR15-500",
-    material: "GCr15钢", spec: "L=500mm", remark: "精密级",
-    prices: [{ label: "标准价", value: 320 }, { label: "批量价", value: 280 }],
-    createdAt: "2026-02-15",
-  },
-  {
-    id: 5, partNumber: "P-0037", name: "铝型材 4040-500mm",
-    material: "6063铝合金", spec: "40×40mm", remark: "",
-    prices: [{ label: "标准价", value: 38 }],
-    createdAt: "2026-02-10",
-  },
-  {
-    id: 6, partNumber: "P-0036", name: "气缸 SC63×100",
-    material: "铝合金", spec: "Φ63,行程100", remark: "标准型",
-    prices: [{ label: "标准价", value: 188 }],
-    createdAt: "2026-02-05",
-  },
-]
+import type { PartFormValues, ImportRow } from "./parts.schema"
 
 type PanelMode = "add" | "import" | null
+
+const PAGE_SIZE = 20
 
 // ─── Desktop ──────────────────────────────────────────────
 function DesktopParts() {
   const [panel,        setPanel]   = useState<PanelMode>(null)
-  const [editingPart,  setEditing] = useState<Part | null>(null)
+  const [editingPart,  setEditing] = useState<PartListItem | null>(null)
   const [sorting,      setSorting] = useState<SortingState>([])
   const [globalFilter, setFilter]  = useState("")
-  const isLoading = false
+  const [page,         setPage]    = useState(1)
 
   const form = usePartForm()
+
+  const { data, isLoading, isFetching } = useGetParts({
+    page,
+    pageSize: PAGE_SIZE,
+    keyword:  globalFilter || undefined,
+  })
+
+  const createPart  = useCreatePart()
+  const updatePart  = useUpdatePart()
+  const importParts = useImportParts()
+
+  const parts      = data?.data  ?? []
+  const totalCount = data?.total ?? 0
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE)
 
   const columns = useMemo(
     () => getPartsColumns(
       p => { setEditing(p); setPanel("add") },
-      p => console.log("delete", p),
+      p => console.log("delete (待实现):", p.id),
     ),
     [],
   )
 
   const table = useReactTable({
-    data:                 MOCK,
+    data:                parts,
     columns,
-    state:                { sorting, globalFilter },
-    onSortingChange:      setSorting,
-    onGlobalFilterChange: setFilter,
-    getCoreRowModel:      getCoreRowModel(),
-    getSortedRowModel:    getSortedRowModel(),
-    getFilteredRowModel:  getFilteredRowModel(),
+    state:               { sorting },
+    onSortingChange:     setSorting,
+    getCoreRowModel:     getCoreRowModel(),
+    getSortedRowModel:   getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    manualPagination:    true,
+    rowCount:            totalCount,
   })
 
-  const handleAdd = async (values: PartFormValues) => {
-    console.log("add/edit:", values)
-    await new Promise(r => setTimeout(r, 600))
-    setPanel(null)
-    setEditing(null)
+  const handleSubmit = async (values: PartFormValues) => {
+    const payload = {
+      name:         values.name,
+      material:     values.material,
+      spec:         values.spec,
+      commonPrices: formPricesToApi(values.prices),
+    }
+    if (editingPart) {
+      await updatePart.mutateAsync({ id: editingPart.id, ...payload })
+    } else {
+      await createPart.mutateAsync(payload)
+    }
+    closePanel()
   }
 
   const handleImport = async (rows: ImportRow[]) => {
-    console.log("import:", rows)
-    await new Promise(r => setTimeout(r, 800))
+    await importParts.mutateAsync(
+      rows.map(r => ({
+        name:         r.零件名称,
+        material:     r.零件材质,
+        spec:         r.规格,
+        commonPrices: { 标准价: r.零件价格 },
+      })),
+    )
+    closePanel()
   }
 
   const closePanel = () => { setPanel(null); setEditing(null) }
@@ -112,36 +124,79 @@ function DesktopParts() {
         toolbar={
           <TableToolbar
             title="零件库"
-            count={`${table.getFilteredRowModel().rows.length} / ${MOCK.length} 个零件`}
+            count={
+              isFetching && !isLoading
+                ? "加载中…"
+                : `共 ${totalCount} 个零件`
+            }
             globalFilter={globalFilter}
-            onFilterChange={setFilter}
-            searchPlaceholder="搜索名称、材质、编号…"
+            onFilterChange={v => { setFilter(v); setPage(1) }}
+            searchPlaceholder="搜索名称、编号…"
             actions={
               <>
-                <Button variant="outline" size="sm" onClick={() => setPanel("import")}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPanel("import")}
+                >
                   <i className="ri-upload-2-line mr-1.5" />批量导入
                 </Button>
-                <Button size="sm" onClick={() => { setEditing(null); setPanel("add") }}>
+                <Button
+                  size="sm"
+                  onClick={() => { setEditing(null); setPanel("add") }}
+                >
                   <i className="ri-add-line mr-1.5" />新增零件
                 </Button>
               </>
             }
           />
         }
+        filterBar={
+          totalPages > 1 ? (
+            <div className="flex items-center gap-2 px-5 py-2 text-xs text-muted-foreground">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                className="px-1.5 py-0.5 rounded hover:bg-muted disabled:opacity-30 bg-transparent border-none cursor-pointer"
+              >
+                <i className="ri-arrow-left-s-line" />
+              </button>
+              <span>第 {page} / {totalPages} 页</span>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+                className="px-1.5 py-0.5 rounded hover:bg-muted disabled:opacity-30 bg-transparent border-none cursor-pointer"
+              >
+                <i className="ri-arrow-right-s-line" />
+              </button>
+            </div>
+          ) : undefined
+        }
       />
 
       <ErpSheet
         open={panel !== null}
         onOpenChange={o => { if (!o) closePanel() }}
-        title={panel === "add" ? (editingPart ? "编辑零件" : "新增零件") : "批量导入零件"}
-        description={panel === "add"
-          ? "填写零件信息，系统自动生成零件编号"
-          : "上传 Excel 文件，系统自动解析并校验数据"}
+        title={
+          panel === "add"
+            ? editingPart ? "编辑零件" : "新增零件"
+            : "批量导入零件"
+        }
+        description={
+          panel === "add"
+            ? "填写零件信息，系统自动生成零件编号"
+            : "上传 Excel 文件，系统自动解析并校验数据"
+        }
         width={580}
       >
-        {/* ★ form 在 Sheet 外初始化，打开时零开销 */}
+        {/* ★ form 在 Sheet 外初始化，切换 panel 时零重建开销 */}
         <div className={panel === "add" ? "block" : "hidden"}>
-          <PartForm form={form} editingPart={editingPart} onSubmit={handleAdd} onCancel={closePanel} />
+          <PartForm
+            form={form}
+            editingPart={editingPart}
+            onSubmit={handleSubmit}
+            onCancel={closePanel}
+          />
         </div>
         {panel === "import" && (
           <ImportPanel onImport={handleImport} onClose={closePanel} />
@@ -153,32 +208,53 @@ function DesktopParts() {
 
 // ─── Mobile ───────────────────────────────────────────────
 function MobileParts() {
-  const [panel,  setPanel] = useState<PanelMode>(null)
-  const [search, setSearch] = useState("")
-  const isLoading = false
+  const [panel,       setPanel]  = useState<PanelMode>(null)
+  const [editingPart, setEditing] = useState<PartListItem | null>(null)
+  const [search,      setSearch] = useState("")
+  const [page,        setPage]   = useState(1)
 
   const form = usePartForm()
 
-  const filtered = useMemo(
-    () => MOCK.filter(p =>
-      !search ||
-      p.name.includes(search) ||
-      p.material.includes(search) ||
-      p.partNumber.includes(search),
-    ),
-    [search],
-  )
+  const { data, isLoading, isFetching } = useGetParts({
+    page,
+    pageSize: 20,
+    keyword:  search || undefined,
+  })
 
-  const handleAdd = async (values: PartFormValues) => {
-    console.log("add:", values)
-    await new Promise(r => setTimeout(r, 600))
-    setPanel(null)
+  const createPart  = useCreatePart()
+  const updatePart  = useUpdatePart()
+  const importParts = useImportParts()
+
+  const parts = data?.data ?? []
+
+  const handleSubmit = async (values: PartFormValues) => {
+    const payload = {
+      name:         values.name,
+      material:     values.material,
+      spec:         values.spec,
+      commonPrices: formPricesToApi(values.prices),
+    }
+    if (editingPart) {
+      await updatePart.mutateAsync({ id: editingPart.id, ...payload })
+    } else {
+      await createPart.mutateAsync(payload)
+    }
+    closePanel()
   }
 
   const handleImport = async (rows: ImportRow[]) => {
-    console.log("import:", rows)
-    await new Promise(r => setTimeout(r, 800))
+    await importParts.mutateAsync(
+      rows.map(r => ({
+        name:         r.零件名称,
+        material:     r.零件材质,
+        spec:         r.规格,
+        commonPrices: { 标准价: r.零件价格 },
+      })),
+    )
+    closePanel()
   }
+
+  const closePanel = () => { setPanel(null); setEditing(null) }
 
   return (
     <div className="flex flex-col h-full">
@@ -187,25 +263,34 @@ function MobileParts() {
           <i className="ri-search-line text-sm text-muted-foreground shrink-0" />
           <input
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={e => { setSearch(e.target.value); setPage(1) }}
             placeholder="搜索零件名称、编号…"
             className="flex-1 bg-transparent text-sm outline-none border-none placeholder:text-muted-foreground"
           />
           {search && (
-            <button onClick={() => setSearch("")} className="text-muted-foreground bg-transparent border-none cursor-pointer p-0">
+            <button
+              onClick={() => { setSearch(""); setPage(1) }}
+              className="text-muted-foreground bg-transparent border-none cursor-pointer p-0"
+            >
               <i className="ri-close-line text-xs" />
             </button>
           )}
         </div>
       </div>
+
       <div className="px-4 pb-2 shrink-0">
-        <span className="text-xs text-muted-foreground">共 {filtered.length} 个零件</span>
+        <span className="text-xs text-muted-foreground">
+          {isFetching ? "加载中…" : `共 ${data?.total ?? 0} 个零件`}
+        </span>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 flex flex-col gap-2.5 pb-4">
         {isLoading ? (
           Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="p-3.5 rounded-xl border border-border flex items-center gap-3">
+            <div
+              key={i}
+              className="p-3.5 rounded-xl border border-border flex items-center gap-3"
+            >
               <div className="w-9 h-9 rounded-lg bg-muted animate-pulse shrink-0" />
               <div className="flex-1 space-y-2">
                 <div className="h-3.5 bg-muted animate-pulse rounded w-32" />
@@ -213,29 +298,39 @@ function MobileParts() {
               </div>
             </div>
           ))
-        ) : filtered.length === 0 ? (
+        ) : parts.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
             <i className="ri-settings-3-line text-3xl mb-3 opacity-30" />
             <p className="text-sm">暂无匹配结果</p>
           </div>
         ) : (
-          filtered.map(p => (
-            <div key={p.id} className="p-3.5 rounded-xl border border-border bg-card flex items-center gap-3 active:bg-muted/50 cursor-pointer transition-colors">
-              <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                <i className="ri-settings-3-line text-primary text-sm" />
+          parts.map(p => {
+            // 取第一个价格展示
+            const firstPrice = Object.values(p.commonPrices ?? {})[0]
+            return (
+              <div
+                key={p.id}
+                className="p-3.5 rounded-xl border border-border bg-card flex items-center gap-3 active:bg-muted/50 cursor-pointer transition-colors"
+                onClick={() => { setEditing(p); setPanel("add") }}
+              >
+                <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <i className="ri-settings-3-line text-primary text-sm" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{p.name}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {p.material} · <span className="font-mono">{p.partNumber}</span>
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {firstPrice !== undefined && (
+                    <span className="font-mono text-xs font-medium">¥{firstPrice}</span>
+                  )}
+                  <i className="ri-arrow-right-s-line text-muted-foreground" />
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{p.name}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {p.material} · <span className="font-mono">{p.partNumber}</span>
-                </p>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="font-mono text-xs font-medium">¥{p.prices[0]?.value}</span>
-                <i className="ri-arrow-right-s-line text-muted-foreground" />
-              </div>
-            </div>
-          ))
+            )
+          })
         )}
       </div>
 
@@ -243,27 +338,45 @@ function MobileParts() {
         className="px-4 py-3 border-t border-border bg-background shrink-0 flex gap-2"
         style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}
       >
-        <Button variant="outline" className="flex-1 h-11" onClick={() => setPanel("import")}>
+        <Button
+          variant="outline"
+          className="flex-1 h-11"
+          onClick={() => setPanel("import")}
+        >
           <i className="ri-upload-2-line mr-2" />导入
         </Button>
-        <Button className="flex-[2] h-11" onClick={() => setPanel("add")}>
+        <Button
+          className="flex-[2] h-11"
+          onClick={() => { setEditing(null); setPanel("add") }}
+        >
           <i className="ri-add-line mr-2" />新增零件
         </Button>
       </div>
 
       <ErpSheet
         open={panel !== null}
-        onOpenChange={o => { if (!o) setPanel(null) }}
-        title={panel === "add" ? "新增零件" : "批量导入零件"}
-        description={panel === "add"
-          ? "填写零件信息，系统自动生成零件编号"
-          : "上传 Excel 文件，自动解析并校验"}
+        onOpenChange={o => { if (!o) closePanel() }}
+        title={
+          panel === "add"
+            ? editingPart ? "编辑零件" : "新增零件"
+            : "批量导入零件"
+        }
+        description={
+          panel === "add"
+            ? "填写零件信息"
+            : "上传 Excel 文件"
+        }
       >
         <div className={panel === "add" ? "block" : "hidden"}>
-          <PartForm form={form} onSubmit={handleAdd} onCancel={() => setPanel(null)} />
+          <PartForm
+            form={form}
+            editingPart={editingPart}
+            onSubmit={handleSubmit}
+            onCancel={closePanel}
+          />
         </div>
         {panel === "import" && (
-          <ImportPanel onImport={handleImport} onClose={() => setPanel(null)} />
+          <ImportPanel onImport={handleImport} onClose={closePanel} />
         )}
       </ErpSheet>
     </div>

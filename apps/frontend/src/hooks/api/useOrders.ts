@@ -1,0 +1,165 @@
+/**
+ * hooks/api/useOrders.ts
+ *
+ * 职责：订单模块的 API 类型定义 + TanStack Query hooks
+ *
+ * API 响应类型：手动对齐后端 Prisma 查询结果
+ *  - @erp/database 不在前端 deps 中，Prisma client 也未生成，无法直接引入
+ *  - 类型形态来源：orders.service.ts 的 findAll / findOne include 配置
+ *
+ * 引入来源唯一性：
+ *  - OrderStatusType  ← @erp/shared-types（与后端 Prisma enum 同值）
+ *  - ApiResponse      ← @erp/shared-types
+ *  - request          ← @/lib/utils/request
+ */
+
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import type { ApiResponse, OrderStatusType }       from "@erp/shared-types"
+import request  from "@/lib/utils/request"
+import { toast } from "@/lib/toast"
+
+// ─── API 响应类型（对齐 Prisma output，非自创）────────────
+
+/** 对应 OrderItem + include: { part } 的形态 */
+export interface OrderItemWithPart {
+  id:          number
+  orderId:     number
+  partId:      number
+  orderedQty:  number
+  shippedQty:  number
+  unitPrice:   string   // Prisma Decimal → JSON string
+  part: {
+    id:           number
+    partNumber:   string
+    name:         string
+    material:     string
+    spec?:        string
+    commonPrices: Record<string, number>
+  }
+}
+
+/** 对应 Order + include: { items: true } 的形态（列表页） */
+export interface OrderListItem {
+  id:           number
+  customerNo:   string  // 注：后端无 orderNo 字段，展示时用 id 生成
+  customerName: string
+  status:       OrderStatusType
+  reason?:      string
+  createdAt:    string
+  items: {
+    id:         number
+    orderId:    number
+    partId:     number
+    orderedQty: number
+    shippedQty: number
+    unitPrice:  string
+  }[]
+}
+
+/** 对应 Order + include: { items: { include: { part } }, deliveries } 的形态（详情页） */
+export interface OrderDetail {
+  id:           number
+  customerName: string
+  status:       OrderStatusType
+  reason?:      string
+  createdAt:    string
+  items:        OrderItemWithPart[]
+  deliveries: {
+    id:           number
+    orderId:      number
+    deliveryDate: string
+    status:       string
+    remark?:      string
+  }[]
+}
+
+export interface PaginatedOrders {
+  total:    number
+  data:     OrderListItem[]
+  page:     number
+  pageSize: number
+}
+
+// ─── Query keys ───────────────────────────────────────────
+export const ORDERS_KEYS = {
+  list:   (p: OrdersParams) => ["orders", p] as const,
+  detail: (id: number)      => ["order",  id] as const,
+}
+
+export interface OrdersParams {
+  page?:         number
+  pageSize?:     number
+  status?:       OrderStatusType
+  customerName?: string
+}
+
+// ─── Hooks ────────────────────────────────────────────────
+
+/** 分页列表（支持状态 + 客户名过滤） */
+export function useGetOrders(params: OrdersParams) {
+  return useQuery({
+    queryKey: ORDERS_KEYS.list(params),
+    queryFn:  () =>
+      request
+        .get<any, ApiResponse<PaginatedOrders>>("/api/orders", { params })
+        .then(res => res.data!),
+    placeholderData: prev => prev,
+  })
+}
+
+/** 单条详情（含零件信息 + 发货记录） */
+export function useGetOrder(id?: number) {
+  return useQuery({
+    queryKey: ORDERS_KEYS.detail(id!),
+    queryFn:  () =>
+      request
+        .get<any, ApiResponse<OrderDetail>>(`/api/orders/${id}`)
+        .then(res => res.data!),
+    enabled: !!id,
+  })
+}
+
+/** 创建订单（对齐 CreateOrderRequest：customerName + items[{partId, orderedQty}]） */
+export function useCreateOrder() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: {
+      customerName: string
+      items: { partId: number; orderedQty: number }[]
+    }) =>
+      request.post<any, ApiResponse<OrderListItem>>("/api/orders", payload),
+    onSuccess: () => {
+      toast.success("订单创建成功")
+      qc.invalidateQueries({ queryKey: ["orders"] })
+    },
+    onError: (e: Error) => toast.error(`创建失败：${e.message}`),
+  })
+}
+
+/** 短交结案（PATCH /api/orders/:id/close-short） */
+export function useCloseShortOrder() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: number; reason?: string }) =>
+      request.patch<any, ApiResponse<OrderListItem>>(
+        `/api/orders/${id}/close-short`,
+        { reason },
+      ),
+    onSuccess: (_, vars) => {
+      toast.success("已短交结案")
+      qc.invalidateQueries({ queryKey: ["orders"] })
+      qc.invalidateQueries({ queryKey: ORDERS_KEYS.detail(vars.id) })
+    },
+    onError: (e: Error) => toast.error(`操作失败：${e.message}`),
+  })
+}
+
+// ─── 辅助：Prisma Decimal string → number ────────────────
+export function decimalToNum(v: string | number): number {
+  return typeof v === "string" ? parseFloat(v) : v
+}
+
+// ─── 辅助：用 id 生成显示用订单号（后端无 orderNo 字段）──
+export function formatOrderNo(id: number): string {
+  return `ORD-${String(id).padStart(6, "0")}`
+}

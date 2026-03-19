@@ -48,15 +48,19 @@ export function SortIcon({ sorted }: { sorted: false | "asc" | "desc" }) {
 
 // ─── Skeleton rows ────────────────────────────────────────
 function SkeletonRows({ rows, cols }: { rows: number; cols: number }) {
-  return Array.from({ length: rows }).map((_, i) => (
-    <TableRow key={i} className="pointer-events-none">
-      {Array.from({ length: cols }).map((_, j) => (
-        <TableCell key={j}>
-          <Skeleton className="h-3.5 w-full max-w-[160px] rounded" />
-        </TableCell>
+  return (
+    <>
+      {Array.from({ length: rows }).map((_, i) => (
+        <TableRow key={i} className="pointer-events-none">
+          {Array.from({ length: cols }).map((_, j) => (
+            <TableCell key={j}>
+              <Skeleton className="h-3.5 w-full max-w-[160px] rounded" />
+            </TableCell>
+          ))}
+        </TableRow>
       ))}
-    </TableRow>
-  ))
+    </>
+  )
 }
 
 // ─── Props ────────────────────────────────────────────────

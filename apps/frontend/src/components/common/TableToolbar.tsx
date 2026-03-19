@@ -69,8 +69,8 @@ export function TableToolbar({
         )}
       </div>
 
-      {/* Extra chips */}
-      {extra && <div className="flex items-center gap-1.5">{extra}</div>}
+      {/* Extra chips（有则顶右，actions 紧随其后） */}
+      {extra && <div className="flex items-center gap-1.5 ml-auto">{extra}</div>}
 
       {/* Actions */}
       {actions && <div className={cn("flex gap-2", !extra && "ml-auto")}>{actions}</div>}
@@ -99,10 +99,12 @@ interface TabItem<T extends string> {
 }
 
 interface StatusFilterBarProps<T extends string> {
-  tabs:     TabItem<T>[]
-  value:    T
-  onChange: (v: T) => void
+  tabs:      TabItem<T>[]
+  value:     T
+  onChange:  (v: T) => void
   className?: string
+  /** 右侧附加内容（如分页控件） */
+  footer?:   ReactNode
 }
 
 export function StatusFilterBar<T extends string>({
@@ -110,6 +112,7 @@ export function StatusFilterBar<T extends string>({
   value,
   onChange,
   className,
+  footer,
 }: StatusFilterBarProps<T>) {
   return (
     <div className={cn("flex items-center gap-1 px-5 py-2 overflow-x-auto", className)}>
@@ -137,6 +140,7 @@ export function StatusFilterBar<T extends string>({
           )}
         </button>
       ))}
+      {footer}
     </div>
   )
 }
