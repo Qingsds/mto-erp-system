@@ -9,13 +9,12 @@ import { cn }               from "@/lib/utils"
 import type { OrderStatusType } from "@erp/shared-types"
 import { STATUS_LABEL, STATUS_NEXT } from "./orders.schema"
 import { getOrdersColumns, StatusBadge } from "./orders.columns"
-import { OrderForm, useOrderForm } from "./orders.form"
 import {
   useGetOrders, useCreateOrder, useCloseShortOrder,
   formatOrderNo, decimalToNum,
   type OrderListItem, type OrderDetail,
 } from "@/hooks/api/useOrders"
-import { useGetParts } from "@/hooks/api/useParts"
+import { useNavigate } from "@tanstack/react-router"
 
 const PAGE_SIZE = 20
 
@@ -61,7 +60,7 @@ function OrderDetail({
 
 // ─── Desktop ──────────────────────────────────────────────
 function DesktopOrders() {
-  type PanelMode = "new" | "detail" | null
+  type PanelMode = "detail" | null
 
   const [panel,        setPanel]    = useState<PanelMode>(null)
   const [activeId,     setActiveId] = useState<number | null>(null)
@@ -70,7 +69,8 @@ function DesktopOrders() {
   const [statusFilter, setStatus]   = useState<StatusFilter>("all")
   const [page,         setPage]     = useState(1)
 
-  const form = useOrderForm()
+  const navigate = useNavigate()
+
 
   // ── API hooks ──
   const { data, isLoading, isFetching } = useGetOrders({
@@ -79,10 +79,6 @@ function DesktopOrders() {
     status:       statusFilter === "all" ? undefined : statusFilter,
     customerName: globalFilter || undefined,
   })
-
-  // 零件列表供表单使用
-  const { data: partsData } = useGetParts({ page: 1, pageSize: 200 })
-  const parts = partsData?.data ?? []
 
   const createOrder   = useCreateOrder()
   const closeShort    = useCloseShortOrder()
@@ -112,16 +108,6 @@ function DesktopOrders() {
 
   const statusTabs  = useStatusTabs(totalCount, orders)
   const totalPages  = Math.ceil(totalCount / PAGE_SIZE)
-
-  const handleCreate = async (values: typeof form.getValues extends () => infer R ? R : never) => {
-    // 只提交后端需要的字段（移除 _displayPrice）
-    await createOrder.mutateAsync({
-      customerName: values.customerName,
-      items: values.items.map(({ partId, orderedQty }) => ({ partId, orderedQty })),
-    })
-    form.reset()
-    setPanel(null)
-  }
 
   const handleCloseShort = (id: number) => {
     closeShort.mutate({ id, reason: "前端发起短交结案" })
@@ -168,7 +154,7 @@ function DesktopOrders() {
               </>
             }
             actions={
-              <Button size="sm" onClick={() => { form.reset(); setPanel("new") }}>
+              <Button size="sm" onClick={() => navigate({ to: "/orders/new" })}>
                 <i className="ri-add-line mr-1.5" />新建订单
               </Button>
             }
@@ -199,18 +185,9 @@ function DesktopOrders() {
       <ErpSheet
         open={panel !== null}
         onOpenChange={o => { if (!o) closePanel() }}
-        title={panel === "new" ? "新建订单" : `订单详情 · ${activeId ? formatOrderNo(activeId) : ""}`}
-        description={panel === "new" ? "填写客户信息，系统从零件字典自动锁定价格快照" : undefined}
+        title={`订单详情 · ${activeId ? formatOrderNo(activeId) : ""}`}
         width={540}
       >
-        {panel === "new" && (
-          <OrderForm
-            form={form}
-            parts={parts}
-            onSubmit={handleCreate}
-            onCancel={closePanel}
-          />
-        )}
         {panel === "detail" && activeId && (
           <OrderDetail orderId={activeId} onCloseShort={handleCloseShort} />
         )}
@@ -221,22 +198,20 @@ function DesktopOrders() {
 
 // ─── Mobile ───────────────────────────────────────────────
 function MobileOrders() {
-  type PanelMode = "new" | "detail" | null
+  type PanelMode = "detail" | null
 
   const [panel,     setPanel]   = useState<PanelMode>(null)
   const [activeId,  setActiveId] = useState<number | null>(null)
   const [search,    setSearch]  = useState("")
   const [statusTab, setTab]     = useState<StatusFilter>("all")
 
-  const form = useOrderForm()
+  const navigate = useNavigate()
 
   const { data, isLoading } = useGetOrders({
     page: 1, pageSize: 50,
     status:       statusTab === "all" ? undefined : statusTab,
     customerName: search || undefined,
   })
-  const { data: partsData } = useGetParts({ page: 1, pageSize: 200 })
-  const parts  = partsData?.data ?? []
   const orders = data?.data ?? []
 
   const createOrder = useCreateOrder()
@@ -249,15 +224,6 @@ function MobileOrders() {
     { value: "SHIPPED",        label: "已发货" },
     { value: "CLOSED_SHORT",   label: "结案" },
   ]
-
-  const handleCreate = async (values: ReturnType<typeof form.getValues>) => {
-    await createOrder.mutateAsync({
-      customerName: values.customerName,
-      items: values.items.map(({ partId, orderedQty }) => ({ partId, orderedQty })),
-    })
-    form.reset()
-    setPanel(null)
-  }
 
   const closePanel = () => { setPanel(null); setActiveId(null) }
 
@@ -326,7 +292,7 @@ function MobileOrders() {
         )}
       </div>
       <div className="px-4 py-3 border-t border-border bg-background shrink-0" style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}>
-        <Button className="w-full h-11" onClick={() => { form.reset(); setPanel("new") }}>
+        <Button className="w-full h-11" onClick={() => navigate({ to: "/orders/new" })}>
           <i className="ri-add-line mr-2" />新建订单
         </Button>
       </div>
@@ -334,12 +300,8 @@ function MobileOrders() {
       <ErpSheet
         open={panel !== null}
         onOpenChange={o => { if (!o) closePanel() }}
-        title={panel === "new" ? "新建订单" : `订单详情 · ${activeId ? formatOrderNo(activeId) : ""}`}
-        description={panel === "new" ? "填写客户信息" : undefined}
+        title={`订单详情 · ${activeId ? formatOrderNo(activeId) : ""}`}
       >
-        {panel === "new" && (
-          <OrderForm form={form} parts={parts} onSubmit={handleCreate} onCancel={closePanel} />
-        )}
         {panel === "detail" && activeId && (
           <OrderDetail orderId={activeId} onCloseShort={id => { closeShort.mutate({ id }); closePanel() }} />
         )}
