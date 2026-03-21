@@ -12,40 +12,119 @@
 
 ---
 
+## 0. 环境要求
+- Node.js 22.x
+- pnpm 10.x
+- Docker / Docker Compose (用于容器化部署)
 
-### 1. 拉取代码与安装依赖
-项目采用 pnpm Workspace 架构，**严禁使用 npm 或 yarn**。拉取代码后，必须在根目录执行依赖安装以建立跨包的软链接。
+---
+
+## 1. 本地开发流程
+
+### 1.1 拉取代码与安装依赖
+项目采用 pnpm Workspace 架构，**严禁使用 npm 或 yarn**。
 
 ```bash
 git pull origin main
 pnpm install
 ```
 
-### 2. 生成 Prisma Client 类型声明
-Prisma Client 的 TypeScript 类型定义是基于系统环境动态生成的，不包含在 Git 版本控制中。必须手动生成本地类型，否则编辑器将出现大面积的模块缺失报错。
+### 1.2 生成 Prisma Client
+Prisma Client 产物不提交到 Git，首次运行前必须生成：
 
 ```bash
-cd packages/database
-npx prisma generate
+pnpm --filter @erp/database exec prisma generate
 ```
 
-### 3. 配置本地环境变量
-系统底层依赖数据库连接，配置文件 `.env` 已在 `.gitignore` 中排除。
-请在 `packages/database` 目录下手动创建 `.env` 文件，并根据你的实际开发环境（连接 NAS 测试库或本地自建 Docker）填入以下内容：
+### 1.3 构建共享包（后端依赖）
+后端依赖 `@erp/shared-types` 和 `@erp/database` 的构建产物：
+
+```bash
+pnpm --filter @erp/shared-types build
+pnpm --filter @erp/database build
+```
+
+### 1.4 配置数据库连接
+在 `packages/database/.env` 创建环境变量：
 
 ```env
-# 请根据实际情况修改 IP 和密码
-# 格式：postgresql://用户名:密码@IP地址:端口/数据库名?schema=public
-DATABASE_URL="postgresql://postgres:你的密码@你的IP:5433/mto_erp?schema=public"
+# 格式：postgresql://用户名:密码@主机:端口/数据库名?schema=public
+DATABASE_URL="postgresql://postgres:你的密码@127.0.0.1:5433/mto_erp?schema=public"
 ```
 
-### 4. 数据库结构同步
-在后续开发中，若拉取代码后发现 `packages/database/prisma/schema.prisma` 文件有更新，需同步最新表结构到你的开发数据库：
+说明：根目录 `pnpm dev` 会优先读取 `packages/database/.env`；若未配置，则回退到默认值 `postgresql://postgres:postgres@127.0.0.1:5433/mto_erp?schema=public`。
+
+### 1.5 同步数据库结构
+开发环境可直接使用：
 
 ```bash
-cd packages/database
-npx prisma db push
+pnpm --filter @erp/database exec prisma db push
 ```
+
+### 1.6 启动前后端
+在根目录执行一条命令即可同时启动前后端：
+
+```bash
+pnpm dev
+```
+
+- 前端默认地址: `http://localhost:5173`
+- 后端默认地址: `http://localhost:3000`
+- 若后端提示 `Can't reach database server at 127.0.0.1:5433`，请先启动数据库（例如执行 `docker compose up -d db`）。
+
+---
+
+## 2. Docker 部署流程（推荐）
+
+仓库已内置以下文件：
+- `docker-compose.yml`
+- `docker/backend.Dockerfile`
+- `docker/frontend.Dockerfile`
+- `docker/nginx.conf`
+
+### 2.1 一键启动
+
+```bash
+docker compose up -d --build
+```
+
+### 2.2 服务访问地址
+- 前端（Nginx）: `http://localhost:8080`
+- 后端 API: `http://localhost:3000`
+- PostgreSQL: `localhost:5433`
+
+### 2.3 查看状态与日志
+
+```bash
+docker compose ps
+docker compose logs -f db
+docker compose logs -f backend
+docker compose logs -f frontend
+```
+
+### 2.4 停止与清理
+
+```bash
+# 停止容器（保留数据库卷）
+docker compose down
+
+# 停止并删除数据卷（会清空数据库）
+docker compose down -v
+```
+
+### 2.5 数据库迁移说明
+- `backend` 容器启动时会自动执行：`prisma migrate deploy`
+- 如果你修改了 Prisma Schema 并新增 migration，重新 `docker compose up -d --build` 即可生效
+
+### 2.6 常见问题
+1. `Cannot connect to the Docker daemon`
+   Docker Desktop / Docker Engine 未启动。
+2. 端口冲突 (`8080` / `3000` / `5433`)
+   修改 `docker-compose.yml` 的 `ports` 映射后重启。
+3. 首次构建较慢
+   属于正常现象，后续会利用 Docker 层缓存加速。
+
+---
 
 # MTO-ERP 系统 API 接口文档
 

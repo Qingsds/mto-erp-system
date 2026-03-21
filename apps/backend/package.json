@@ -9,6 +9,7 @@
     "dev": "pnpm run start:dev",
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "dev": "sh -c 'if [ -f ../../packages/database/.env ]; then set -a; . ../../packages/database/.env; set +a; fi; export DATABASE_URL=\"${DATABASE_URL:-postgresql://postgres:postgres@127.0.0.1:5433/mto_erp?schema=public}\"; nest start --watch'",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
