@@ -16,18 +16,27 @@ export class BillingService {
 
   async createBilling(payload: CreateBillingRequest) {
     return this.prisma.client.$transaction(async (tx) => {
-      const { deliveryItemIds } = payload;
+      const { deliveryItemIds, extraItems } = payload;
+
+      if (!deliveryItemIds || deliveryItemIds.length === 0) {
+        throw new BadRequestException('请选择至少一条发货明细进行结算');
+      }
+
+      const uniqueDeliveryItemIds = [...new Set(deliveryItemIds)];
+      if (uniqueDeliveryItemIds.length !== deliveryItemIds.length) {
+        throw new BadRequestException('发货明细 ID 不允许重复');
+      }
 
       // 步骤 A: 抓取发货明细，并向上溯源拉取单价快照，向下检查是否已计费
       const deliverItems = await tx.deliveryItem.findMany({
-        where: { id: { in: deliveryItemIds } },
+        where: { id: { in: uniqueDeliveryItemIds } },
         include: {
           orderItem: true,
           billingItem: true,
         },
       });
 
-      if (deliverItems.length !== deliveryItemIds.length) {
+      if (deliverItems.length !== uniqueDeliveryItemIds.length) {
         throw new BadRequestException(
           '部分发货明细在系统中不存在，请核对发货明细 ID 数组',
         );
@@ -54,21 +63,33 @@ export class BillingService {
           description: `物料结算: 发货量 ${item.shippedQty} 件, 单价快照 ${item.orderItem.unitPrice}`,
           amount: itemAmount,
         });
-
-        // 步骤 D: 级联创建主账单及所有计费条目
-        const billingStatement = tx.billingStatement.create({
-          data: {
-            customerName: payload.customerName,
-            totalAmount: totalAmount,
-            status: 'DRAFT', // 初始状态为草稿
-            items: {
-              create: billingItemCreates,
-            },
-          },
-          include: { items: true },
-        });
-        return billingStatement;
       }
+
+      // 可选：附加费用（运费/打包费等）
+      if (extraItems && extraItems.length > 0) {
+        for (const extra of extraItems) {
+          totalAmount += extra.amount;
+          billingItemCreates.push({
+            description: `附加费用: ${extra.desc}`,
+            amount: extra.amount,
+          });
+        }
+      }
+
+      // 步骤 D: 级联创建主账单及所有计费条目
+      const billingStatement = await tx.billingStatement.create({
+        data: {
+          customerName: payload.customerName,
+          totalAmount: totalAmount,
+          status: 'DRAFT', // 初始状态为草稿
+          items: {
+            create: billingItemCreates,
+          },
+        },
+        include: { items: true },
+      });
+
+      return billingStatement;
     });
   }
 

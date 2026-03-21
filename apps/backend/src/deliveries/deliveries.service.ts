@@ -12,6 +12,10 @@ export class DeliveriesService {
   constructor(private readonly prisma: PrismaService) {}
 
   async createDelivery(payload: CreateDeliveryRequest) {
+    if (!payload.items || payload.items.length === 0) {
+      throw new BadRequestException('发货明细不能为空');
+    }
+
     return await this.prisma.client.$transaction(async (tx) => {
       //1. 锁定效验订单
       const order = await tx.order.findUnique({
@@ -22,15 +26,26 @@ export class DeliveriesService {
       if (!order)
         throw new BadRequestException(`订单 ID: ${payload.orderId} 不存在`);
 
+      const reqQtyByOrderItemId = new Map<number, number>();
+      for (const item of payload.items) {
+        const prev = reqQtyByOrderItemId.get(item.orderItemId) ?? 0;
+        reqQtyByOrderItemId.set(item.orderItemId, prev + item.quantity);
+      }
+
+      const orderItemIdSet = new Set(order.items.map((i) => i.id));
+      for (const orderItemId of reqQtyByOrderItemId.keys()) {
+        if (!orderItemIdSet.has(orderItemId)) {
+          throw new BadRequestException(
+            `订单明细 ID: ${orderItemId} 不属于订单 ID: ${payload.orderId}`,
+          );
+        }
+      }
+
       // 2. 内存计算与合法性校验 (防超发)
       let isOrderFullyShipped = true;
       const { items } = order;
       for (const orderItem of items) {
-        // 找到发货明细
-        const reqItem = payload.items.find(
-          (i) => i.orderItemId === orderItem.id,
-        );
-        const shippedQtyToAdd = reqItem ? reqItem.quantity : 0;
+        const shippedQtyToAdd = reqQtyByOrderItemId.get(orderItem.id) ?? 0;
 
         // 发货总数
         const newShippedTotal = orderItem.shippedQty + shippedQtyToAdd;
@@ -46,44 +61,46 @@ export class DeliveriesService {
         if (newShippedTotal < orderItem.orderedQty) {
           isOrderFullyShipped = false;
         }
-
-        // 3. 写入发货单及发货明细
-        const deliveryNote = await tx.deliveryNote.create({
-          data: {
-            orderId: payload.orderId,
-            items: {
-              create: payload.items.map((item) => ({
-                orderItemId: item.orderItemId,
-                shippedQty: item.quantity,
-              })),
-            },
-          },
-          include: { items: true },
-        });
-
-        // 4. 利用数据库底层的原子操作 (increment) 累加发货数量，防止并发脏写
-        for (const item of payload.items) {
-          await tx.orderItem.update({
-            where: { id: item.orderItemId },
-            data: {
-              shippedQty: { increment: item.quantity },
-            },
-          });
-        }
-
-        // 5. 状态机流转：更新主订单状态
-        const newOrderStatus = isOrderFullyShipped
-          ? 'SHIPPED'
-          : 'PARTIAL_SHIPPED';
-        if (order.status !== newOrderStatus) {
-          await tx.order.update({
-            where: { id: payload.orderId },
-            data: { status: newOrderStatus },
-          });
-        }
-
-        return deliveryNote;
       }
+
+      // 3. 写入发货单及发货明细
+      const deliveryNote = await tx.deliveryNote.create({
+        data: {
+          orderId: payload.orderId,
+          remark: payload.remark,
+          items: {
+            create: payload.items.map((item) => ({
+              orderItemId: item.orderItemId,
+              shippedQty: item.quantity,
+              remark: item.remark,
+            })),
+          },
+        },
+        include: { items: true },
+      });
+
+      // 4. 利用数据库底层的原子操作 (increment) 累加发货数量，防止并发脏写
+      for (const item of payload.items) {
+        await tx.orderItem.update({
+          where: { id: item.orderItemId },
+          data: {
+            shippedQty: { increment: item.quantity },
+          },
+        });
+      }
+
+      // 5. 状态机流转：更新主订单状态
+      const newOrderStatus = isOrderFullyShipped
+        ? 'SHIPPED'
+        : 'PARTIAL_SHIPPED';
+      if (order.status !== newOrderStatus) {
+        await tx.order.update({
+          where: { id: payload.orderId },
+          data: { status: newOrderStatus },
+        });
+      }
+
+      return deliveryNote;
     });
   }
 
