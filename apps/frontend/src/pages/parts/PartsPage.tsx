@@ -18,7 +18,6 @@ import {
   type SortingState,
 } from "@tanstack/react-table"
 import { Button } from "@/components/ui/button"
-import { useNavigate } from "@tanstack/react-router"
 import { useUIStore } from "@/store/ui.store"
 import { ErpSheet } from "@/components/common/ErpSheet"
 import { DataTable } from "@/components/common/DataTable"
@@ -50,7 +49,6 @@ function DesktopParts() {
   const [globalFilter, setFilter] = useState("")
   const [page, setPage] = useState(1)
 
-  const navigate = useNavigate()
   const form = usePartForm()
 
   const { data, isLoading, isFetching } = useGetParts({
@@ -245,7 +243,6 @@ function MobileParts() {
   const [search, setSearch] = useState("")
   const [page, setPage] = useState(1)
 
-  const navigate = useNavigate()
   const form = usePartForm()
 
   const { data, isLoading, isFetching } = useGetParts({

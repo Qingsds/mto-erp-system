@@ -101,7 +101,7 @@ export function useGetOrders(params: OrdersParams) {
     queryKey: ORDERS_KEYS.list(params),
     queryFn:  () =>
       request
-        .get<any, ApiResponse<PaginatedOrders>>("/api/orders", { params })
+        .get<unknown, ApiResponse<PaginatedOrders>>("/api/orders", { params })
         .then(res => res.data!),
     placeholderData: prev => prev,
   })
@@ -113,7 +113,7 @@ export function useGetOrder(id?: number) {
     queryKey: ORDERS_KEYS.detail(id!),
     queryFn:  () =>
       request
-        .get<any, ApiResponse<OrderDetail>>(`/api/orders/${id}`)
+        .get<unknown, ApiResponse<OrderDetail>>(`/api/orders/${id}`)
         .then(res => res.data!),
     enabled: !!id,
   })
@@ -127,7 +127,7 @@ export function useCreateOrder() {
       customerName: string
       items: { partId: number; orderedQty: number }[]
     }) =>
-      request.post<any, ApiResponse<OrderListItem>>("/api/orders", payload),
+      request.post<unknown, ApiResponse<OrderListItem>>("/api/orders", payload),
     onSuccess: () => {
       toast.success("订单创建成功")
       qc.invalidateQueries({ queryKey: ["orders"] })
@@ -141,7 +141,7 @@ export function useCloseShortOrder() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ id, reason }: { id: number; reason?: string }) =>
-      request.patch<any, ApiResponse<OrderListItem>>(
+      request.patch<unknown, ApiResponse<OrderListItem>>(
         `/api/orders/${id}/close-short`,
         { reason },
       ),

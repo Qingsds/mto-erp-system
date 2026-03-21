@@ -10,13 +10,17 @@
 
 import { useEffect, useRef }  from "react"
 import { useForm, useFieldArray } from "react-hook-form"
-import { zodResolver }         from "@hookform/resolvers/zod"
 import { Button }              from "@/components/ui/button"
 import { Input }               from "@/components/ui/input"
 import { Label }               from "@/components/ui/label"
 import { Separator }           from "@/components/ui/separator"
 import { cn }                  from "@/lib/utils"
-import { PartFormSchema, type PartFormValues } from "./parts.schema"
+import { zodResolverCompat }   from "@/lib/zodResolverCompat"
+import {
+  PartFormSchema,
+  type PartFormInput,
+  type PartFormValues,
+} from "./parts.schema"
 import {
   useGetPart,
   useUploadDrawing,
@@ -27,9 +31,10 @@ import {
 } from "@/hooks/api/useParts"
 
 // ─── Hook ─────────────────────────────────────────────────
+// eslint-disable-next-line react-refresh/only-export-components
 export function usePartForm() {
-  return useForm<PartFormValues>({
-    resolver:      zodResolver(PartFormSchema),
+  return useForm<PartFormInput, unknown, PartFormValues>({
+    resolver:      zodResolverCompat<PartFormInput, PartFormValues>(PartFormSchema),
     defaultValues: {
       name:     "",
       material: "",

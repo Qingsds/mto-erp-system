@@ -2,12 +2,10 @@ import { createColumnHelper } from "@tanstack/react-table"
 import { Button }             from "@/components/ui/button"
 import { cn }                 from "@/lib/utils"
 import { STATUS_LABEL, STATUS_STYLE, STATUS_ICON } from "./orders.schema"
-import type { OrderStatusType }  from "@erp/shared-types"
 import type { OrderListItem }    from "@/hooks/api/useOrders"
 import { formatOrderNo, decimalToNum } from "@/hooks/api/useOrders"
 
-// ─── StatusBadge（导出供 OrdersPage 复用）────────────────
-export function StatusBadge({ status }: { status: OrderStatusType }) {
+function renderStatusBadge(status: OrderListItem["status"]) {
   return (
     <span className={cn(
       "inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap",
@@ -24,7 +22,6 @@ const col = createColumnHelper<OrderListItem>()
 
 export function getOrdersColumns(
   onView:   (o: OrderListItem) => void,
-  onDelete: (o: OrderListItem) => void,
 ) {
   return [
     col.display({
@@ -49,7 +46,7 @@ export function getOrdersColumns(
     col.accessor("status", {
       header: "状态",
       size:   115,
-      cell:   i => <StatusBadge status={i.getValue()} />,
+      cell:   i => renderStatusBadge(i.getValue()),
     }),
 
     col.accessor("items", {
@@ -58,7 +55,6 @@ export function getOrdersColumns(
       enableSorting: false,
       cell:          i => {
         const items = i.getValue()
-        const total = items.reduce((s, it) => s + it.orderedQty, 0)
         return (
           <div className="flex flex-wrap gap-1">
             {items.slice(0, 3).map(item => (

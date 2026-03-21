@@ -6,8 +6,7 @@
  */
 
 import { useNavigate, Link }                  from "@tanstack/react-router"
-import { useFieldArray, Controller, useForm } from "react-hook-form"
-import { zodResolver }                         from "@hookform/resolvers/zod"
+import { useFieldArray, Controller, useForm, type UseFormReturn } from "react-hook-form"
 import { useMemo, useState }                   from "react"
 import {
   Dialog,
@@ -19,7 +18,8 @@ import { Button } from "@/components/ui/button"
 import { Input }  from "@/components/ui/input"
 import { Label }  from "@/components/ui/label"
 import { cn }     from "@/lib/utils"
-import { OrderFormSchema, type OrderFormValues } from "./orders.schema"
+import { zodResolverCompat } from "@/lib/zodResolverCompat"
+import { OrderFormSchema, type OrderFormInput, type OrderFormValues } from "./orders.schema"
 import { apiPricesToForm, type PartListItem }    from "@/hooks/api/useParts"
 import { useGetParts }   from "@/hooks/api/useParts"
 import { useCreateOrder } from "@/hooks/api/useOrders"
@@ -140,11 +140,11 @@ function BomRow({
 }: {
   index:        number
   selectedPart: PartListItem | undefined
-  watchedItem:  { partId: number; orderedQty: number; _displayPrice?: number }
-  errors:       any
-  register:     any
-  control:      any
-  setValue:     any
+  watchedItem:  OrderFormInput["items"][number]
+  errors:       UseFormReturn<OrderFormInput, unknown, OrderFormValues>["formState"]["errors"]
+  register:     UseFormReturn<OrderFormInput, unknown, OrderFormValues>["register"]
+  control:      UseFormReturn<OrderFormInput, unknown, OrderFormValues>["control"]
+  setValue:     UseFormReturn<OrderFormInput, unknown, OrderFormValues>["setValue"]
   canRemove:    boolean
   onOpenPicker: () => void
   onRemove:     () => void
@@ -275,8 +275,8 @@ export function OrderNewPage() {
   const parts       = partsData?.data ?? []
   const createOrder = useCreateOrder()
 
-  const form = useForm<OrderFormValues>({
-    resolver:      zodResolver(OrderFormSchema),
+  const form = useForm<OrderFormInput, unknown, OrderFormValues>({
+    resolver:      zodResolverCompat<OrderFormInput, OrderFormValues>(OrderFormSchema),
     defaultValues: {
       customerName: "",
       remark:       "",

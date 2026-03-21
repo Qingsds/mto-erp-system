@@ -11,7 +11,7 @@
  *  - remark 字段：后端 CreatePartRequest / UpdatePartRequest 均无此字段，不纳入表单提交
  */
 
-import { z } from "zod/v4"
+import { z } from "zod"
 
 // ─── 价格字典行（UI 数组格式，对应 commonPrices Record）──
 export const PriceEntrySchema = z.object({
@@ -31,7 +31,8 @@ export const PartFormSchema = z.object({
   prices:   z.array(PriceEntrySchema).min(1, "至少填写一项价格"),
 })
 
-export type PartFormValues = z.infer<typeof PartFormSchema>
+export type PartFormInput = z.input<typeof PartFormSchema>
+export type PartFormValues = z.output<typeof PartFormSchema>
 
 // ─── Excel 导入行（对齐 CreatePartRequest 可映射字段）────
 // 列名: 零件名称→name, 零件材质→material, 规格→spec, 零件价格→commonPrices.标准价

@@ -106,7 +106,7 @@ export function useGetParts(params: PartsParams) {
     queryKey:        PARTS_KEYS.list(params),
     queryFn:         () =>
       request
-        .get<any, ApiResponse<PaginatedParts>>("/api/parts", { params })
+        .get<unknown, ApiResponse<PaginatedParts>>("/api/parts", { params })
         .then(res => res.data!),
     placeholderData: prev => prev,
   })
@@ -118,7 +118,7 @@ export function useGetPart(id?: number) {
     queryKey: PARTS_KEYS.detail(id!),
     queryFn:  () =>
       request
-        .get<any, ApiResponse<PartDetail>>(`/api/parts/${id}`)
+        .get<unknown, ApiResponse<PartDetail>>(`/api/parts/${id}`)
         .then(res => res.data!),
     enabled: !!id,
   })
@@ -129,7 +129,7 @@ export function useCreatePart() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (payload: CreatePartRequest) =>
-      request.post<any, ApiResponse<PartListItem>>("/api/parts", payload),
+      request.post<unknown, ApiResponse<PartListItem>>("/api/parts", payload),
     onSuccess: () => {
       toast.success("零件创建成功")
       qc.invalidateQueries({ queryKey: ["parts"] })
@@ -143,7 +143,7 @@ export function useUpdatePart() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ id, ...payload }: { id: number } & UpdatePartRequest) =>
-      request.patch<any, ApiResponse<PartListItem>>(`/api/parts/${id}`, payload),
+      request.patch<unknown, ApiResponse<PartListItem>>(`/api/parts/${id}`, payload),
     onSuccess: (_, vars) => {
       toast.success("零件信息已更新")
       qc.invalidateQueries({ queryKey: ["parts"] })
@@ -158,7 +158,7 @@ export function useImportParts() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (parts: CreatePartRequest[]) =>
-      request.post<any, ApiResponse<{ count: number }>>("/api/parts/batch", parts),
+      request.post<unknown, ApiResponse<{ count: number }>>("/api/parts/batch", parts),
     onSuccess: res => {
       toast.success(`批量导入成功，共新增 ${res.data?.count ?? 0} 条`)
       qc.invalidateQueries({ queryKey: ["parts"] })
@@ -174,7 +174,7 @@ export function useUploadDrawing() {
     mutationFn: ({ partId, file }: { partId: number; file: File }) => {
       const form = new FormData()
       form.append("file", file)
-      return request.post<any, ApiResponse<PartDrawing>>(
+      return request.post<unknown, ApiResponse<PartDrawing>>(
         `/api/parts/${partId}/drawings`,
         form,
         { headers: { "Content-Type": "multipart/form-data" } },

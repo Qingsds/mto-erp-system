@@ -7,10 +7,10 @@ import { DataTable }        from "@/components/common/DataTable"
 import { TableToolbar, StatusFilterBar } from "@/components/common/TableToolbar"
 import { cn }               from "@/lib/utils"
 import type { OrderStatusType } from "@erp/shared-types"
-import { STATUS_LABEL, STATUS_NEXT } from "./orders.schema"
-import { getOrdersColumns, StatusBadge } from "./orders.columns"
+import { STATUS_LABEL, STATUS_STYLE, STATUS_ICON } from "./orders.schema"
+import { getOrdersColumns } from "./orders.columns"
 import {
-  useGetOrders, useCreateOrder, useCloseShortOrder,
+  useGetOrders, useCloseShortOrder,
   formatOrderNo, decimalToNum,
   type OrderListItem, type OrderDetail,
 } from "@/hooks/api/useOrders"
@@ -20,6 +20,18 @@ const PAGE_SIZE = 20
 
 // ─── Status tab config ────────────────────────────────────
 type StatusFilter = OrderStatusType | "all"
+
+function StatusBadge({ status }: { status: OrderStatusType }) {
+  return (
+    <span className={cn(
+      "inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap",
+      STATUS_STYLE[status],
+    )}>
+      <i className={cn(STATUS_ICON[status], "text-[11px]")} />
+      {STATUS_LABEL[status]}
+    </span>
+  )
+}
 
 function useStatusTabs(total: number, data: OrderListItem[]) {
   return ([
@@ -39,7 +51,7 @@ function OrderDetail({
   orderId:      number
   onCloseShort: (id: number) => void
 }) {
-  const { data: order, isLoading } = useGetOrders({ page: 1, pageSize: 1 }) // placeholder
+  useGetOrders({ page: 1, pageSize: 1 }) // placeholder
   // In real usage, call useGetOrder(orderId) — requires separate hook call per detail
 
   // For now stub until useGetOrder is wired:
@@ -80,7 +92,6 @@ function DesktopOrders() {
     customerName: globalFilter || undefined,
   })
 
-  const createOrder   = useCreateOrder()
   const closeShort    = useCloseShortOrder()
 
   const orders     = data?.data  ?? []
@@ -89,7 +100,6 @@ function DesktopOrders() {
   const columns = useMemo(
     () => getOrdersColumns(
       o => { setActiveId(o.id); setPanel("detail") },
-      () => {},
     ),
     [],
   )
@@ -214,7 +224,6 @@ function MobileOrders() {
   })
   const orders = data?.data ?? []
 
-  const createOrder = useCreateOrder()
   const closeShort  = useCloseShortOrder()
 
   const mobileStatusTabs: { value: StatusFilter; label: string }[] = [

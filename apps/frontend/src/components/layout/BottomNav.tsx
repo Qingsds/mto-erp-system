@@ -21,7 +21,7 @@ export function BottomNav({ onFabClick }: BottomNavProps) {
       style={{ height: "var(--erp-bottom-nav-h, 60px)" }}
     >
       <div className="flex h-full items-stretch">
-        {ITEMS.map((item, i) => {
+        {ITEMS.map((item) => {
           // FAB center slot
           if (!item) {
             return (

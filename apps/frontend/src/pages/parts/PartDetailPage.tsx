@@ -5,14 +5,14 @@
  * 编辑直接在右侧原位切换，无弹层。
  */
 
-import { useEffect, useRef, useState } from "react"
+import { useRef, useState } from "react"
 import { useParams, useNavigate, Link } from "@tanstack/react-router"
 import { useForm, useFieldArray } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
+import { zodResolverCompat } from "@/lib/zodResolverCompat"
 import {
   useGetPart,
   useUploadDrawing,
@@ -22,7 +22,11 @@ import {
   FileType,
   type PartDrawing,
 } from "@/hooks/api/useParts"
-import { PartFormSchema, type PartFormValues } from "./parts.schema"
+import {
+  PartFormSchema,
+  type PartFormInput,
+  type PartFormValues,
+} from "./parts.schema"
 
 // ─── 左侧：图纸展示 ───────────────────────────────────────
 
@@ -228,8 +232,8 @@ function InlineEditForm({
     control,
     handleSubmit,
     formState: { errors },
-  } = useForm<PartFormValues>({
-    resolver: zodResolver(PartFormSchema),
+  } = useForm<PartFormInput, unknown, PartFormValues>({
+    resolver: zodResolverCompat<PartFormInput, PartFormValues>(PartFormSchema),
     defaultValues,
   })
   const { fields, append, remove } = useFieldArray({

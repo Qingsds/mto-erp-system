@@ -193,7 +193,7 @@ export function ImportPanel({ onImport, onClose }: ImportPanelProps) {
                 <table className="w-full border-collapse text-xs" style={{ minWidth: 400 }}>
                   <thead>
                     <tr className="bg-muted">
-                      {["行", "零件名称", "材质", "价格", "备注"].map((h) => (
+                      {["行", "零件名称", "材质", "价格", "规格"].map((h) => (
                         <th key={h} className="text-left px-3 py-2 font-medium text-muted-foreground border-b border-border whitespace-nowrap">
                           {h}
                         </th>
@@ -207,7 +207,7 @@ export function ImportPanel({ onImport, onClose }: ImportPanelProps) {
                         <td className="px-3 py-2">{row.零件名称}</td>
                         <td className="px-3 py-2 text-muted-foreground">{row.零件材质}</td>
                         <td className="px-3 py-2 font-mono">¥{row.零件价格}</td>
-                        <td className="px-3 py-2 text-muted-foreground">{row.备注 || "—"}</td>
+                        <td className="px-3 py-2 text-muted-foreground">{row.规格 || "—"}</td>
                       </tr>
                     ))}
                   </tbody>

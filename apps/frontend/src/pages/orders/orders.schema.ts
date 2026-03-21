@@ -11,7 +11,7 @@
  *  - @erp/database Prisma 类型（database 包不在前端 deps 中）
  */
 
-import { z } from "zod/v4"
+import { z } from "zod"
 import type { OrderStatusType } from "@erp/shared-types"
 
 // ─── Re-export，让页面只需要从 schema 引入 ────────────────
@@ -77,5 +77,7 @@ export const OrderFormSchema = z.object({
   items:        z.array(OrderItemFormSchema).min(1, "至少添加一个零件"),
 })
 
-export type OrderFormValues    = z.infer<typeof OrderFormSchema>
-export type OrderItemFormValues = z.infer<typeof OrderItemFormSchema>
+export type OrderFormInput = z.input<typeof OrderFormSchema>
+export type OrderFormValues = z.output<typeof OrderFormSchema>
+export type OrderItemFormInput = z.input<typeof OrderItemFormSchema>
+export type OrderItemFormValues = z.output<typeof OrderItemFormSchema>

@@ -10,7 +10,6 @@
 
 import { useMemo, useRef, useState }          from "react"
 import { useForm, useFieldArray, Controller } from "react-hook-form"
-import { zodResolver }   from "@hookform/resolvers/zod"
 import {
   Dialog,
   DialogContent,
@@ -21,13 +20,15 @@ import { Button } from "@/components/ui/button"
 import { Input }  from "@/components/ui/input"
 import { Label }  from "@/components/ui/label"
 import { cn }     from "@/lib/utils"
-import { OrderFormSchema, type OrderFormValues } from "./orders.schema"
+import { zodResolverCompat } from "@/lib/zodResolverCompat"
+import { OrderFormSchema, type OrderFormInput, type OrderFormValues } from "./orders.schema"
 import { apiPricesToForm, type PartListItem }    from "@/hooks/api/useParts"
 
 // ─── Hook ─────────────────────────────────────────────────
+// eslint-disable-next-line react-refresh/only-export-components
 export function useOrderForm() {
-  return useForm<OrderFormValues>({
-    resolver:      zodResolver(OrderFormSchema),
+  return useForm<OrderFormInput, unknown, OrderFormValues>({
+    resolver:      zodResolverCompat<OrderFormInput, OrderFormValues>(OrderFormSchema),
     defaultValues: {
       customerName: "",
       remark:       "",
