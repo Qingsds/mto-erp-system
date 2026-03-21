@@ -13,6 +13,62 @@ export class OrdersService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
+   * 将 unknown 价格值解析为 number。
+   */
+  private toFiniteNumber(value: unknown): number | undefined {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+    if (typeof value === 'string') {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : undefined;
+    }
+    return undefined;
+  }
+
+  /**
+   * 解析零件价格字典：
+   * - 优先“标准价”
+   * - 兜底第一个可用数值
+   */
+  private resolvePriceFromCommonPrices(commonPrices: unknown): number {
+    if (!commonPrices || typeof commonPrices !== 'object' || Array.isArray(commonPrices)) {
+      return 0;
+    }
+
+    const priceMap = commonPrices as Record<string, unknown>;
+    const standardPrice = this.toFiniteNumber(priceMap['标准价']);
+    if (standardPrice !== undefined) {
+      return standardPrice;
+    }
+
+    for (const value of Object.values(priceMap)) {
+      const parsed = this.toFiniteNumber(value);
+      if (parsed !== undefined) {
+        return parsed;
+      }
+    }
+
+    return 0;
+  }
+
+  /**
+   * 解析订单行单价：优先快照单价，缺失时回退零件价格字典。
+   */
+  private resolveOrderItemUnitPrice(
+    snapshotUnitPrice: Prisma.Decimal | number | string,
+    fallbackCommonPrices?: unknown,
+  ): number {
+    const snapshot = this.toFiniteNumber(snapshotUnitPrice) ?? 0;
+    if (snapshot > 0) {
+      return snapshot;
+    }
+
+    const fallback = this.resolvePriceFromCommonPrices(fallbackCommonPrices);
+    return fallback > 0 ? fallback : snapshot;
+  }
+
+  /**
    * 创建订单 并固定加个快照
    * @param payload
    * @Qingsds
@@ -45,8 +101,7 @@ export class OrdersService {
           if (!part)
             throw new BadRequestException(`零件 ID${item.partId} 不存在`);
 
-          const prices = part.commonPrices as Record<string, number>;
-          const unitPrice = prices['标准价'] || 0;
+          const unitPrice = this.resolvePriceFromCommonPrices(part.commonPrices);
 
           await tx.orderItem.create({
             data: {
@@ -120,16 +175,37 @@ export class OrdersService {
       where.customerName = { contains: customerName, mode: 'insensitive' };
     }
 
-    const [total, data] = await Promise.all([
+    const [total, rawData] = await Promise.all([
       this.prisma.client.order.count({ where }),
       this.prisma.client.order.findMany({
         where,
         skip,
         take: Number(pageSize),
         orderBy: { createdAt: 'desc' },
-        include: { items: true }, // 列表页简要带出明细行
+        include: {
+          items: {
+            include: {
+              part: {
+                select: { commonPrices: true },
+              },
+            },
+          },
+        },
       }),
     ]);
+
+    const data = rawData.map((order) => {
+      const totalAmount = order.items.reduce((sum, item) => {
+        const unitPrice = this.resolveOrderItemUnitPrice(
+          item.unitPrice,
+          item.part?.commonPrices,
+        );
+        return sum + item.orderedQty * unitPrice;
+      }, 0);
+
+      const items = order.items.map(({ part: _part, ...item }) => item);
+      return { ...order, items, totalAmount };
+    });
 
     return { total, data, page: Number(page), pageSize: Number(pageSize) };
   }

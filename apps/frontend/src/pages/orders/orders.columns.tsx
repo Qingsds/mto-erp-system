@@ -8,7 +8,7 @@ import { formatOrderNo, decimalToNum } from "@/hooks/api/useOrders"
 function renderStatusBadge(status: OrderListItem["status"]) {
   return (
     <span className={cn(
-      "inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap",
+      "inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-md border whitespace-nowrap",
       STATUS_STYLE[status],
     )}>
       <i className={cn(STATUS_ICON[status], "text-[11px]")} />
@@ -77,9 +77,10 @@ export function getOrdersColumns(
       header: "金额",
       size: 100,
       cell: i => {
-        const total = i.row.original.items.reduce(
-          (s, it) => s + it.orderedQty * decimalToNum(it.unitPrice), 0,
-        )
+        const total = i.row.original.totalAmount ??
+          i.row.original.items.reduce(
+            (s, it) => s + it.orderedQty * decimalToNum(it.unitPrice), 0,
+          )
         return (
           <span className="font-mono text-sm font-medium tabular-nums whitespace-nowrap">
             ¥{total.toLocaleString("zh-CN", { minimumFractionDigits: 2 })}

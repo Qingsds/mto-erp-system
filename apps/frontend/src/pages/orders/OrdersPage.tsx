@@ -36,7 +36,7 @@ interface StatusBadgeProps {
 function StatusBadge({ status }: StatusBadgeProps) {
   return (
     <span className={cn(
-      "inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap",
+      "inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-md border whitespace-nowrap",
       STATUS_STYLE[status],
     )}>
       <i className={cn(STATUS_ICON[status], "text-[11px]")} />
@@ -232,7 +232,8 @@ function MobileOrders() {
           </div>
         ) : (
           orders.map(o => {
-            const total = o.items.reduce((s, it) => s + it.orderedQty * decimalToNum(it.unitPrice), 0)
+            const total = o.totalAmount ??
+              o.items.reduce((s, it) => s + it.orderedQty * decimalToNum(it.unitPrice), 0)
             return (
               <div key={o.id}
                 className="p-3.5 rounded-xl border border-border bg-card active:bg-muted/50 cursor-pointer transition-colors"

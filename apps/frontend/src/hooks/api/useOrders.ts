@@ -50,6 +50,8 @@ export interface OrderListItem {
   status:       OrderStatusType
   reason?:      string
   createdAt:    string
+  /** 后端聚合总金额（兼容旧快照数据回退计算）。 */
+  totalAmount?: number
   items: {
     id:         number
     orderId:    number
@@ -189,6 +191,7 @@ export function useCreateDelivery() {
     onSuccess: (_, vars) => {
       toast.success("发货单创建成功")
       qc.invalidateQueries({ queryKey: ["orders"] })
+      qc.invalidateQueries({ queryKey: ["deliveries"] })
       qc.invalidateQueries({ queryKey: ORDERS_KEYS.detail(vars.orderId) })
     },
     onError: (e: Error) => toast.error(`创建发货单失败：${e.message}`),

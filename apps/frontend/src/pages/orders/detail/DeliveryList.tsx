@@ -31,7 +31,7 @@ export function DeliveryList({ deliveries }: DeliveryListProps) {
           >
             <div className="flex items-center justify-between gap-2">
               <p className="font-mono text-sm">{formatDeliveryNo(delivery.id)}</p>
-              <span className="text-[11px] px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+              <span className="text-[11px] px-2 py-0.5 rounded-md bg-primary/10 text-primary">
                 {delivery.status}
               </span>
             </div>

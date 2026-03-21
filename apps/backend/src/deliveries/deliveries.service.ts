@@ -11,6 +11,62 @@ import { PrismaService } from 'src/prisma/prisma.service';
 export class DeliveriesService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * 将 unknown 价格值解析为 number。
+   */
+  private toFiniteNumber(value: unknown): number | undefined {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+    if (typeof value === 'string') {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : undefined;
+    }
+    return undefined;
+  }
+
+  /**
+   * 解析零件价格字典：
+   * - 优先“标准价”
+   * - 兜底第一个可用数值
+   */
+  private resolvePriceFromCommonPrices(commonPrices: unknown): number {
+    if (!commonPrices || typeof commonPrices !== 'object' || Array.isArray(commonPrices)) {
+      return 0;
+    }
+
+    const priceMap = commonPrices as Record<string, unknown>;
+    const standardPrice = this.toFiniteNumber(priceMap['标准价']);
+    if (standardPrice !== undefined) {
+      return standardPrice;
+    }
+
+    for (const value of Object.values(priceMap)) {
+      const parsed = this.toFiniteNumber(value);
+      if (parsed !== undefined) {
+        return parsed;
+      }
+    }
+
+    return 0;
+  }
+
+  /**
+   * 解析发货行单价：优先订单快照单价，缺失时回退零件价格字典。
+   */
+  private resolveDeliveryUnitPrice(
+    snapshotUnitPrice: Prisma.Decimal | number | string,
+    fallbackCommonPrices?: unknown,
+  ): number {
+    const snapshot = this.toFiniteNumber(snapshotUnitPrice) ?? 0;
+    if (snapshot > 0) {
+      return snapshot;
+    }
+
+    const fallback = this.resolvePriceFromCommonPrices(fallbackCommonPrices);
+    return fallback > 0 ? fallback : snapshot;
+  }
+
   async createDelivery(payload: CreateDeliveryRequest) {
     if (!payload.items || payload.items.length === 0) {
       throw new BadRequestException('发货明细不能为空');
@@ -105,7 +161,15 @@ export class DeliveriesService {
   }
 
   // 1. 分页查询发货记录
-  async findAll(page: number = 1, pageSize: number = 10, orderId?: number) {
+  async findAll(
+    page: number = 1,
+    pageSize: number = 10,
+    orderId?: number,
+    customerName?: string,
+    deliveryDateStart?: string,
+    deliveryDateEnd?: string,
+    hasRemark?: boolean,
+  ) {
     const skip = (page - 1) * pageSize;
 
     // 使用精确的 WhereInput 类型
@@ -115,15 +179,76 @@ export class DeliveriesService {
       where.orderId = Number(orderId);
     }
 
-    const [total, data] = await Promise.all([
+    if (customerName) {
+      where.order = {
+        customerName: { contains: customerName, mode: 'insensitive' },
+      };
+    }
+
+    if (deliveryDateStart || deliveryDateEnd) {
+      where.deliveryDate = {};
+
+      if (deliveryDateStart) {
+        where.deliveryDate.gte = new Date(deliveryDateStart);
+      }
+
+      if (deliveryDateEnd) {
+        const endDate = new Date(deliveryDateEnd);
+        endDate.setHours(23, 59, 59, 999);
+        where.deliveryDate.lte = endDate;
+      }
+    }
+
+    if (hasRemark === true) {
+      where.AND = [{ remark: { not: null } }, { remark: { not: '' } }];
+    } else if (hasRemark === false) {
+      where.OR = [{ remark: null }, { remark: '' }];
+    }
+
+    const [total, rawData] = await Promise.all([
       this.prisma.client.deliveryNote.count({ where }),
       this.prisma.client.deliveryNote.findMany({
         where,
         skip,
         take: Number(pageSize),
         orderBy: { deliveryDate: 'desc' },
+        include: {
+          order: {
+            select: {
+              id: true,
+              customerName: true,
+              createdAt: true,
+            },
+          },
+          items: {
+            select: {
+              shippedQty: true,
+              orderItem: {
+                select: {
+                  unitPrice: true,
+                  part: {
+                    select: { commonPrices: true },
+                  },
+                },
+              },
+            },
+          },
+        },
       }),
     ]);
+
+    const data = rawData.map((delivery) => {
+      const totalAmount = delivery.items.reduce((sum, item) => {
+        const unitPrice = this.resolveDeliveryUnitPrice(
+          item.orderItem.unitPrice,
+          item.orderItem.part?.commonPrices,
+        );
+        return sum + item.shippedQty * unitPrice;
+      }, 0);
+
+      const { items, ...rest } = delivery;
+      return { ...rest, totalAmount };
+    });
 
     return { total, data, page: Number(page), pageSize: Number(pageSize) };
   }
@@ -133,6 +258,13 @@ export class DeliveriesService {
     const delivery = await this.prisma.client.deliveryNote.findUnique({
       where: { id },
       include: {
+        order: {
+          select: {
+            id: true,
+            customerName: true,
+            createdAt: true,
+          },
+        },
         items: {
           include: {
             orderItem: {

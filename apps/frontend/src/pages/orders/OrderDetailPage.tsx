@@ -26,6 +26,26 @@ import { OrderDetailDesktop } from "./detail/OrderDetailDesktop"
 import { OrderDetailMobile } from "./detail/OrderDetailMobile"
 import type { DetailTab, TimelineEvent } from "./detail/types"
 
+function resolveUnitPrice(unitPrice: string, commonPrices: Record<string, number>): number {
+  const snapshotPrice = decimalToNum(unitPrice)
+  if (snapshotPrice > 0) {
+    return snapshotPrice
+  }
+
+  const standardPrice = commonPrices["标准价"]
+  if (typeof standardPrice === "number" && Number.isFinite(standardPrice)) {
+    return standardPrice
+  }
+
+  for (const value of Object.values(commonPrices)) {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value
+    }
+  }
+
+  return snapshotPrice
+}
+
 export function OrderDetailPage() {
   const { id } = useParams({ from: "/orders/$id" })
   const navigate = useNavigate()
@@ -49,10 +69,11 @@ export function OrderDetailPage() {
     if (!order) return null
     const lines = order.items.map(item => {
       const pendingQty = Math.max(item.orderedQty - item.shippedQty, 0)
+      const unitPrice = resolveUnitPrice(item.unitPrice, item.part.commonPrices)
       return {
         ...item,
         pendingQty,
-        lineTotal: item.orderedQty * decimalToNum(item.unitPrice),
+        lineTotal: item.orderedQty * unitPrice,
       }
     })
 

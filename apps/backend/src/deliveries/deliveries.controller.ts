@@ -32,11 +32,19 @@ export class DeliveriesController {
     @Query('page') page: number = 1,
     @Query('pageSize') pageSize: number = 10,
     @Query('orderId') orderId?: number,
+    @Query('customerName') customerName?: string,
+    @Query('deliveryDateStart') deliveryDateStart?: string,
+    @Query('deliveryDateEnd') deliveryDateEnd?: string,
+    @Query('hasRemark') hasRemark?: string,
   ): Promise<ApiResponse> {
     const result = await this.deliveriesService.findAll(
       page,
       pageSize,
       orderId,
+      customerName,
+      deliveryDateStart,
+      deliveryDateEnd,
+      hasRemark === undefined ? undefined : hasRemark === 'true',
     );
     return { code: 200, message: '查询成功', data: result };
   }
