@@ -1,8 +1,15 @@
+/**
+ * OrdersPage.tsx
+ *
+ * 职责：
+ * - 订单列表页（桌面/移动双布局）
+ * - 提供筛选、分页、跳转详情与新建入口
+ */
+
 import { useMemo, useState }                from "react"
 import { useReactTable, getCoreRowModel, getSortedRowModel, getFilteredRowModel, type SortingState } from "@tanstack/react-table"
 import { Button }           from "@/components/ui/button"
 import { useUIStore }       from "@/store/ui.store"
-import { ErpSheet }         from "@/components/common/ErpSheet"
 import { DataTable }        from "@/components/common/DataTable"
 import { TableToolbar, StatusFilterBar } from "@/components/common/TableToolbar"
 import { cn }               from "@/lib/utils"
@@ -10,9 +17,9 @@ import type { OrderStatusType } from "@erp/shared-types"
 import { STATUS_LABEL, STATUS_STYLE, STATUS_ICON } from "./orders.schema"
 import { getOrdersColumns } from "./orders.columns"
 import {
-  useGetOrders, useCloseShortOrder,
+  useGetOrders,
   formatOrderNo, decimalToNum,
-  type OrderListItem, type OrderDetail,
+  type OrderListItem,
 } from "@/hooks/api/useOrders"
 import { useNavigate } from "@tanstack/react-router"
 
@@ -21,7 +28,12 @@ const PAGE_SIZE = 20
 // ─── Status tab config ────────────────────────────────────
 type StatusFilter = OrderStatusType | "all"
 
-function StatusBadge({ status }: { status: OrderStatusType }) {
+interface StatusBadgeProps {
+  /** 订单状态枚举值。 */
+  status: OrderStatusType
+}
+
+function StatusBadge({ status }: StatusBadgeProps) {
   return (
     <span className={cn(
       "inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap",
@@ -43,39 +55,8 @@ function useStatusTabs(total: number, data: OrderListItem[]) {
   ])
 }
 
-// ─── Order Detail Panel ───────────────────────────────────
-function OrderDetail({
-  orderId,
-  onCloseShort,
-}: {
-  orderId:      number
-  onCloseShort: (id: number) => void
-}) {
-  useGetOrders({ page: 1, pageSize: 1 }) // placeholder
-  // In real usage, call useGetOrder(orderId) — requires separate hook call per detail
-
-  // For now stub until useGetOrder is wired:
-  return (
-    <div className="flex flex-col gap-4 text-sm text-muted-foreground">
-      <p>订单 ID: {orderId}</p>
-      <Button
-        variant="destructive"
-        size="sm"
-        className="w-fit"
-        onClick={() => onCloseShort(orderId)}
-      >
-        <i className="ri-close-circle-line mr-1.5" />短交结案
-      </Button>
-    </div>
-  )
-}
-
 // ─── Desktop ──────────────────────────────────────────────
 function DesktopOrders() {
-  type PanelMode = "detail" | null
-
-  const [panel,        setPanel]    = useState<PanelMode>(null)
-  const [activeId,     setActiveId] = useState<number | null>(null)
   const [sorting,      setSorting]  = useState<SortingState>([])
   const [globalFilter, setFilter]   = useState("")
   const [statusFilter, setStatus]   = useState<StatusFilter>("all")
@@ -92,16 +73,14 @@ function DesktopOrders() {
     customerName: globalFilter || undefined,
   })
 
-  const closeShort    = useCloseShortOrder()
-
   const orders     = data?.data  ?? []
   const totalCount = data?.total ?? 0
 
   const columns = useMemo(
     () => getOrdersColumns(
-      o => { setActiveId(o.id); setPanel("detail") },
+      o => navigate({ to: "/orders/$id", params: { id: String(o.id) } }),
     ),
-    [],
+    [navigate],
   )
 
   const table = useReactTable({
@@ -119,13 +98,6 @@ function DesktopOrders() {
   const statusTabs  = useStatusTabs(totalCount, orders)
   const totalPages  = Math.ceil(totalCount / PAGE_SIZE)
 
-  const handleCloseShort = (id: number) => {
-    closeShort.mutate({ id, reason: "前端发起短交结案" })
-    setPanel(null)
-  }
-
-  const closePanel = () => { setPanel(null); setActiveId(null) }
-
   // Stats chips
   const stats = useMemo(() => ({
     pending:        orders.filter(o => o.status === "PENDING").length,
@@ -141,7 +113,7 @@ function DesktopOrders() {
         emptyIcon="ri-file-list-3-line"
         emptyText="暂无订单数据"
         globalFilter={globalFilter}
-        onRowClick={o => { setActiveId(o.id); setPanel("detail") }}
+        onRowClick={o => navigate({ to: "/orders/$id", params: { id: String(o.id) } })}
         toolbar={
           <TableToolbar
             title="订单管理"
@@ -191,27 +163,12 @@ function DesktopOrders() {
           />
         }
       />
-
-      <ErpSheet
-        open={panel !== null}
-        onOpenChange={o => { if (!o) closePanel() }}
-        title={`订单详情 · ${activeId ? formatOrderNo(activeId) : ""}`}
-        width={540}
-      >
-        {panel === "detail" && activeId && (
-          <OrderDetail orderId={activeId} onCloseShort={handleCloseShort} />
-        )}
-      </ErpSheet>
     </>
   )
 }
 
 // ─── Mobile ───────────────────────────────────────────────
 function MobileOrders() {
-  type PanelMode = "detail" | null
-
-  const [panel,     setPanel]   = useState<PanelMode>(null)
-  const [activeId,  setActiveId] = useState<number | null>(null)
   const [search,    setSearch]  = useState("")
   const [statusTab, setTab]     = useState<StatusFilter>("all")
 
@@ -224,8 +181,6 @@ function MobileOrders() {
   })
   const orders = data?.data ?? []
 
-  const closeShort  = useCloseShortOrder()
-
   const mobileStatusTabs: { value: StatusFilter; label: string }[] = [
     { value: "all",            label: "全部"   },
     { value: "PENDING",        label: "待履约" },
@@ -233,8 +188,6 @@ function MobileOrders() {
     { value: "SHIPPED",        label: "已发货" },
     { value: "CLOSED_SHORT",   label: "结案" },
   ]
-
-  const closePanel = () => { setPanel(null); setActiveId(null) }
 
   return (
     <div className="flex flex-col h-full">
@@ -283,7 +236,7 @@ function MobileOrders() {
             return (
               <div key={o.id}
                 className="p-3.5 rounded-xl border border-border bg-card active:bg-muted/50 cursor-pointer transition-colors"
-                onClick={() => { setActiveId(o.id); setPanel("detail") }}>
+                onClick={() => navigate({ to: "/orders/$id", params: { id: String(o.id) } })}>
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <div>
                     <p className="text-sm font-medium">{o.customerName}</p>
@@ -305,16 +258,6 @@ function MobileOrders() {
           <i className="ri-add-line mr-2" />新建订单
         </Button>
       </div>
-
-      <ErpSheet
-        open={panel !== null}
-        onOpenChange={o => { if (!o) closePanel() }}
-        title={`订单详情 · ${activeId ? formatOrderNo(activeId) : ""}`}
-      >
-        {panel === "detail" && activeId && (
-          <OrderDetail orderId={activeId} onCloseShort={id => { closeShort.mutate({ id }); closePanel() }} />
-        )}
-      </ErpSheet>
     </div>
   )
 }

@@ -14,7 +14,11 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import type { ApiResponse, OrderStatusType }       from "@erp/shared-types"
+import type {
+  ApiResponse,
+  CreateDeliveryRequest,
+  OrderStatusType,
+} from "@erp/shared-types"
 import request  from "@/lib/utils/request"
 import { toast } from "@/lib/toast"
 
@@ -57,6 +61,34 @@ export interface OrderListItem {
 }
 
 /** 对应 Order + include: { items: { include: { part } }, deliveries } 的形态（详情页） */
+export interface DeliveryNoteItem {
+  /** 发货明细主键。 */
+  id:             number
+  /** 所属发货单 ID。 */
+  deliveryNoteId: number
+  /** 对应订单行 ID。 */
+  orderItemId:    number
+  /** 本次发货数量。 */
+  shippedQty:     number
+  /** 行备注。 */
+  remark?:        string
+}
+
+export interface DeliveryNote {
+  /** 发货单主键。 */
+  id:           number
+  /** 关联订单 ID。 */
+  orderId:      number
+  /** 发货时间。 */
+  deliveryDate: string
+  /** 发货单状态。 */
+  status:       string
+  /** 发货单备注。 */
+  remark?:      string
+  /** 发货明细集合（列表接口可能不带）。 */
+  items?:       DeliveryNoteItem[]
+}
+
 export interface OrderDetail {
   id:           number
   customerName: string
@@ -64,13 +96,7 @@ export interface OrderDetail {
   reason?:      string
   createdAt:    string
   items:        OrderItemWithPart[]
-  deliveries: {
-    id:           number
-    orderId:      number
-    deliveryDate: string
-    status:       string
-    remark?:      string
-  }[]
+  deliveries:   DeliveryNote[]
 }
 
 export interface PaginatedOrders {
@@ -154,6 +180,21 @@ export function useCloseShortOrder() {
   })
 }
 
+/** 创建发货单（联动更新订单 shippedQty + status） */
+export function useCreateDelivery() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: CreateDeliveryRequest) =>
+      request.post<unknown, ApiResponse<DeliveryNote>>("/api/deliveries", payload),
+    onSuccess: (_, vars) => {
+      toast.success("发货单创建成功")
+      qc.invalidateQueries({ queryKey: ["orders"] })
+      qc.invalidateQueries({ queryKey: ORDERS_KEYS.detail(vars.orderId) })
+    },
+    onError: (e: Error) => toast.error(`创建发货单失败：${e.message}`),
+  })
+}
+
 // ─── 辅助：Prisma Decimal string → number ────────────────
 export function decimalToNum(v: string | number): number {
   return typeof v === "string" ? parseFloat(v) : v
@@ -162,4 +203,9 @@ export function decimalToNum(v: string | number): number {
 // ─── 辅助：用 id 生成显示用订单号（后端无 orderNo 字段）──
 export function formatOrderNo(id: number): string {
   return `ORD-${String(id).padStart(6, "0")}`
+}
+
+// ─── 辅助：用 id 生成显示用发货单号 ───────────────────────
+export function formatDeliveryNo(id: number): string {
+  return `DLV-${String(id).padStart(6, "0")}`
 }
