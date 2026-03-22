@@ -1,31 +1,73 @@
-import { useRouterState }  from "@tanstack/react-router"
+import { useNavigate, useRouterState } from "@tanstack/react-router"
 import { useUIStore }       from "@/store/ui.store"
 import { cn }               from "@/lib/utils"
 import { Button }           from "@/components/ui/button"
 
-// ─── Route → label ────────────────────────────────────────
-const LABELS: Record<string, string> = {
-  "/":            "仪表盘",
-  "/parts":       "零件库",
-  "/orders":      "订单管理",
-  "/deliveries":  "发货管理",
-  "/billing":     "财务对账",
-  "/seals":       "印章管理",
+type RoutePath = "/" | "/parts" | "/orders" | "/deliveries" | "/billing" | "/seals"
+
+interface BreadcrumbItem {
+  label: string
+  to?: RoutePath
 }
 
-function getLabel(p: string) {
-  if (LABELS[p]) return LABELS[p]
-  const match = Object.keys(LABELS)
-    .filter((k) => k !== "/" && p.startsWith(k))
-    .sort((a, b) => b.length - a.length)[0]
-  return match ? LABELS[match] : "MTO ERP"
+const SECTION_LABELS: Record<string, string> = {
+  "": "仪表盘",
+  parts: "零件库",
+  orders: "订单管理",
+  deliveries: "发货管理",
+  billing: "财务对账",
+  seals: "印章管理",
+}
+
+const SECTION_PATHS: Record<string, RoutePath | undefined> = {
+  parts: "/parts",
+  orders: "/orders",
+  deliveries: "/deliveries",
+  billing: "/billing",
+  seals: "/seals",
+}
+
+function getDetailLabel(section: string) {
+  if (section === "orders") return "订单详情"
+  if (section === "parts") return "零件详情"
+  if (section === "deliveries") return "发货详情"
+  return "详情"
+}
+
+function getBreadcrumbItems(pathname: string): BreadcrumbItem[] {
+  const segments = pathname.split("/").filter(Boolean)
+
+  if (segments.length === 0) {
+    return [{ label: SECTION_LABELS[""], to: "/" }]
+  }
+
+  const [section, ...rest] = segments
+  const sectionPath = SECTION_PATHS[section]
+  const sectionLabel = SECTION_LABELS[section] ?? "MTO ERP"
+  const items: BreadcrumbItem[] = [{ label: sectionLabel, to: sectionPath }]
+
+  if (rest.length === 0) {
+    return items
+  }
+
+  const tail = rest[rest.length - 1]
+
+  if (tail === "new" && section === "orders") {
+    items.push({ label: "新建订单" })
+    return items
+  }
+
+  items.push({ label: getDetailLabel(section) })
+  return items
 }
 
 // ─── Header ───────────────────────────────────────────────
 export function Header() {
   const { isMobile, toggleCollapsed, toggleSettings, showSettings } = useUIStore()
-  const path  = useRouterState({ select: (s) => s.location.pathname })
-  const label = getLabel(path)
+  const navigate = useNavigate()
+  const pathname = useRouterState({ select: (state) => state.location.pathname })
+  const breadcrumbs = getBreadcrumbItems(pathname)
+  const mobileLabel = breadcrumbs[breadcrumbs.length - 1]?.label ?? "MTO ERP"
 
   return (
     <header
@@ -47,20 +89,40 @@ export function Header() {
 
       {/* Mobile: logo mark */}
       {isMobile && (
-        <div className="flex items-center justify-center w-6 h-6 rounded bg-primary shrink-0">
+        <div className="flex items-center justify-center w-6 h-6 bg-primary shrink-0">
           <i className="ri-grid-fill text-primary-foreground text-xs" />
         </div>
       )}
 
       {/* Breadcrumb / page title */}
       <div className="flex items-center gap-1.5 text-sm flex-1 min-w-0">
-        {!isMobile && (
+        {isMobile ? (
+          <span className="font-medium text-foreground truncate">{mobileLabel}</span>
+        ) : (
           <>
-            <span className="text-muted-foreground">MTO ERP</span>
-            <span className="text-muted-foreground/40">/</span>
+            <span className="text-muted-foreground shrink-0">MTO ERP</span>
+            <span className="text-muted-foreground/40 shrink-0">/</span>
+            {breadcrumbs.map((item, index) => (
+              <div key={`${item.label}-${index}`} className="flex items-center gap-1.5 min-w-0">
+                <button
+                  type="button"
+                  disabled={!item.to}
+                  onClick={() => item.to && navigate({ to: item.to })}
+                  className={cn(
+                    "truncate bg-transparent border-none p-0",
+                    item.to ? "cursor-pointer hover:text-foreground transition-colors" : "cursor-default",
+                    index === breadcrumbs.length - 1 ? "font-medium text-foreground" : "text-muted-foreground",
+                  )}
+                >
+                  {item.label}
+                </button>
+                {index < breadcrumbs.length - 1 && (
+                  <span className="text-muted-foreground/40 shrink-0">/</span>
+                )}
+              </div>
+            ))}
           </>
         )}
-        <span className="font-medium text-foreground truncate">{label}</span>
       </div>
 
       {/* Search — desktop only */}
@@ -75,7 +137,7 @@ export function Header() {
         >
           <i className="ri-search-line text-sm" />
           <span className="flex-1 text-left">搜索...</span>
-          <kbd className="text-[10px] font-mono bg-muted border border-border rounded px-1">
+          <kbd className="text-[10px] font-mono bg-muted border border-border px-1">
             ⌘K
           </kbd>
         </button>
@@ -105,10 +167,9 @@ export function Header() {
         <Button
           variant="ghost"
           size="icon"
-          className="rounded-full"
           title="张三 · 管理员"
         >
-          <div className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-medium">
+          <div className="w-7 h-7 bg-primary/10 text-primary flex items-center justify-center text-xs font-medium">
             张
           </div>
         </Button>

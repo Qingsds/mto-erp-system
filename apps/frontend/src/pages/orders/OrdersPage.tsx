@@ -98,12 +98,6 @@ function DesktopOrders() {
   const statusTabs  = useStatusTabs(totalCount, orders)
   const totalPages  = Math.ceil(totalCount / PAGE_SIZE)
 
-  // Stats chips
-  const stats = useMemo(() => ({
-    pending:        orders.filter(o => o.status === "PENDING").length,
-    partialShipped: orders.filter(o => o.status === "PARTIAL_SHIPPED").length,
-  }), [orders])
-
   return (
     <>
       <DataTable
@@ -121,20 +115,6 @@ function DesktopOrders() {
             globalFilter={globalFilter}
             onFilterChange={v => { setFilter(v); setPage(1) }}
             searchPlaceholder="搜索客户名称…"
-            extra={
-              <>
-                {stats.pending > 0 && (
-                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap text-muted-foreground bg-muted">
-                    待履约 {stats.pending}
-                  </span>
-                )}
-                {stats.partialShipped > 0 && (
-                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap text-amber-600 bg-amber-50 dark:bg-amber-950/40">
-                    部分发货 {stats.partialShipped}
-                  </span>
-                )}
-              </>
-            }
             actions={
               <Button size="sm" onClick={() => navigate({ to: "/orders/new" })}>
                 <i className="ri-add-line mr-1.5" />新建订单

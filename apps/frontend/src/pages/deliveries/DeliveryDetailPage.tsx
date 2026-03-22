@@ -3,11 +3,11 @@
  *
  * 职责：
  * - 发货单详情容器页，负责数据拉取、聚合与端类型切换
- * - 提供面包屑导航与异常状态展示
+ * - 提供单据状态与异常状态展示
  */
 
 import { useMemo } from "react"
-import { Link, useNavigate, useParams } from "@tanstack/react-router"
+import { useNavigate, useParams } from "@tanstack/react-router"
 import { Button } from "@/components/ui/button"
 import { useUIStore } from "@/store/ui.store"
 import { decimalToNum, useGetDelivery } from "@/hooks/api/useDeliveries"
@@ -116,18 +116,9 @@ export function DeliveryDetailPage() {
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
       <div className="flex items-center gap-2 px-4 sm:px-6 py-3 border-b border-border bg-background shrink-0">
-        <div className="flex items-center gap-1.5 min-w-0">
-          <Link
-            to="/deliveries"
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            发货管理
-          </Link>
-          <i className="ri-arrow-right-s-line text-muted-foreground/40 text-xs" />
-          <span className="font-mono text-sm truncate">
-            {formatDeliveryNo(delivery.id)}
-          </span>
-        </div>
+        <span className="font-mono text-sm truncate">
+          {formatDeliveryNo(delivery.id)}
+        </span>
 
         <div className="ml-auto">
           <DeliveryStatusBadge status={delivery.status} />

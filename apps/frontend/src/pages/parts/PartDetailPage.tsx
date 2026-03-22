@@ -6,7 +6,7 @@
  */
 
 import { useRef, useState } from "react"
-import { useParams, useNavigate, Link } from "@tanstack/react-router"
+import { useParams, useNavigate } from "@tanstack/react-router"
 import { useForm, useFieldArray } from "react-hook-form"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -418,11 +418,6 @@ export function PartDetailPage() {
   if (isLoading) {
     return (
       <div className='flex flex-col flex-1 overflow-hidden'>
-        <div className='flex items-center gap-2 px-6 py-3.5 border-b border-border bg-background shrink-0'>
-          <div className='h-4 bg-muted animate-pulse rounded w-12' />
-          <i className='ri-arrow-right-s-line text-muted-foreground/40 text-xs' />
-          <div className='h-4 bg-muted animate-pulse rounded w-32' />
-        </div>
         <div className='flex-1 overflow-auto p-6 lg:p-8'>
           <div className='flex gap-8'>
             <div className='w-64 shrink-0 aspect-square bg-muted animate-pulse rounded-xl' />
@@ -459,24 +454,6 @@ export function PartDetailPage() {
 
   return (
     <div className='flex flex-col flex-1 overflow-hidden'>
-      {/* ── 顶部面包屑 ── */}
-      <div className='flex items-center gap-3 px-6 py-3.5 border-b border-border bg-background shrink-0'>
-        <nav className='flex items-center gap-1.5 text-sm flex-1 min-w-0'>
-          <Link
-            to='/parts'
-            className='text-muted-foreground hover:text-foreground transition-colors'
-          >
-            零件库
-          </Link>
-          <i className='ri-arrow-right-s-line text-muted-foreground/40 text-xs' />
-          <span className='font-medium truncate'>{part.name}</span>
-          <span className='font-mono text-xs text-muted-foreground ml-1.5 shrink-0'>
-            {part.partNumber}
-          </span>
-        </nav>
-      </div>
-
-      {/* ── 主体 ── */}
       <div className='flex-1 overflow-auto'>
         <div className='p-6 lg:p-8'>
           <div className='flex flex-col lg:flex-row gap-8 items-start'>

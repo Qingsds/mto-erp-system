@@ -185,7 +185,11 @@ export class OrdersService {
           items: {
             include: {
               part: {
-                select: { commonPrices: true },
+                select: {
+                  name: true,
+                  partNumber: true,
+                  commonPrices: true,
+                },
               },
             },
           },
@@ -202,7 +206,11 @@ export class OrdersService {
         return sum + item.orderedQty * unitPrice;
       }, 0);
 
-      const items = order.items.map(({ part: _part, ...item }) => item);
+      const items = order.items.map(({ part, ...item }) => ({
+        ...item,
+        partName: part.name,
+        partNumber: part.partNumber,
+      }));
       return { ...order, items, totalAmount };
     });
 

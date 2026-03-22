@@ -56,6 +56,8 @@ export interface OrderListItem {
     id:         number
     orderId:    number
     partId:     number
+    partName?:  string
+    partNumber?: string
     orderedQty: number
     shippedQty: number
     unitPrice:  string
