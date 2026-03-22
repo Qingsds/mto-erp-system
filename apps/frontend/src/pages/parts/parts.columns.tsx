@@ -8,11 +8,16 @@
 import { createColumnHelper } from "@tanstack/react-table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { ExpandablePanelCell } from "@/components/common/ExpandablePanelCell"
 import { apiPricesToForm } from "@/hooks/api/useParts"
 import type { PartListItem } from "@/hooks/api/useParts"
 import { Link } from "@tanstack/react-router"
 
 const col = createColumnHelper<PartListItem>()
+
+function formatPrice(value: number) {
+  return value.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
 
 export function getPartsColumns(
   onEdit: (p: PartListItem) => void,
@@ -68,24 +73,45 @@ export function getPartsColumns(
 
     // commonPrices: Record<string, number> → 转为数组渲染
     col.accessor("commonPrices", {
-      header: "价格字典",
-      size: 220,
-      enableSorting: false,
-      cell: i => (
-        <div className='flex flex-wrap gap-1.5'>
-          {(apiPricesToForm(i.getValue()) ?? []).map(p => (
-            <span
-              key={p.label}
-              className='inline-flex items-center gap-1 text-xs bg-muted rounded px-1.5 py-0.5 whitespace-nowrap'
-            >
-              <span className='text-muted-foreground'>{p.label}</span>
-              <span className='font-mono font-medium text-foreground'>
-                ¥{p.value}
-              </span>
-            </span>
-          ))}
-        </div>
+      header: () => (
+        <span className='inline-flex items-center gap-1.5'>
+          价格字典
+          <span className='text-[11px] font-normal text-muted-foreground'>
+            点击单元格展开
+          </span>
+        </span>
       ),
+      size: 260,
+      enableSorting: false,
+      cell: i => {
+        const prices = apiPricesToForm(i.getValue()) ?? []
+        if (prices.length === 0) {
+          return <span className='text-xs text-muted-foreground'>—</span>
+        }
+
+        const preview = prices.slice(0, 2)
+        const extraCount = Math.max(prices.length - preview.length, 0)
+
+        return (
+          <ExpandablePanelCell
+            items={prices}
+            summary={preview.map(p => `${p.label} ¥${formatPrice(p.value)}`).join(" / ")}
+            extraCount={extraCount}
+            panelTitle="价格字典明细"
+            panelSubtitle={`共 ${prices.length} 条价格配置`}
+            contentClassName="w-[360px]"
+            getKey={p => p.label}
+            renderItem={p => (
+              <div className='flex items-center justify-between gap-3'>
+                <span className='min-w-0 truncate text-sm text-foreground'>{p.label}</span>
+                <span className='font-mono shrink-0 text-sm tabular-nums text-foreground'>
+                  ¥{formatPrice(p.value)}
+                </span>
+              </div>
+            )}
+          />
+        )
+      },
     }),
 
     col.accessor("createdAt", {

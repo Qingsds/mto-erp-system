@@ -36,6 +36,8 @@ interface OrderDetailDesktopProps {
   onOpenCreate: () => void
   /** 短交结案回调。 */
   onCloseShort: () => void
+  /** 打开发货单详情回调。 */
+  onOpenDelivery: (deliveryId: number) => void
 }
 
 export function OrderDetailDesktop({
@@ -50,6 +52,7 @@ export function OrderDetailDesktop({
   onChangeTab,
   onOpenCreate,
   onCloseShort,
+  onOpenDelivery,
 }: OrderDetailDesktopProps) {
   return (
     <div className="p-4 sm:p-6 lg:p-8 flex flex-col gap-4 sm:gap-6">
@@ -61,6 +64,7 @@ export function OrderDetailDesktop({
           onChangeTab={onChangeTab}
           itemStats={itemStats}
           deliveries={order.deliveries}
+          onOpenDelivery={onOpenDelivery}
           timeline={timeline}
         />
 

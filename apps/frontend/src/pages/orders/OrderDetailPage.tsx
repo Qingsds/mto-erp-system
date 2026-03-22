@@ -8,7 +8,7 @@
  */
 
 import { useMemo, useState } from "react"
-import { Link, useNavigate, useParams } from "@tanstack/react-router"
+import { useNavigate, useParams } from "@tanstack/react-router"
 import type { CreateDeliveryRequest } from "@erp/shared-types"
 import { Button } from "@/components/ui/button"
 import { useUIStore } from "@/store/ui.store"
@@ -133,6 +133,10 @@ export function OrderDetailPage() {
     closeShort.mutate({ id: order.id, reason: "订单详情页发起短交结案" })
   }
 
+  const handleOpenDelivery = (deliveryId: number) => {
+    navigate({ to: "/deliveries/$id", params: { id: String(deliveryId) } })
+  }
+
   if (isLoading) {
     return (
       <div className="flex flex-col flex-1 overflow-hidden">
@@ -164,16 +168,7 @@ export function OrderDetailPage() {
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
       <div className="flex items-center gap-2 px-4 sm:px-6 py-3 border-b border-border bg-background shrink-0">
-        <div className="flex items-center gap-1.5 min-w-0">
-          <Link
-            to="/orders"
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            订单管理
-          </Link>
-          <i className="ri-arrow-right-s-line text-muted-foreground/40 text-xs" />
-          <span className="font-mono text-sm truncate">{formatOrderNo(order.id)}</span>
-        </div>
+        <span className="font-mono text-sm truncate">{formatOrderNo(order.id)}</span>
 
         <div className="ml-auto">
           <StatusBadge status={order.status} />
@@ -194,6 +189,7 @@ export function OrderDetailPage() {
             onChangeTab={setTab}
             onOpenCreate={openCreatePanel}
             onCloseShort={handleCloseShort}
+            onOpenDelivery={handleOpenDelivery}
           />
         ) : (
           <OrderDetailDesktop
@@ -208,6 +204,7 @@ export function OrderDetailPage() {
             onChangeTab={setTab}
             onOpenCreate={openCreatePanel}
             onCloseShort={handleCloseShort}
+            onOpenDelivery={handleOpenDelivery}
           />
         )}
       </div>

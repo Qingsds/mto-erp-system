@@ -22,6 +22,8 @@ interface OrderDetailSectionsProps {
   itemStats: OrderItemStatsVM
   /** 发货单列表。 */
   deliveries: DeliveryNote[]
+  /** 打开发货单详情回调。 */
+  onOpenDelivery?: (deliveryId: number) => void
   /** 时间线事件列表。 */
   timeline: TimelineEvent[]
 }
@@ -31,6 +33,7 @@ export function OrderDetailSections({
   onChangeTab,
   itemStats,
   deliveries,
+  onOpenDelivery,
   timeline,
 }: OrderDetailSectionsProps) {
   return (
@@ -61,7 +64,12 @@ export function OrderDetailSections({
 
       <div className="rounded-xl border border-border bg-card">
         {tab === "items" && <OrderItemsTable lines={itemStats.lines} />}
-        {tab === "deliveries" && <DeliveryList deliveries={deliveries} />}
+        {tab === "deliveries" && (
+          <DeliveryList
+            deliveries={deliveries}
+            onOpenDelivery={onOpenDelivery}
+          />
+        )}
         {tab === "timeline" && <OrderTimeline timeline={timeline} />}
       </div>
     </div>
