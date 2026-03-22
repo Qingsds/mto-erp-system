@@ -14,7 +14,7 @@ export type DetailTab = "items" | "deliveries" | "timeline"
 export type OrderLineVM = OrderDetail["items"][number] & {
   /** 待发数量（orderedQty - shippedQty）。 */
   pendingQty: number
-  /** 行金额小计（orderedQty * unitPrice）。 */
+  /** 行金额小计（短交结案时按已发数量结算）。 */
   lineTotal: number
 }
 

@@ -12,6 +12,7 @@ import { useNavigate, useParams } from "@tanstack/react-router"
 import type { CreateDeliveryRequest } from "@erp/shared-types"
 import { Button } from "@/components/ui/button"
 import { useUIStore } from "@/store/ui.store"
+import { toast } from "@/lib/toast"
 import {
   decimalToNum,
   formatDeliveryNo,
@@ -20,20 +21,27 @@ import {
   useCreateDelivery,
   useGetOrder,
 } from "@/hooks/api/useOrders"
+import { exportOrderPriceSheet } from "@/lib/documentExport"
 import { StatusBadge } from "./detail/StatusBadge"
 import { CreateDeliverySheet } from "./detail/CreateDeliverySheet"
 import { OrderDetailDesktop } from "./detail/OrderDetailDesktop"
 import { OrderDetailMobile } from "./detail/OrderDetailMobile"
 import type { DetailTab, TimelineEvent } from "./detail/types"
 
-function resolveUnitPrice(unitPrice: string, commonPrices: Record<string, number>): number {
+function resolveUnitPrice(
+  unitPrice: string,
+  commonPrices: Record<string, number>,
+): number {
   const snapshotPrice = decimalToNum(unitPrice)
   if (snapshotPrice > 0) {
     return snapshotPrice
   }
 
   const standardPrice = commonPrices["标准价"]
-  if (typeof standardPrice === "number" && Number.isFinite(standardPrice)) {
+  if (
+    typeof standardPrice === "number" &&
+    Number.isFinite(standardPrice)
+  ) {
     return standardPrice
   }
 
@@ -67,21 +75,40 @@ export function OrderDetailPage() {
 
   const itemStats = useMemo(() => {
     if (!order) return null
+    const isClosedShort = order.status === "CLOSED_SHORT"
     const lines = order.items.map(item => {
-      const pendingQty = Math.max(item.orderedQty - item.shippedQty, 0)
-      const unitPrice = resolveUnitPrice(item.unitPrice, item.part.commonPrices)
+      const pendingQty = Math.max(
+        item.orderedQty - item.shippedQty,
+        0,
+      )
+      const unitPrice = resolveUnitPrice(
+        item.unitPrice,
+        item.part.commonPrices,
+      )
+      const settlementQty = isClosedShort
+        ? Math.max(Math.min(item.shippedQty, item.orderedQty), 0)
+        : item.orderedQty
       return {
         ...item,
         pendingQty,
-        lineTotal: item.orderedQty * unitPrice,
+        lineTotal: settlementQty * unitPrice,
       }
     })
 
     return {
       lines,
-      totalOrderedQty: lines.reduce((s, item) => s + item.orderedQty, 0),
-      totalShippedQty: lines.reduce((s, item) => s + item.shippedQty, 0),
-      totalPendingQty: lines.reduce((s, item) => s + item.pendingQty, 0),
+      totalOrderedQty: lines.reduce(
+        (s, item) => s + item.orderedQty,
+        0,
+      ),
+      totalShippedQty: lines.reduce(
+        (s, item) => s + item.shippedQty,
+        0,
+      ),
+      totalPendingQty: lines.reduce(
+        (s, item) => s + item.pendingQty,
+        0,
+      ),
       totalAmount: lines.reduce((s, item) => s + item.lineTotal, 0),
     }
   }, [order])
@@ -119,35 +146,59 @@ export function OrderDetailPage() {
     }
 
     return events.sort(
-      (a, b) => new Date(b.time).getTime() - new Date(a.time).getTime(),
+      (a, b) =>
+        new Date(b.time).getTime() - new Date(a.time).getTime(),
     )
   }, [order])
 
-  const handleCreateDelivery = async (payload: CreateDeliveryRequest) => {
+  const handleCreateDelivery = async (
+    payload: CreateDeliveryRequest,
+  ) => {
     await createDelivery.mutateAsync(payload)
     setCreateOpen(false)
   }
 
   const handleCloseShort = () => {
     if (!order || !canCloseShort) return
-    closeShort.mutate({ id: order.id, reason: "订单详情页发起短交结案" })
+    closeShort.mutate({
+      id: order.id,
+      reason: "订单详情页发起短交结案",
+    })
   }
 
   const handleOpenDelivery = (deliveryId: number) => {
-    navigate({ to: "/deliveries/$id", params: { id: String(deliveryId) } })
+    navigate({
+      to: "/deliveries/$id",
+      params: { id: String(deliveryId) },
+    })
+  }
+
+  const handleExportOrder = () => {
+    if (!order) return
+    try {
+      const filename = exportOrderPriceSheet(order)
+      toast.success(`导出成功：${filename}`)
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "未知错误"
+      toast.error(`导出失败：${message}`)
+    }
   }
 
   if (isLoading) {
     return (
-      <div className="flex flex-col flex-1 overflow-hidden">
-        <div className="h-14 border-b border-border bg-background" />
-        <div className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className='flex flex-col flex-1 overflow-hidden'>
+        <div className='h-14 border-b border-border bg-background' />
+        <div className='flex-1 overflow-auto p-4 sm:p-6 lg:p-8'>
+          <div className='grid grid-cols-2 lg:grid-cols-4 gap-3'>
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="h-20 rounded-lg bg-muted animate-pulse" />
+              <div
+                key={i}
+                className='h-20 rounded-lg bg-muted animate-pulse'
+              />
             ))}
           </div>
-          <div className="mt-6 h-72 rounded-lg bg-muted animate-pulse" />
+          <div className='mt-6 h-72 rounded-lg bg-muted animate-pulse' />
         </div>
       </div>
     )
@@ -155,10 +206,14 @@ export function OrderDetailPage() {
 
   if (!order || !itemStats) {
     return (
-      <div className="flex flex-col flex-1 items-center justify-center gap-4 text-muted-foreground">
-        <i className="ri-error-warning-line text-4xl opacity-40" />
-        <p className="text-sm">订单不存在或已删除</p>
-        <Button variant="outline" size="sm" onClick={() => navigate({ to: "/orders" })}>
+      <div className='flex flex-col flex-1 items-center justify-center gap-4 text-muted-foreground'>
+        <i className='ri-error-warning-line text-4xl opacity-40' />
+        <p className='text-sm'>订单不存在或已删除</p>
+        <Button
+          variant='outline'
+          size='sm'
+          onClick={() => navigate({ to: "/orders" })}
+        >
           返回订单列表
         </Button>
       </div>
@@ -166,16 +221,29 @@ export function OrderDetailPage() {
   }
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden">
-      <div className="flex items-center gap-2 px-4 sm:px-6 py-3 border-b border-border bg-background shrink-0">
-        <span className="font-mono text-sm truncate">{formatOrderNo(order.id)}</span>
-
-        <div className="ml-auto">
+    <div className='flex flex-col flex-1 overflow-hidden'>
+      <div className='flex items-center gap-2 px-4 sm:px-6 py-3 border-b border-border bg-background shrink-0'>
+        <div className='flex items-center gap-2'>
+          <span className='font-mono text-sm truncate'>
+            {formatOrderNo(order.id)}
+          </span>
           <StatusBadge status={order.status} />
+        </div>
+
+        <div className='ml-auto flex items-center gap-2'>
+          <Button
+            size='sm'
+            variant='outline'
+            className='h-8 px-2.5 text-xs'
+            onClick={handleExportOrder}
+          >
+            <i className='ri-download-2-line mr-1.5' />
+            导出价格清单
+          </Button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto">
+      <div className='flex-1 overflow-auto'>
         {isMobile ? (
           <OrderDetailMobile
             order={order}

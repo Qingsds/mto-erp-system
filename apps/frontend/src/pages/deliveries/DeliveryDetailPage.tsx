@@ -10,21 +10,32 @@ import { useMemo } from "react"
 import { useNavigate, useParams } from "@tanstack/react-router"
 import { Button } from "@/components/ui/button"
 import { useUIStore } from "@/store/ui.store"
-import { decimalToNum, useGetDelivery } from "@/hooks/api/useDeliveries"
+import { toast } from "@/lib/toast"
+import {
+  decimalToNum,
+  useGetDelivery,
+} from "@/hooks/api/useDeliveries"
 import { formatDeliveryNo } from "@/hooks/api/useOrders"
+import { exportDeliveryNote } from "@/lib/documentExport"
 import { DeliveryDetailDesktop } from "./detail/DeliveryDetailDesktop"
 import { DeliveryDetailMobile } from "./detail/DeliveryDetailMobile"
 import { DeliveryStatusBadge } from "./detail/DeliveryStatusBadge"
 import type { DeliveryStatsVM } from "./detail/types"
 
-function resolveUnitPrice(unitPrice: string, commonPrices: Record<string, number>): number {
+function resolveUnitPrice(
+  unitPrice: string,
+  commonPrices: Record<string, number>,
+): number {
   const snapshotPrice = decimalToNum(unitPrice)
   if (snapshotPrice > 0) {
     return snapshotPrice
   }
 
   const standardPrice = commonPrices["标准价"]
-  if (typeof standardPrice === "number" && Number.isFinite(standardPrice)) {
+  if (
+    typeof standardPrice === "number" &&
+    Number.isFinite(standardPrice)
+  ) {
     return standardPrice
   }
 
@@ -46,7 +57,11 @@ export function DeliveryDetailPage() {
   const { isMobile } = useUIStore()
   const deliveryId = Number(id)
 
-  const { data: delivery, isLoading, isFetching } = useGetDelivery(deliveryId)
+  const {
+    data: delivery,
+    isLoading,
+    isFetching,
+  } = useGetDelivery(deliveryId)
 
   const stats = useMemo<DeliveryStatsVM | null>(() => {
     if (!delivery) return null
@@ -72,26 +87,34 @@ export function DeliveryDetailPage() {
     return {
       lines,
       lineCount: lines.length,
-      uniquePartCount: new Set(lines.map(line => line.orderItem.partId)).size,
-      totalShippedQty: lines.reduce((sum, line) => sum + line.shippedQty, 0),
-      totalAmount: lines.reduce((sum, line) => sum + line.lineAmount, 0),
+      uniquePartCount: new Set(
+        lines.map(line => line.orderItem.partId),
+      ).size,
+      totalShippedQty: lines.reduce(
+        (sum, line) => sum + line.shippedQty,
+        0,
+      ),
+      totalAmount: lines.reduce(
+        (sum, line) => sum + line.lineAmount,
+        0,
+      ),
     }
   }, [delivery])
 
   if (isLoading) {
     return (
-      <div className="flex flex-col flex-1 overflow-hidden">
-        <div className="h-14 border-b border-border bg-background" />
-        <div className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className='flex flex-col flex-1 overflow-hidden'>
+        <div className='h-14 border-b border-border bg-background' />
+        <div className='flex-1 overflow-auto p-4 sm:p-6 lg:p-8'>
+          <div className='grid grid-cols-2 lg:grid-cols-4 gap-3'>
             {Array.from({ length: 4 }).map((_, index) => (
               <div
                 key={index}
-                className="h-20 rounded-lg bg-muted animate-pulse"
+                className='h-20 rounded-lg bg-muted animate-pulse'
               />
             ))}
           </div>
-          <div className="mt-6 h-72 rounded-lg bg-muted animate-pulse" />
+          <div className='mt-6 h-72 rounded-lg bg-muted animate-pulse' />
         </div>
       </div>
     )
@@ -99,12 +122,12 @@ export function DeliveryDetailPage() {
 
   if (!delivery || !stats) {
     return (
-      <div className="flex flex-col flex-1 items-center justify-center gap-4 text-muted-foreground">
-        <i className="ri-error-warning-line text-4xl opacity-40" />
-        <p className="text-sm">发货单不存在或已删除</p>
+      <div className='flex flex-col flex-1 items-center justify-center gap-4 text-muted-foreground'>
+        <i className='ri-error-warning-line text-4xl opacity-40' />
+        <p className='text-sm'>发货单不存在或已删除</p>
         <Button
-          variant="outline"
-          size="sm"
+          variant='outline'
+          size='sm'
           onClick={() => navigate({ to: "/deliveries" })}
         >
           返回发货单列表
@@ -113,19 +136,38 @@ export function DeliveryDetailPage() {
     )
   }
 
-  return (
-    <div className="flex flex-col flex-1 overflow-hidden">
-      <div className="flex items-center gap-2 px-4 sm:px-6 py-3 border-b border-border bg-background shrink-0">
-        <span className="font-mono text-sm truncate">
-          {formatDeliveryNo(delivery.id)}
-        </span>
+  const handleExportDelivery = () => {
+    try {
+      const filename = exportDeliveryNote(delivery)
+      toast.success(`导出成功：${filename}`)
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "未知错误"
+      toast.error(`导出失败：${message}`)
+    }
+  }
 
-        <div className="ml-auto">
+  return (
+    <div className='flex flex-col flex-1 overflow-hidden'>
+      <div className='flex items-center gap-2 px-4 sm:px-6 py-3 border-b border-border bg-background shrink-0'>
+        <div className='flex items-center gap-2'>
+          <span className='font-mono text-sm truncate'>
+            {formatDeliveryNo(delivery.id)}
+          </span>
           <DeliveryStatusBadge status={delivery.status} />
         </div>
+        <Button
+          size='sm'
+          variant='outline'
+          className='h-8 px-2.5 text-xs ml-auto'
+          onClick={handleExportDelivery}
+        >
+          <i className='ri-download-2-line mr-1.5' />
+          导出发货单
+        </Button>
       </div>
 
-      <div className="flex-1 overflow-auto">
+      <div className='flex-1 overflow-auto'>
         {isMobile ? (
           <DeliveryDetailMobile
             delivery={delivery}

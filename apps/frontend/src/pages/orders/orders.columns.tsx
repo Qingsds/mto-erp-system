@@ -117,9 +117,16 @@ export function getOrdersColumns(
       header: "金额",
       size: 100,
       cell: i => {
+        const isClosedShort = i.row.original.status === "CLOSED_SHORT"
         const total = i.row.original.totalAmount ??
           i.row.original.items.reduce(
-            (s, it) => s + it.orderedQty * decimalToNum(it.unitPrice), 0,
+            (s, it) => {
+              const settlementQty = isClosedShort
+                ? Math.max(Math.min(it.shippedQty, it.orderedQty), 0)
+                : it.orderedQty
+              return s + settlementQty * decimalToNum(it.unitPrice)
+            },
+            0,
           )
         return (
           <span className="font-mono text-sm font-medium tabular-nums whitespace-nowrap">

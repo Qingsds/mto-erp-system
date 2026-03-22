@@ -203,7 +203,11 @@ export class OrdersService {
           item.unitPrice,
           item.part?.commonPrices,
         );
-        return sum + item.orderedQty * unitPrice;
+        const settlementQty =
+          order.status === 'CLOSED_SHORT'
+            ? Math.max(Math.min(item.shippedQty, item.orderedQty), 0)
+            : item.orderedQty;
+        return sum + settlementQty * unitPrice;
       }, 0);
 
       const items = order.items.map(({ part, ...item }) => ({

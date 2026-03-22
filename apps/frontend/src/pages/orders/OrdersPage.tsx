@@ -212,8 +212,14 @@ function MobileOrders() {
           </div>
         ) : (
           orders.map(o => {
+            const isClosedShort = o.status === "CLOSED_SHORT"
             const total = o.totalAmount ??
-              o.items.reduce((s, it) => s + it.orderedQty * decimalToNum(it.unitPrice), 0)
+              o.items.reduce((s, it) => {
+                const settlementQty = isClosedShort
+                  ? Math.max(Math.min(it.shippedQty, it.orderedQty), 0)
+                  : it.orderedQty
+                return s + settlementQty * decimalToNum(it.unitPrice)
+              }, 0)
             return (
               <div key={o.id}
                 className="p-3.5 rounded-xl border border-border bg-card active:bg-muted/50 cursor-pointer transition-colors"
