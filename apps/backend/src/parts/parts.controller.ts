@@ -10,6 +10,7 @@ import {
   BadRequestException,
   UploadedFile,
   UseInterceptors,
+  Delete,
 } from '@nestjs/common';
 import { PartsService } from './parts.service';
 
@@ -58,6 +59,14 @@ export class PartsController {
   ): Promise<ApiResponse> {
     const result = await this.partsService.updatePart(id, requestBody);
     return { code: 200, message: '零件修改成功', data: result };
+  }
+
+  @Delete(':id')
+  async deletePart(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<ApiResponse> {
+    const result = await this.partsService.deletePart(id);
+    return { code: 200, message: '零件删除成功', data: result };
   }
 
   /**

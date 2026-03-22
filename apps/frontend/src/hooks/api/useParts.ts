@@ -153,6 +153,21 @@ export function useUpdatePart() {
   })
 }
 
+/** 删除零件（若已被订单引用则后端会拒绝） */
+export function useDeletePart() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) =>
+      request.delete<unknown, ApiResponse<{ id: number }>>(`/api/parts/${id}`),
+    onSuccess: (_, id) => {
+      toast.success("零件已删除")
+      qc.invalidateQueries({ queryKey: ["parts"] })
+      qc.invalidateQueries({ queryKey: PARTS_KEYS.detail(id) })
+    },
+    onError: (e: Error) => toast.error(`删除失败：${e.message}`),
+  })
+}
+
 /** Excel 批量导入（逐行对齐 CreatePartRequest） */
 export function useImportParts() {
   const qc = useQueryClient()

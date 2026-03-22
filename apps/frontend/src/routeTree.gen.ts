@@ -9,15 +9,22 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SealsRouteImport } from './routes/seals'
 import { Route as PartsRouteImport } from './routes/parts'
 import { Route as OrdersRouteImport } from './routes/orders'
 import { Route as DeliveriesRouteImport } from './routes/deliveries'
+import { Route as BillingRouteImport } from './routes/billing'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PartsIdRouteImport } from './routes/parts.$id'
 import { Route as OrdersNewRouteImport } from './routes/orders.new'
 import { Route as OrdersIdRouteImport } from './routes/orders.$id'
 import { Route as DeliveriesIdRouteImport } from './routes/deliveries.$id'
 
+const SealsRoute = SealsRouteImport.update({
+  id: '/seals',
+  path: '/seals',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PartsRoute = PartsRouteImport.update({
   id: '/parts',
   path: '/parts',
@@ -31,6 +38,11 @@ const OrdersRoute = OrdersRouteImport.update({
 const DeliveriesRoute = DeliveriesRouteImport.update({
   id: '/deliveries',
   path: '/deliveries',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BillingRoute = BillingRouteImport.update({
+  id: '/billing',
+  path: '/billing',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -61,9 +73,11 @@ const DeliveriesIdRoute = DeliveriesIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/billing': typeof BillingRoute
   '/deliveries': typeof DeliveriesRouteWithChildren
   '/orders': typeof OrdersRouteWithChildren
   '/parts': typeof PartsRouteWithChildren
+  '/seals': typeof SealsRoute
   '/deliveries/$id': typeof DeliveriesIdRoute
   '/orders/$id': typeof OrdersIdRoute
   '/orders/new': typeof OrdersNewRoute
@@ -71,9 +85,11 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/billing': typeof BillingRoute
   '/deliveries': typeof DeliveriesRouteWithChildren
   '/orders': typeof OrdersRouteWithChildren
   '/parts': typeof PartsRouteWithChildren
+  '/seals': typeof SealsRoute
   '/deliveries/$id': typeof DeliveriesIdRoute
   '/orders/$id': typeof OrdersIdRoute
   '/orders/new': typeof OrdersNewRoute
@@ -82,9 +98,11 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/billing': typeof BillingRoute
   '/deliveries': typeof DeliveriesRouteWithChildren
   '/orders': typeof OrdersRouteWithChildren
   '/parts': typeof PartsRouteWithChildren
+  '/seals': typeof SealsRoute
   '/deliveries/$id': typeof DeliveriesIdRoute
   '/orders/$id': typeof OrdersIdRoute
   '/orders/new': typeof OrdersNewRoute
@@ -94,9 +112,11 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/billing'
     | '/deliveries'
     | '/orders'
     | '/parts'
+    | '/seals'
     | '/deliveries/$id'
     | '/orders/$id'
     | '/orders/new'
@@ -104,9 +124,11 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/billing'
     | '/deliveries'
     | '/orders'
     | '/parts'
+    | '/seals'
     | '/deliveries/$id'
     | '/orders/$id'
     | '/orders/new'
@@ -114,9 +136,11 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/billing'
     | '/deliveries'
     | '/orders'
     | '/parts'
+    | '/seals'
     | '/deliveries/$id'
     | '/orders/$id'
     | '/orders/new'
@@ -125,13 +149,22 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  BillingRoute: typeof BillingRoute
   DeliveriesRoute: typeof DeliveriesRouteWithChildren
   OrdersRoute: typeof OrdersRouteWithChildren
   PartsRoute: typeof PartsRouteWithChildren
+  SealsRoute: typeof SealsRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/seals': {
+      id: '/seals'
+      path: '/seals'
+      fullPath: '/seals'
+      preLoaderRoute: typeof SealsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/parts': {
       id: '/parts'
       path: '/parts'
@@ -151,6 +184,13 @@ declare module '@tanstack/react-router' {
       path: '/deliveries'
       fullPath: '/deliveries'
       preLoaderRoute: typeof DeliveriesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/billing': {
+      id: '/billing'
+      path: '/billing'
+      fullPath: '/billing'
+      preLoaderRoute: typeof BillingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -228,9 +268,11 @@ const PartsRouteWithChildren = PartsRoute._addFileChildren(PartsRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  BillingRoute: BillingRoute,
   DeliveriesRoute: DeliveriesRouteWithChildren,
   OrdersRoute: OrdersRouteWithChildren,
   PartsRoute: PartsRouteWithChildren,
+  SealsRoute: SealsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

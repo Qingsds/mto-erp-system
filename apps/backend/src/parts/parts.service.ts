@@ -89,6 +89,39 @@ export class PartsService {
     });
   }
 
+  // 5. 删除零件（防止误删已参与订单的主数据）
+  async deletePart(id: number) {
+    const part = await this.prisma.client.part.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        _count: { select: { orderItems: true } },
+      },
+    });
+
+    if (!part) {
+      throw new NotFoundException(`零件 ID: ${id} 不存在`);
+    }
+
+    if (part._count.orderItems > 0) {
+      throw new BadRequestException(
+        `零件「${part.name}」已被订单引用，不能删除`,
+      );
+    }
+
+    await this.prisma.client.$transaction(async (tx) => {
+      await tx.partDrawing.deleteMany({
+        where: { partId: id },
+      });
+      await tx.part.delete({
+        where: { id },
+      });
+    });
+
+    return { id };
+  }
+
   /**
    * 上传零件工程图纸
    */

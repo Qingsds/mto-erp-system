@@ -4,8 +4,11 @@ import type { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse } from "a
 import type { ApiResponse } from "@erp/shared-types"
 import { toast } from "@/lib/toast"
 
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim()
+
 const request: AxiosInstance = axios.create({
-  baseURL: "http://localhost:3000",
+  // 默认走相对路径，开发环境由 Vite /api 代理转发；部署时可通过 VITE_API_BASE_URL 覆盖。
+  baseURL: apiBaseUrl || undefined,
   timeout: 15000,
 })
 

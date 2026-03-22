@@ -12,7 +12,7 @@ interface Action {
 
 const ACTIONS: Action[] = [
   { icon: "ri-settings-3-line", title: "新增零件", desc: "录入新零件，系统自动生成编号", to: "/parts?action=new" },
-  { icon: "ri-file-list-3-line",title: "新建订单", desc: "选择客户和零件，锁定价格快照", to: "/orders?action=new" },
+  { icon: "ri-file-list-3-line",title: "新建订单", desc: "选择客户和零件，锁定价格快照", to: "/orders/new" },
 ]
 
 interface QuickAddSheetProps {

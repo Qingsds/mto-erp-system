@@ -144,8 +144,7 @@ export class OrdersService {
       );
     }
 
-    // 3. 执行状态变更
-    // 提示：当前 Schema 的 Order 表中暂无 reason 字段，payload.reason 可在需要时扩展写入数据库或日志系统
+    // 3. 执行状态变更，并记录短交原因（可选）
     const updatedOrder = await this.prisma.client.order.update({
       where: { id: orderId },
       data: {

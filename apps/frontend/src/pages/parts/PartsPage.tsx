@@ -25,6 +25,7 @@ import { TableToolbar } from "@/components/common/TableToolbar"
 import {
   useGetParts,
   useCreatePart,
+  useDeletePart,
   useUpdatePart,
   useImportParts,
   formPricesToApi,
@@ -36,12 +37,24 @@ import { ImportPanel } from "./parts.import"
 import type { PartFormValues, ImportRow } from "./parts.schema"
 
 type PanelMode = "add" | "import" | null
+export type PartsQuickAction = "new" | "import"
+
+interface PartsPageProps {
+  quickAction?: PartsQuickAction
+}
 
 const PAGE_SIZE = 20
 
 // ─── Desktop ──────────────────────────────────────────────
-function DesktopParts() {
-  const [panel, setPanel] = useState<PanelMode>(null)
+function DesktopParts({ quickAction }: PartsPageProps) {
+  const initialPanel: PanelMode =
+    quickAction === "new"
+      ? "add"
+      : quickAction === "import"
+        ? "import"
+        : null
+
+  const [panel, setPanel] = useState<PanelMode>(initialPanel)
   const [editingPart, setEditing] = useState<PartListItem | null>(
     null,
   )
@@ -58,6 +71,7 @@ function DesktopParts() {
   })
 
   const createPart = useCreatePart()
+  const deletePart = useDeletePart()
   const updatePart = useUpdatePart()
   const importParts = useImportParts()
 
@@ -65,17 +79,30 @@ function DesktopParts() {
   const totalCount = data?.total ?? 0
   const totalPages = Math.ceil(totalCount / PAGE_SIZE)
 
-  const columns = useMemo(
-    () =>
-      getPartsColumns(
-        p => {
-          setEditing(p)
-          setPanel("add")
-        },
-        p => console.log("delete (待实现):", p.id),
-      ),
-    [],
-  )
+  const closePanel = () => {
+    setPanel(null)
+    setEditing(null)
+  }
+
+  const handleDelete = async (part: PartListItem) => {
+    const confirmed = window.confirm(
+      `确认删除零件「${part.name}」吗？删除后无法恢复。`,
+    )
+    if (!confirmed) return
+
+    await deletePart.mutateAsync(part.id)
+    if (editingPart?.id === part.id) {
+      closePanel()
+    }
+  }
+
+  const columns = useMemo(() => getPartsColumns(
+    p => {
+      setEditing(p)
+      setPanel("add")
+    },
+    p => { void handleDelete(p) },
+  ), [handleDelete])
 
   const table = useReactTable({
     data: parts,
@@ -114,11 +141,6 @@ function DesktopParts() {
       })),
     )
     closePanel()
-  }
-
-  const closePanel = () => {
-    setPanel(null)
-    setEditing(null)
   }
 
   return (
@@ -235,8 +257,15 @@ function DesktopParts() {
 }
 
 // ─── Mobile ───────────────────────────────────────────────
-function MobileParts() {
-  const [panel, setPanel] = useState<PanelMode>(null)
+function MobileParts({ quickAction }: PartsPageProps) {
+  const initialPanel: PanelMode =
+    quickAction === "new"
+      ? "add"
+      : quickAction === "import"
+        ? "import"
+        : null
+
+  const [panel, setPanel] = useState<PanelMode>(initialPanel)
   const [editingPart, setEditing] = useState<PartListItem | null>(
     null,
   )
@@ -442,7 +471,9 @@ function MobileParts() {
   )
 }
 
-export function PartsPage() {
+export function PartsPage({ quickAction }: PartsPageProps) {
   const { isMobile } = useUIStore()
-  return isMobile ? <MobileParts /> : <DesktopParts />
+  return isMobile
+    ? <MobileParts quickAction={quickAction} />
+    : <DesktopParts quickAction={quickAction} />
 }
