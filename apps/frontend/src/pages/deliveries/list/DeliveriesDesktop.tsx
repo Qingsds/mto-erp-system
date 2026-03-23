@@ -29,6 +29,7 @@ type DeliveryStatusFilter = "all" | "SHIPPED"
 type RemarkFilter = "all" | "yes" | "no"
 
 const PAGE_SIZE = 20
+// 固定空数组引用，避免 data 未返回时每次渲染生成新引用触发表格重复计算。
 const EMPTY_DELIVERIES: DeliveryListItem[] = []
 
 interface DeliveriesDesktopProps {
@@ -112,6 +113,7 @@ export function DeliveriesDesktop({ isActive }: DeliveriesDesktopProps) {
         : appliedFilters.hasRemark === "yes",
   })
 
+  // 保持 data 引用稳定，减少 useMemo/useReactTable 的无效重算。
   const deliveries = data?.data ?? EMPTY_DELIVERIES
   const totalCount = data?.total ?? 0
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))

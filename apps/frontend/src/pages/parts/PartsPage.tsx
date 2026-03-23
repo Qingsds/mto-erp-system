@@ -75,15 +75,18 @@ function DesktopParts({ quickAction }: PartsPageProps) {
   const updatePart = useUpdatePart()
   const importParts = useImportParts()
 
+  // 列表数据直连 API 类型，避免额外转换层导致字段语义漂移。
   const parts = data?.data ?? []
   const totalCount = data?.total ?? 0
   const totalPages = Math.ceil(totalCount / PAGE_SIZE)
 
+  // 统一抽屉收口：关闭面板同时清理编辑态，避免下次打开残留旧数据。
   const closePanel = useCallback(() => {
     setPanel(null)
     setEditing(null)
   }, [])
 
+  // 删除后如果正在编辑同一条记录，需主动关闭编辑面板避免引用悬空。
   const handleDelete = useCallback(async (part: PartListItem) => {
     const confirmed = window.confirm(
       `确认删除零件「${part.name}」吗？删除后无法恢复。`,

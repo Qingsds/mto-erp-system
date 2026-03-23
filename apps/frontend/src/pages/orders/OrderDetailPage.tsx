@@ -287,6 +287,7 @@ function OrderExportAction({ order }: { order: OrderDetail }) {
   const [isExporting, setIsExporting] = useState(false)
   const [exportPreview, setExportPreview] = useState<ExportPreviewData | null>(null)
   const [exportConfig, setExportConfig] = useState<ExportConfig>(DEFAULT_EXPORT_CONFIG)
+  // 仅在首次打开弹窗时显示“准备中”，配置切换时保留旧预览避免闪烁。
   const hasPreparedPreviewRef = useRef(false)
 
   useEffect(() => {
@@ -303,6 +304,7 @@ function OrderExportAction({ order }: { order: OrderDetail }) {
     let rafId1 = 0
     let rafId2 = 0
 
+    // 双 RAF：先让弹窗完成一帧渲染，再做预览计算，减轻首帧卡顿。
     rafId1 = requestAnimationFrame(() => {
       rafId2 = requestAnimationFrame(() => {
         if (cancelled) return

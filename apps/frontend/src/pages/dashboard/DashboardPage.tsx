@@ -1,3 +1,12 @@
+/**
+ * DashboardPage.tsx
+ *
+ * 职责：
+ * - 聚合订单、发货、对账、零件四类数据，生成首页看板视图模型
+ * - 提供移动端/桌面端两套展示层，复用同一份统计与待办数据
+ * - 保持页面组件只做编排，复杂映射集中在纯函数与 useMemo 中
+ */
+
 import { useMemo } from "react"
 import type { OrderStatusType } from "@erp/shared-types"
 import {
@@ -77,6 +86,7 @@ function OrderBadge({ status }: { status: DashboardOrderStatus }) {
   return <Badge variant={variant}>{label}</Badge>
 }
 
+/** 将后端状态映射为看板状态，避免 UI 直接依赖后端枚举命名。 */
 function mapOrderStatus(status: OrderStatusType): DashboardOrderStatus {
   if (status === "PENDING") return "active"
   if (status === "PARTIAL_SHIPPED") return "shipping"
@@ -84,10 +94,12 @@ function mapOrderStatus(status: OrderStatusType): DashboardOrderStatus {
   return "done"
 }
 
+/** ISO 日期裁剪为 MM-DD，用于列表紧凑展示。 */
 function formatShortDate(value: string): string {
   return value.slice(5, 10)
 }
 
+/** 人民币格式化（固定 2 位小数），用于看板金额显示。 */
 function formatYuan(value: number): string {
   return `¥${value.toLocaleString("zh-CN", {
     minimumFractionDigits: 2,
@@ -95,6 +107,11 @@ function formatYuan(value: number): string {
   })}`
 }
 
+/**
+ * 计算履约进度。
+ * - 已发完或短交结案视为 100%
+ * - 其余按 shipped/ordered 计算，并做 [0,100] 边界保护
+ */
 function calcOrderProgress(ordered: number, shipped: number, status: OrderStatusType): number {
   if (status === "SHIPPED" || status === "CLOSED_SHORT") return 100
   if (ordered <= 0) return 0
@@ -507,6 +524,7 @@ function DesktopDashboard({
 export function DashboardPage() {
   const { isMobile } = useUIStore()
 
+  // 看板按“当前自然月”聚合发货数据，边界使用本地时区日期。
   const now = new Date()
   const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`
   const monthEnd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
@@ -540,6 +558,7 @@ export function DashboardPage() {
   const partsTotalQuery = useGetParts({ page: 1, pageSize: 1 })
   const partsSnapshotQuery = useGetParts({ page: 1, pageSize: 50 })
 
+  // 任一关键查询未就绪时，整体走骨架态，避免卡片/表格混合闪烁。
   const isLoading = [
     latestOrdersQuery,
     pendingOrdersQuery,
@@ -559,6 +578,7 @@ export function DashboardPage() {
     const monthlyDeliveryCount = monthlyDeliveriesQuery.data?.total ?? 0
     const draftCount = billingDraftQuery.data?.total ?? 0
     const sealedCount = billingSealedQuery.data?.total ?? 0
+    // 待结算单 = 草稿 + 已盖章（尚未完成回款/结算闭环）。
     const receivableCount = draftCount + sealedCount
     const partsTotal = partsTotalQuery.data?.total ?? 0
 
@@ -606,10 +626,12 @@ export function DashboardPage() {
   const orders = useMemo<DashboardOrderItem[]>(() => {
     const rows = latestOrdersQuery.data?.data ?? []
     return rows.map(order => {
+      // 进度按数量口径计算，避免金额口径受单价缺失影响。
       const orderedQty = order.items.reduce((sum, item) => sum + item.orderedQty, 0)
       const shippedQty = order.items.reduce((sum, item) => sum + item.shippedQty, 0)
       const progress = calcOrderProgress(orderedQty, shippedQty, order.status)
 
+      // 旧数据可能没有 totalAmount，回退为“数量 * 快照单价”的求和。
       const fallbackAmount = order.items.reduce(
         (sum, item) => sum + item.orderedQty * orderDecimalToNum(item.unitPrice),
         0,
@@ -639,6 +661,7 @@ export function DashboardPage() {
     const pendingBills = draftCount + sealedCount
     const shortClosedCount = closedOrdersQuery.data?.total ?? 0
     const missingPriceCount = (partsSnapshotQuery.data?.data ?? []).filter(part => {
+      // commonPrices 任一价格 > 0 即视为已配置；全空或全 0 视为缺失。
       const entries = Object.values(part.commonPrices ?? {})
       if (entries.length === 0) return true
       return entries.every(value => billingDecimalToNum(value) <= 0)

@@ -1,3 +1,12 @@
+/**
+ * documentExport.ts
+ *
+ * 职责：
+ * - 负责把二维表数据渲染为 xlsx-js-style 工作簿并触发下载
+ * - 在导出阶段计算列宽/行高，保持表格在不同内容长度下可读
+ * - 仅做“格式与文件写出”，业务数据由 documentExportData 提供
+ */
+
 import * as XLSX from "xlsx-js-style"
 import type { DeliveryDetail } from "@/hooks/api/useDeliveries"
 import type { OrderDetail } from "@/hooks/api/useOrders"
@@ -22,12 +31,14 @@ const BASE_STYLE = {
   alignment: { horizontal: "center", vertical: "center", wrapText: true },
 } as const
 
+/** 估算显示长度：中文按 2，英文/数字按 1。 */
 function getDisplayLength(value: string | number): number {
   return Array.from(String(value)).reduce((sum, char) => {
     return sum + (char.charCodeAt(0) > 255 ? 2 : 1)
   }, 0)
 }
 
+/** 按列最大显示长度估算宽度，并限制在最小值与上限之间。 */
 function resolveColumnWidths(rows: RowData[], minWidths: number[]): number[] {
   const colCount = Math.max(minWidths.length, ...rows.map(row => row.length))
   const maxWidth = 48
@@ -43,6 +54,7 @@ function resolveColumnWidths(rows: RowData[], minWidths: number[]): number[] {
   })
 }
 
+/** 按内容换行需求估算行高，防止单行截断或极端拉伸。 */
 function resolveRowHeight(row: RowData, colWidths: number[]): number {
   const lineCount = row.reduce<number>((maxLines, value, colIndex) => {
     const width = Math.max(colWidths[colIndex] ?? 10, 1)
@@ -68,6 +80,7 @@ function buildWorkbook(
   const ws = XLSX.utils.aoa_to_sheet(rows)
   const contentEndRow = rows.length - 1
 
+  // 标题行/表头行使用固定高度，其余行按内容自适应高度。
   ws["!cols"] = colWidths.map(wch => ({ wch }))
   ws["!rows"] = rows.map((row, index) => {
     if (index === 0) return { hpt: 30 }
@@ -75,6 +88,8 @@ function buildWorkbook(
     if (index === contentStartRow) return { hpt: 24 }
     return { hpt: resolveRowHeight(row, colWidths) }
   })
+
+  // 公司名与单据名横跨全列，视觉上形成两级标题。
   ws["!merges"] = [
     { s: { r: 0, c: 0 }, e: { r: 0, c: colWidths.length - 1 } },
     { s: { r: 1, c: 0 }, e: { r: 1, c: colWidths.length - 1 } },
@@ -96,6 +111,7 @@ function buildWorkbook(
       if (!cell) continue
 
       const style: Record<string, unknown> = { ...BASE_STYLE }
+      // 不同行区分字体层级：主标题 > 副标题 > 表头 > 内容。
       if (rowIndex === 0) {
         style.font = { name: CELL_FONT, sz: 16, bold: true }
       } else if (rowIndex === 1) {

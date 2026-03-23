@@ -186,6 +186,7 @@ function DeliveryExportAction({ delivery }: { delivery: DeliveryDetail }) {
   const [isExporting, setIsExporting] = useState(false)
   const [exportPreview, setExportPreview] = useState<ExportPreviewData | null>(null)
   const [exportConfig, setExportConfig] = useState<ExportConfig>(DEFAULT_EXPORT_CONFIG)
+  // 仅首次打开展示加载态；后续切换配置保持旧预览，避免弹窗闪烁。
   const hasPreparedPreviewRef = useRef(false)
 
   useEffect(() => {
@@ -202,6 +203,7 @@ function DeliveryExportAction({ delivery }: { delivery: DeliveryDetail }) {
     let rafId1 = 0
     let rafId2 = 0
 
+    // 双 RAF：优先保证弹窗开启动画/首帧绘制，再异步计算预览。
     rafId1 = requestAnimationFrame(() => {
       rafId2 = requestAnimationFrame(() => {
         if (cancelled) return

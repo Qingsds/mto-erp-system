@@ -27,6 +27,7 @@ type DeliveryStatusFilter = "all" | "SHIPPED"
 type RemarkFilter = "all" | "yes" | "no"
 
 const PAGE_SIZE = 20
+// 固定空数组引用，避免无数据时列表过滤逻辑反复触发。
 const EMPTY_DELIVERIES: DeliveryListItem[] = []
 
 interface DeliveriesMobileProps {
@@ -109,6 +110,7 @@ export function DeliveriesMobile({ isActive }: DeliveriesMobileProps) {
         : appliedFilters.hasRemark === "yes",
   })
 
+  // data 缺失时复用 EMPTY_DELIVERIES，保证筛选 useMemo 依赖稳定。
   const deliveries = data?.data ?? EMPTY_DELIVERIES
   const totalCount = data?.total ?? 0
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
@@ -116,6 +118,7 @@ export function DeliveriesMobile({ isActive }: DeliveriesMobileProps) {
   const keyword = normalizeKeyword(appliedFilters.keyword)
 
   const visibleDeliveries = useMemo(() => {
+    // 先做关键字过滤，再做状态过滤，保证筛选顺序清晰且可维护。
     const byKeyword = keyword
       ? deliveries.filter(delivery => {
           const deliveryNo = formatDeliveryNo(delivery.id).toLowerCase()

@@ -1,3 +1,12 @@
+/**
+ * documentExportData.ts
+ *
+ * 职责：
+ * - 将订单/发货原始数据转换为可导出的二维表（含表头、明细、汇总）
+ * - 提供“完整导出数据”与“轻量预览数据”两种输出，避免预览触发重依赖
+ * - 统一导出配置项（字段显隐、日期格式）与金额/日期/短交结算规则
+ */
+
 import type { DeliveryDetail } from "@/hooks/api/useDeliveries"
 import type { OrderDetail } from "@/hooks/api/useOrders"
 import {
@@ -56,6 +65,7 @@ export const DEFAULT_EXPORT_OPTIONS: Required<ExportSheetOptions> = {
 
 const PREVIEW_ROW_LIMIT = 8
 
+/** 合并用户配置与默认配置，避免下游判断 undefined。 */
 function resolveExportOptions(
   options?: ExportSheetOptions,
 ): Required<ExportSheetOptions> {
@@ -70,6 +80,7 @@ function resolveExportOptions(
   }
 }
 
+/** 从字符串中提取 YYYY/MM/DD 的稳定日期片段。 */
 function normalizeDateParts(value: string): [string, string, string] {
   const sliced = value.slice(0, 10)
   const matched = /^(\d{4})-(\d{2})-(\d{2})$/.exec(sliced)
@@ -89,6 +100,7 @@ function normalizeDateParts(value: string): [string, string, string] {
   return ["0000", "00", "00"]
 }
 
+/** 以导出配置格式化日期，不引入时间，防止时区偏移。 */
 function formatDateByPattern(
   year: string,
   month: string,
@@ -126,6 +138,12 @@ function formatMoney(value: number): number {
   return Number(value.toFixed(2))
 }
 
+/**
+ * 结算单价优先级：
+ * 1) 订单快照单价（下单时锁定）
+ * 2) 零件“标准价”
+ * 3) 零件价格字典中的任意有效值
+ */
 function resolveUnitPrice(
   unitPrice: string,
   commonPrices: Record<string, number>,
@@ -153,6 +171,11 @@ function filterPreviewMeta(row: RowData): string[] {
   return row.map(cell => String(cell).trim()).filter(Boolean)
 }
 
+/**
+ * 结算数量规则：
+ * - 正常订单：按下单数量结算
+ * - 短交结案：按已发数量结算，但限制在 [0, orderedQty] 区间
+ */
 export function resolveSettlementQty(
   orderedQty: number,
   shippedQty: number,
@@ -169,6 +192,7 @@ export function buildOrderPriceDetailRows(
 
   return order.items.map(item => {
     const unitPrice = resolveUnitPrice(item.unitPrice, item.part.commonPrices)
+    // shortQty 表示“下单但未发出的缺口数量”，用于短交废件提示。
     const shortQty = Math.max(item.orderedQty - item.shippedQty, 0)
     const settlementQty = resolveSettlementQty(
       item.orderedQty,
@@ -267,6 +291,7 @@ export function buildOrderSheetPayload(
       )
     : 0
 
+  // 汇总备注仅承载“短交业务语义”，避免把日期等元信息塞入表尾。
   const footerRemark = [
     isClosedShort && totalShortQty > 0
       ? `废件合计：${totalShortQty} 件（已扣款）`
@@ -365,6 +390,7 @@ export function buildDeliverySheetPayload(
     : ["零件", "材质", "数量"]
 
   const totalQty = delivery.items.reduce((sum, item) => sum + item.shippedQty, 0)
+  // 发货单汇总行只保留数量汇总，不附加日期等元字段。
   const summary: RowData = resolved.showRemarks
     ? ["汇总", "", totalQty, ""]
     : ["汇总", "", totalQty]
@@ -419,6 +445,7 @@ export function getOrderExportPreview(
   let totalAmount = 0
   let totalShortQty = 0
 
+  // 单次遍历同时完成“前 PREVIEW_ROW_LIMIT 条预览 + 全量汇总”。
   for (let index = 0; index < order.items.length; index += 1) {
     const item = order.items[index]
     const unitPrice = resolveUnitPrice(item.unitPrice, item.part.commonPrices)
@@ -488,6 +515,7 @@ export function getDeliveryExportPreview(
   const previewRows: RowData[] = []
   let totalQty = 0
 
+  // 预览只截前 PREVIEW_ROW_LIMIT 行，汇总仍按全量明细计算。
   for (let index = 0; index < delivery.items.length; index += 1) {
     const item = delivery.items[index]
     totalQty += item.shippedQty
