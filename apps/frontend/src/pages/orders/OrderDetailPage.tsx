@@ -7,26 +7,37 @@
  * - 管理「创建发货单」抽屉开关与提交回调
  */
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate, useParams } from "@tanstack/react-router"
 import type { CreateDeliveryRequest } from "@erp/shared-types"
 import { Button } from "@/components/ui/button"
+import { ExportPreviewDialog } from "@/components/export/ExportPreviewDialog"
 import { useUIStore } from "@/store/ui.store"
 import { toast } from "@/lib/toast"
+import {
+  DEFAULT_EXPORT_OPTIONS,
+  getOrderExportPreview,
+  type ExportPreviewData,
+  type ExportSheetOptions,
+} from "@/lib/documentExportData"
 import {
   decimalToNum,
   formatDeliveryNo,
   formatOrderNo,
+  type OrderDetail,
   useCloseShortOrder,
   useCreateDelivery,
   useGetOrder,
 } from "@/hooks/api/useOrders"
-import { exportOrderPriceSheet } from "@/lib/documentExport"
 import { StatusBadge } from "./detail/StatusBadge"
 import { CreateDeliverySheet } from "./detail/CreateDeliverySheet"
 import { OrderDetailDesktop } from "./detail/OrderDetailDesktop"
 import { OrderDetailMobile } from "./detail/OrderDetailMobile"
 import type { DetailTab, TimelineEvent } from "./detail/types"
+
+type ExportConfig = Required<ExportSheetOptions>
+
+const DEFAULT_EXPORT_CONFIG: ExportConfig = DEFAULT_EXPORT_OPTIONS
 
 function resolveUnitPrice(
   unitPrice: string,
@@ -173,18 +184,6 @@ export function OrderDetailPage() {
     })
   }
 
-  const handleExportOrder = () => {
-    if (!order) return
-    try {
-      const filename = exportOrderPriceSheet(order)
-      toast.success(`导出成功：${filename}`)
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "未知错误"
-      toast.error(`导出失败：${message}`)
-    }
-  }
-
   if (isLoading) {
     return (
       <div className='flex flex-col flex-1 overflow-hidden'>
@@ -231,15 +230,7 @@ export function OrderDetailPage() {
         </div>
 
         <div className='ml-auto flex items-center gap-2'>
-          <Button
-            size='sm'
-            variant='outline'
-            className='h-8 px-2.5 text-xs'
-            onClick={handleExportOrder}
-          >
-            <i className='ri-download-2-line mr-1.5' />
-            导出价格清单
-          </Button>
+          <OrderExportAction order={order} />
         </div>
       </div>
 
@@ -285,6 +276,89 @@ export function OrderDetailPage() {
         onOpenChange={setCreateOpen}
         onSubmit={handleCreateDelivery}
       />
+
     </div>
+  )
+}
+
+function OrderExportAction({ order }: { order: OrderDetail }) {
+  const [exportOpen, setExportOpen] = useState(false)
+  const [isPreparingExport, setIsPreparingExport] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
+  const [exportPreview, setExportPreview] = useState<ExportPreviewData | null>(null)
+  const [exportConfig, setExportConfig] = useState<ExportConfig>(DEFAULT_EXPORT_CONFIG)
+  const hasPreparedPreviewRef = useRef(false)
+
+  useEffect(() => {
+    if (!exportOpen) {
+      hasPreparedPreviewRef.current = false
+      return
+    }
+    const isFirstPrepare = !hasPreparedPreviewRef.current
+    if (isFirstPrepare) {
+      setIsPreparingExport(true)
+    }
+
+    let cancelled = false
+    let rafId1 = 0
+    let rafId2 = 0
+
+    rafId1 = requestAnimationFrame(() => {
+      rafId2 = requestAnimationFrame(() => {
+        if (cancelled) return
+        const preview = getOrderExportPreview(order, exportConfig)
+        if (!cancelled) {
+          setExportPreview(preview)
+          hasPreparedPreviewRef.current = true
+          setIsPreparingExport(false)
+        }
+      })
+    })
+
+    return () => {
+      cancelled = true
+      if (rafId1) cancelAnimationFrame(rafId1)
+      if (rafId2) cancelAnimationFrame(rafId2)
+    }
+  }, [exportConfig, exportOpen, order])
+
+  const handleConfirmExportOrder = async () => {
+    try {
+      setIsExporting(true)
+      const { exportOrderPriceSheet } = await import("@/lib/documentExport")
+      const filename = exportOrderPriceSheet(order, exportConfig)
+      toast.success(`导出成功：${filename}`)
+      setExportOpen(false)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "未知错误"
+      toast.error(`导出失败：${message}`)
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  return (
+    <>
+      <Button
+        size='sm'
+        variant='outline'
+        className='h-8 px-2.5 text-xs'
+        onClick={() => setExportOpen(true)}
+      >
+        <i className='ri-download-2-line mr-1.5' />
+        导出价格清单
+      </Button>
+
+      <ExportPreviewDialog
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        config={exportConfig}
+        onChangeConfig={setExportConfig}
+        preview={exportPreview}
+        isPreparing={isPreparingExport}
+        isExporting={isExporting}
+        onConfirm={handleConfirmExportOrder}
+      />
+    </>
   )
 }

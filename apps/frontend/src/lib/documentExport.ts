@@ -1,13 +1,14 @@
 import * as XLSX from "xlsx-js-style"
 import type { DeliveryDetail } from "@/hooks/api/useDeliveries"
 import type { OrderDetail } from "@/hooks/api/useOrders"
-import { decimalToNum, formatDeliveryNo, formatOrderNo } from "@/hooks/api/useOrders"
+import {
+  buildDeliverySheetPayload,
+  buildOrderSheetPayload,
+  type ExportSheetOptions,
+  type RowData,
+} from "./documentExportData"
 
-const COMPANY_NAME = "濮阳市瑞海隆鑫设备制造有限公司"
 const CELL_FONT = "Microsoft YaHei"
-
-type CellValue = string | number
-type RowData = CellValue[]
 
 const THIN_BORDER = {
   top: { style: "thin", color: { rgb: "000000" } },
@@ -21,53 +22,58 @@ const BASE_STYLE = {
   alignment: { horizontal: "center", vertical: "center", wrapText: true },
 } as const
 
-function formatDateOnly(value: string): string {
-  return value.slice(0, 10)
+function getDisplayLength(value: string | number): number {
+  return Array.from(String(value)).reduce((sum, char) => {
+    return sum + (char.charCodeAt(0) > 255 ? 2 : 1)
+  }, 0)
 }
 
-function formatToday(): string {
-  return new Date().toLocaleDateString("sv-SE")
+function resolveColumnWidths(rows: RowData[], minWidths: number[]): number[] {
+  const colCount = Math.max(minWidths.length, ...rows.map(row => row.length))
+  const maxWidth = 48
+
+  return Array.from({ length: colCount }, (_, colIndex) => {
+    const maxLen = rows.reduce((currentMax, row) => {
+      const value = row[colIndex]
+      if (value === undefined || value === null) return currentMax
+      return Math.max(currentMax, getDisplayLength(value))
+    }, 0)
+    const estimated = Math.min(maxLen + 2, maxWidth)
+    return Math.max(minWidths[colIndex] ?? 10, estimated)
+  })
 }
 
-function formatMoney(value: number): number {
-  return Number(value.toFixed(2))
-}
+function resolveRowHeight(row: RowData, colWidths: number[]): number {
+  const lineCount = row.reduce<number>((maxLines, value, colIndex) => {
+    const width = Math.max(colWidths[colIndex] ?? 10, 1)
+    const lines = String(value)
+      .split("\n")
+      .reduce((sum, line) => {
+        const displayLength = Math.max(getDisplayLength(line), 1)
+        return sum + Math.max(Math.ceil(displayLength / width), 1)
+      }, 0)
+    return Math.max(maxLines, lines)
+  }, 1)
 
-function resolveUnitPrice(unitPrice: string, commonPrices: Record<string, number>): number {
-  const snapshotPrice = decimalToNum(unitPrice)
-  if (snapshotPrice > 0) {
-    return snapshotPrice
-  }
-
-  const standardPrice = commonPrices["标准价"]
-  if (typeof standardPrice === "number" && Number.isFinite(standardPrice)) {
-    return standardPrice
-  }
-
-  for (const value of Object.values(commonPrices)) {
-    if (typeof value === "number" && Number.isFinite(value)) {
-      return value
-    }
-  }
-
-  return snapshotPrice
+  return Math.max(22, Math.min(lineCount * 22, 88))
 }
 
 function buildWorkbook(
   sheetName: string,
   rows: RowData[],
-  colWidths: number[],
+  minColWidths: number[],
   contentStartRow: number,
 ) {
+  const colWidths = resolveColumnWidths(rows, minColWidths)
   const ws = XLSX.utils.aoa_to_sheet(rows)
   const contentEndRow = rows.length - 1
 
   ws["!cols"] = colWidths.map(wch => ({ wch }))
-  ws["!rows"] = rows.map((_, index) => {
+  ws["!rows"] = rows.map((row, index) => {
     if (index === 0) return { hpt: 30 }
     if (index === 1) return { hpt: 24 }
-    if (index === 3) return { hpt: 8 }
-    return { hpt: 22 }
+    if (index === contentStartRow) return { hpt: 24 }
+    return { hpt: resolveRowHeight(row, colWidths) }
   })
   ws["!merges"] = [
     { s: { r: 0, c: 0 }, e: { r: 0, c: colWidths.length - 1 } },
@@ -111,98 +117,34 @@ function buildWorkbook(
   return wb
 }
 
-export function exportOrderPriceSheet(order: OrderDetail): string {
-  const today = formatToday()
-  const isClosedShort = order.status === "CLOSED_SHORT"
-
-  const detailRows = order.items.map(item => {
-    const unitPrice = resolveUnitPrice(item.unitPrice, item.part.commonPrices)
-    const shortQty = Math.max(item.orderedQty - item.shippedQty, 0)
-    const settlementQty = isClosedShort ? Math.max(item.orderedQty - shortQty, 0) : item.orderedQty
-
-    const remarks: string[] = []
-    if (isClosedShort && shortQty > 0) {
-      remarks.push(`短交废件 ${shortQty} 件（原下单 ${item.orderedQty} 件）`)
-    }
-
-    return [
-      `${item.part.name} (${item.part.partNumber})`,
-      settlementQty,
-      formatMoney(unitPrice),
-      formatMoney(settlementQty * unitPrice),
-      remarks.join("；") || "—",
-    ]
-  })
-
-  const totalQty = detailRows.reduce((sum, row) => sum + Number(row[1]), 0)
-  const totalAmount = detailRows.reduce((sum, row) => sum + Number(row[3]), 0)
-  const totalShortQty = isClosedShort
-    ? order.items.reduce((sum, item) => sum + Math.max(item.orderedQty - item.shippedQty, 0), 0)
-    : 0
-  const footerRemark = [
-    `日期：${formatDateOnly(order.createdAt)}`,
-    isClosedShort && totalShortQty > 0 ? `废件合计：${totalShortQty} 件（已扣款）` : "",
-    isClosedShort && order.reason ? `短交原因：${order.reason}` : "",
-  ]
-    .filter(Boolean)
-    .join("；")
-
-  const rows: Array<Array<string | number>> = [
-    [COMPANY_NAME],
-    ["价格清单"],
-    [
-      `订单号：${formatOrderNo(order.id)}`,
-      `客户：${order.customerName}`,
-      `状态：${order.status}`,
-      "",
-      `制表日期：${today}`,
-    ],
-    [],
-    ["零件", "数量", "价格", "合计", "备注"],
-    ...detailRows,
-    ["汇总", totalQty, "", formatMoney(totalAmount), footerRemark],
-  ]
-
-  const wb = buildWorkbook("价格清单", rows, [30, 12, 12, 14, 30], 4)
-  const filename = `${formatOrderNo(order.id)}-价格清单-${today}.xlsx`
-  XLSX.writeFile(wb, filename)
-  return filename
+export function exportOrderPriceSheet(
+  order: OrderDetail,
+  options?: ExportSheetOptions,
+): string {
+  const payload = buildOrderSheetPayload(order, options)
+  const wb = buildWorkbook(
+    payload.sheetName,
+    payload.rows,
+    payload.minColWidths,
+    payload.contentStartRow,
+  )
+  XLSX.writeFile(wb, payload.filename)
+  return payload.filename
 }
 
-export function exportDeliveryNote(delivery: DeliveryDetail): string {
-  const today = formatToday()
-  const hasScrapInNote = /废件|短交|报废/.test(delivery.remark ?? "")
-
-  const detailRows = delivery.items.map(item => {
-    const lineRemark = item.remark?.trim() ?? ""
-    const remark = lineRemark || (hasScrapInNote ? "含废件（见整单备注）" : "—")
-    return [
-      `${item.orderItem.part.name} (${item.orderItem.part.partNumber})`,
-      item.orderItem.part.material,
-      item.shippedQty,
-      remark,
-    ]
-  })
-
-  const totalQty = delivery.items.reduce((sum, item) => sum + item.shippedQty, 0)
-
-  const rows: Array<Array<string | number>> = [
-    [COMPANY_NAME],
-    ["发货单"],
-    [
-      `发货单号：${formatDeliveryNo(delivery.id)}`,
-      `关联订单：${formatOrderNo(delivery.orderId)}`,
-      `客户：${delivery.order?.customerName || "-"}`,
-      `制表日期：${today}`,
-    ],
-    [],
-    ["零件", "材质", "数量", "备注"],
-    ...detailRows,
-    ["汇总", "", totalQty, `发货日期：${formatDateOnly(delivery.deliveryDate)}`],
-  ]
-
-  const wb = buildWorkbook("发货单", rows, [30, 14, 12, 30], 4)
-  const filename = `${formatDeliveryNo(delivery.id)}-发货单-${today}.xlsx`
-  XLSX.writeFile(wb, filename)
-  return filename
+export function exportDeliveryNote(
+  delivery: DeliveryDetail,
+  options?: ExportSheetOptions,
+): string {
+  const payload = buildDeliverySheetPayload(delivery, options)
+  const wb = buildWorkbook(
+    payload.sheetName,
+    payload.rows,
+    payload.minColWidths,
+    payload.contentStartRow,
+  )
+  XLSX.writeFile(wb, payload.filename)
+  return payload.filename
 }
+
+export * from "./documentExportData"
