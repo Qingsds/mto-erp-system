@@ -9,7 +9,7 @@
  *   对齐 CreatePartRequest / UpdatePartRequest
  */
 
-import { useMemo, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import {
   useReactTable,
   getCoreRowModel,
@@ -79,12 +79,12 @@ function DesktopParts({ quickAction }: PartsPageProps) {
   const totalCount = data?.total ?? 0
   const totalPages = Math.ceil(totalCount / PAGE_SIZE)
 
-  const closePanel = () => {
+  const closePanel = useCallback(() => {
     setPanel(null)
     setEditing(null)
-  }
+  }, [])
 
-  const handleDelete = async (part: PartListItem) => {
+  const handleDelete = useCallback(async (part: PartListItem) => {
     const confirmed = window.confirm(
       `确认删除零件「${part.name}」吗？删除后无法恢复。`,
     )
@@ -94,7 +94,7 @@ function DesktopParts({ quickAction }: PartsPageProps) {
     if (editingPart?.id === part.id) {
       closePanel()
     }
-  }
+  }, [closePanel, deletePart, editingPart?.id])
 
   const columns = useMemo(() => getPartsColumns(
     p => {

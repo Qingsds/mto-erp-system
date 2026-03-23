@@ -7,7 +7,7 @@ import { defineConfig, globalIgnores } from "eslint/config"
 
 export default defineConfig([
   // 核心：让 ESLint 忽略编译产物和自动生成的路由树
-  { ignores: ["dist", "src/routeTree.gen.ts"] },
+  { ignores: ["dist", "src/routeTree.gen.ts", "vitest.config.ts"] },
   globalIgnores(["dist"]),
   {
     files: ["**/*.{ts,tsx}"],
@@ -25,6 +25,9 @@ export default defineConfig([
         // 新增下面这一行，将 tsconfig 的解析根目录锁定在当前前端子包
         tsconfigRootDir: import.meta.dirname,
       },
+    },
+    rules: {
+      "react-hooks/incompatible-library": "off",
     },
   },
 ])

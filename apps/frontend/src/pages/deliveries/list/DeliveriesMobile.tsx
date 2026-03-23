@@ -11,7 +11,10 @@ import { useNavigate } from "@tanstack/react-router"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
-import { useGetDeliveries } from "@/hooks/api/useDeliveries"
+import {
+  useGetDeliveries,
+  type DeliveryListItem,
+} from "@/hooks/api/useDeliveries"
 import { formatDeliveryNo, formatOrderNo } from "@/hooks/api/useOrders"
 import {
   DELIVERY_STATUS_ICON,
@@ -24,6 +27,7 @@ type DeliveryStatusFilter = "all" | "SHIPPED"
 type RemarkFilter = "all" | "yes" | "no"
 
 const PAGE_SIZE = 20
+const EMPTY_DELIVERIES: DeliveryListItem[] = []
 
 interface DeliveriesMobileProps {
   /** 当前是否处于激活态。 */
@@ -105,7 +109,7 @@ export function DeliveriesMobile({ isActive }: DeliveriesMobileProps) {
         : appliedFilters.hasRemark === "yes",
   })
 
-  const deliveries = data?.data ?? []
+  const deliveries = data?.data ?? EMPTY_DELIVERIES
   const totalCount = data?.total ?? 0
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
 

@@ -29,6 +29,7 @@ type DeliveryStatusFilter = "all" | "SHIPPED"
 type RemarkFilter = "all" | "yes" | "no"
 
 const PAGE_SIZE = 20
+const EMPTY_DELIVERIES: DeliveryListItem[] = []
 
 interface DeliveriesDesktopProps {
   /** 当前是否处于激活态。 */
@@ -111,7 +112,7 @@ export function DeliveriesDesktop({ isActive }: DeliveriesDesktopProps) {
         : appliedFilters.hasRemark === "yes",
   })
 
-  const deliveries = data?.data ?? []
+  const deliveries = data?.data ?? EMPTY_DELIVERIES
   const totalCount = data?.total ?? 0
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
 
