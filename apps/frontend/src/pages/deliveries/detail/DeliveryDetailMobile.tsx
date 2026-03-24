@@ -65,11 +65,11 @@ export function DeliveryDetailMobile({
         </p>
       </section>
 
-      <div className="sticky bottom-0 -mx-4 px-4 py-3 border-t border-border bg-background/95 backdrop-blur">
-        <div
-          className="flex items-center gap-2"
-          style={{ paddingBottom: "max(8px, env(safe-area-inset-bottom))" }}
-        >
+      <div
+        className="sticky z-10 -mx-4 border-t border-border bg-background/95 px-4 py-3 backdrop-blur"
+        style={{ bottom: "var(--erp-bottom-nav-safe-h)" }}
+      >
+        <div className="flex items-center gap-2 pb-2">
           <Button
             className="flex-1 h-10"
             onClick={() =>

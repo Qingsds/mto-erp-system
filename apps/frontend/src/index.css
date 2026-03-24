@@ -143,6 +143,7 @@
 :root {
   --erp-header-h:            56px;
   --erp-bottom-nav-h:        60px;
+  --erp-bottom-nav-safe-h:   calc(var(--erp-bottom-nav-h) + env(safe-area-inset-bottom, 0px));
   --erp-sidebar-w:           220px;
   --erp-sidebar-w-collapsed: 52px;
 

@@ -26,7 +26,7 @@ export function AppLayout() {
 
   return (
     <TooltipProvider>
-      <div className="flex flex-col h-screen overflow-hidden bg-background text-foreground">
+      <div className="flex min-h-dvh h-dvh flex-col overflow-hidden bg-background text-foreground">
         <div className="flex flex-1 overflow-hidden relative">
           {!isMobile && <Sidebar />}
           <div className="flex flex-col flex-1 overflow-hidden min-w-0">
@@ -34,7 +34,16 @@ export function AppLayout() {
             <main className="flex-1 overflow-hidden flex flex-col bg-muted/30">
               <Outlet />
             </main>
-            {isMobile && <BottomNav onFabClick={() => setShowQuickAdd(true)} />}
+            {isMobile && (
+              <>
+                <div
+                  aria-hidden="true"
+                  className="shrink-0"
+                  style={{ height: "var(--erp-bottom-nav-safe-h)" }}
+                />
+                <BottomNav onFabClick={() => setShowQuickAdd(true)} />
+              </>
+            )}
           </div>
           {showSettings && <SettingsPanel />}
         </div>

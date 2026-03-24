@@ -6,6 +6,7 @@ const ITEMS = [
   { to: "/parts",  label: "零件", icon: "ri-settings-3-line", iconActive: "ri-settings-3-fill" },
   null, // FAB slot
   { to: "/orders", label: "订单", icon: "ri-file-list-3-line",iconActive: "ri-file-list-3-fill"},
+  { to: "/deliveries", label: "发货", icon: "ri-truck-line", iconActive: "ri-truck-fill" },
 ]
 
 interface BottomNavProps {
@@ -17,28 +18,35 @@ export function BottomNav({ onFabClick }: BottomNavProps) {
 
   return (
     <nav
-      className="bg-background border-t border-border shrink-0"
-      style={{ height: "var(--erp-bottom-nav-h, 60px)" }}
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/90"
+      style={{
+        height: "var(--erp-bottom-nav-safe-h)",
+        paddingBottom: "env(safe-area-inset-bottom, 0px)",
+      }}
     >
-      <div className="flex h-full items-stretch">
+      <div
+        className="grid h-full grid-cols-5 items-stretch"
+        style={{ minHeight: "var(--erp-bottom-nav-h, 60px)" }}
+      >
         {ITEMS.map((item) => {
           // FAB center slot
           if (!item) {
             return (
-              <div key="fab" className="flex-1 flex items-center justify-center">
+              <div key="fab" className="flex items-center justify-center">
                 <button
+                  type="button"
                   onClick={onFabClick}
                   aria-label="快速添加"
                   className={cn(
-                    "relative -top-3 w-12 h-12 rounded-full",
+                    "relative -top-4 size-13 rounded-full",
                     "bg-primary text-primary-foreground",
                     "flex items-center justify-center",
                     "border-4 border-background",
                     "active:scale-95 transition-transform cursor-pointer",
-                    "shadow-md",
+                    "shadow-lg",
                   )}
                 >
-                  <i className="ri-add-line text-xl" />
+                  <i className="ri-add-line text-[22px]" />
                 </button>
               </div>
             )
@@ -52,7 +60,7 @@ export function BottomNav({ onFabClick }: BottomNavProps) {
               key={item.to}
               to={item.to}
               className={cn(
-                "flex-1 flex flex-col items-center justify-center gap-0.5",
+                "flex flex-col items-center justify-center gap-0.5 px-1",
                 "no-underline transition-colors select-none",
                 active
                   ? "text-primary"
@@ -60,7 +68,7 @@ export function BottomNav({ onFabClick }: BottomNavProps) {
               )}
             >
               <i className={cn("text-xl", active ? item.iconActive : item.icon)} />
-              <span className="text-[10px]">{item.label}</span>
+              <span className="text-[10px] leading-none">{item.label}</span>
             </Link>
           )
         })}

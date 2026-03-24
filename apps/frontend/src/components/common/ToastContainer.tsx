@@ -1,5 +1,6 @@
 import { useToastStore } from "@/lib/toast"
 import { cn } from "@/lib/utils"
+import { useUIStore } from "@/store/ui.store"
 
 const ICON: Record<string, string> = {
   success: "ri-checkbox-circle-fill text-emerald-500",
@@ -9,9 +10,17 @@ const ICON: Record<string, string> = {
 
 export function ToastContainer() {
   const { toasts, remove } = useToastStore()
+  const { isMobile } = useUIStore()
 
   return (
-    <div className="fixed bottom-6 right-6 z-[200] flex flex-col gap-2 pointer-events-none">
+    <div
+      className="fixed right-4 z-[200] flex flex-col gap-2 pointer-events-none sm:right-6"
+      style={{
+        bottom: isMobile
+          ? "calc(var(--erp-bottom-nav-safe-h) + 16px)"
+          : "24px",
+      }}
+    >
       {toasts.map(t => (
         <div
           key={t.id}

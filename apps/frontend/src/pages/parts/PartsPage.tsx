@@ -413,12 +413,7 @@ function MobileParts({ quickAction }: PartsPageProps) {
         )}
       </div>
 
-      <div
-        className='px-4 py-3 border-t border-border bg-background shrink-0 flex gap-2'
-        style={{
-          paddingBottom: "max(12px, env(safe-area-inset-bottom))",
-        }}
-      >
+      <div className='px-4 py-3 border-t border-border bg-background shrink-0 flex gap-2'>
         <Button
           variant='outline'
           className='flex-1 h-11'

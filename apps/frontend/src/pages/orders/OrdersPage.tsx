@@ -240,7 +240,7 @@ function MobileOrders() {
           })
         )}
       </div>
-      <div className="px-4 py-3 border-t border-border bg-background shrink-0" style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}>
+      <div className="px-4 py-3 border-t border-border bg-background shrink-0">
         <Button className="w-full h-11" onClick={() => navigate({ to: "/orders/new" })}>
           <i className="ri-add-line mr-2" />新建订单
         </Button>
