@@ -32,7 +32,11 @@ export class OrdersService {
    * - 兜底第一个可用数值
    */
   private resolvePriceFromCommonPrices(commonPrices: unknown): number {
-    if (!commonPrices || typeof commonPrices !== 'object' || Array.isArray(commonPrices)) {
+    if (
+      !commonPrices ||
+      typeof commonPrices !== 'object' ||
+      Array.isArray(commonPrices)
+    ) {
       return 0;
     }
 
@@ -101,7 +105,9 @@ export class OrdersService {
           if (!part)
             throw new BadRequestException(`零件 ID${item.partId} 不存在`);
 
-          const unitPrice = this.resolvePriceFromCommonPrices(part.commonPrices);
+          const unitPrice = this.resolvePriceFromCommonPrices(
+            part.commonPrices,
+          );
 
           await tx.orderItem.create({
             data: {

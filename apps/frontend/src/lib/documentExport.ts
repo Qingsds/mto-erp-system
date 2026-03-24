@@ -39,12 +39,19 @@ function getDisplayLength(value: string | number): number {
 }
 
 /** 按列最大显示长度估算宽度，并限制在最小值与上限之间。 */
-function resolveColumnWidths(rows: RowData[], minWidths: number[]): number[] {
+function resolveColumnWidths(
+  rows: RowData[],
+  minWidths: number[],
+  contentStartRow: number,
+): number[] {
+  // 列宽仅由“表格内容区”驱动，避免公司名/元信息行把整表宽度异常拉大。
+  const widthSourceRows = rows.slice(contentStartRow)
+  const measuredRows = widthSourceRows.length > 0 ? widthSourceRows : rows
   const colCount = Math.max(minWidths.length, ...rows.map(row => row.length))
   const maxWidth = 48
 
   return Array.from({ length: colCount }, (_, colIndex) => {
-    const maxLen = rows.reduce((currentMax, row) => {
+    const maxLen = measuredRows.reduce((currentMax, row) => {
       const value = row[colIndex]
       if (value === undefined || value === null) return currentMax
       return Math.max(currentMax, getDisplayLength(value))
@@ -76,12 +83,21 @@ function buildWorkbook(
   minColWidths: number[],
   contentStartRow: number,
 ) {
-  const colWidths = resolveColumnWidths(rows, minColWidths)
+  const colWidths = resolveColumnWidths(rows, minColWidths, contentStartRow)
   const ws = XLSX.utils.aoa_to_sheet(rows)
   const contentEndRow = rows.length - 1
 
   // 标题行/表头行使用固定高度，其余行按内容自适应高度。
   ws["!cols"] = colWidths.map(wch => ({ wch }))
+  // 采用较窄页边距，降低打印时横向分页概率。
+  ws["!margins"] = {
+    left: 0.25,
+    right: 0.25,
+    top: 0.5,
+    bottom: 0.5,
+    header: 0.2,
+    footer: 0.2,
+  }
   ws["!rows"] = rows.map((row, index) => {
     if (index === 0) return { hpt: 30 }
     if (index === 1) return { hpt: 24 }

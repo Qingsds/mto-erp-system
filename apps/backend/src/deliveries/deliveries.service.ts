@@ -31,7 +31,11 @@ export class DeliveriesService {
    * - 兜底第一个可用数值
    */
   private resolvePriceFromCommonPrices(commonPrices: unknown): number {
-    if (!commonPrices || typeof commonPrices !== 'object' || Array.isArray(commonPrices)) {
+    if (
+      !commonPrices ||
+      typeof commonPrices !== 'object' ||
+      Array.isArray(commonPrices)
+    ) {
       return 0;
     }
 
