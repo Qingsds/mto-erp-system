@@ -54,7 +54,7 @@ export function OrderDetailMobile({
   onOpenDelivery,
 }: OrderDetailMobileProps) {
   return (
-    <div className="p-4 sm:p-6 lg:p-8 flex flex-col gap-4 sm:gap-6">
+    <div className="flex min-h-full flex-col gap-4 p-4 sm:gap-6 sm:p-6 lg:p-8">
       <OrderSummaryCards order={order} stats={itemStats} isFetching={isFetching} />
 
       <OrderDetailSections
@@ -67,23 +67,26 @@ export function OrderDetailMobile({
       />
 
       <div
-        className="sticky z-10 -mx-4 border-t border-border bg-background/95 px-4 py-3 backdrop-blur"
-        style={{ bottom: "var(--erp-bottom-nav-safe-h)" }}
+        className="sticky bottom-0 z-10 mt-auto -mx-4 border-t border-border bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8"
       >
-        <div className="flex items-center gap-2 pb-2">
-          <Button className="flex-1 h-10" onClick={onOpenCreate} disabled={!canCreateDelivery}>
-            <i className="ri-truck-line mr-1.5" />
-            创建发货单
+        <div className="flex items-stretch gap-2 pb-2">
+          <Button
+            className="h-10 min-w-0 basis-0 shrink grow overflow-hidden"
+            onClick={onOpenCreate}
+            disabled={!canCreateDelivery}
+          >
+            <i className="ri-truck-line mr-1.5 shrink-0" />
+            <span className="truncate">创建发货单</span>
           </Button>
           {canCloseShort && (
             <Button
-              className="h-10"
+              className="h-10 shrink-0"
               variant="destructive"
               onClick={onCloseShort}
               disabled={isClosingShort}
             >
-              <i className="ri-close-circle-line mr-1.5" />
-              短交结案
+              <i className="ri-close-circle-line mr-1.5 shrink-0" />
+              <span className="truncate">短交结案</span>
             </Button>
           )}
         </div>

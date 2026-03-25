@@ -36,15 +36,20 @@ export function DeliveryDetailMobile({
   const navigate = useNavigate()
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 flex flex-col gap-4 sm:gap-6">
-      <DeliverySummaryCards delivery={delivery} stats={stats} isFetching={isFetching} />
+    <div className='flex min-h-full flex-col gap-4 p-4 sm:gap-6 sm:p-6 lg:p-8'>
+      <DeliverySummaryCards
+        delivery={delivery}
+        stats={stats}
+        isFetching={isFetching}
+      />
 
-      <section className="rounded-xl border border-border bg-card">
-        <div className="px-4 py-3 border-b border-border flex items-center justify-between gap-2">
+      <section className='rounded-xl border border-border bg-card'>
+        <div className='px-4 py-3 border-b border-border flex items-center justify-between gap-2'>
           <div>
-            <h3 className="text-sm font-semibold">发货明细</h3>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              本次发货共 {stats.lineCount} 条，合计 {stats.totalShippedQty} 件
+            <h3 className='text-sm font-semibold'>发货明细</h3>
+            <p className='mt-0.5 text-xs text-muted-foreground'>
+              本次发货共 {stats.lineCount} 条，合计{" "}
+              {stats.totalShippedQty} 件
             </p>
           </div>
           <DeliveryStatusBadge status={delivery.status} />
@@ -52,26 +57,29 @@ export function DeliveryDetailMobile({
         <DeliveryItemsTable lines={stats.lines} />
       </section>
 
-      <section className="rounded-xl border border-border bg-card p-4">
-        <p className="text-sm font-semibold">发货备注</p>
-        <p className="mt-1.5 text-sm text-muted-foreground">{delivery.remark || "无"}</p>
-        <p className="mt-3 text-sm font-semibold">关联订单信息</p>
-        <p className="mt-1.5 text-sm text-muted-foreground">
+      <section className='rounded-xl border border-border bg-card p-4'>
+        <p className='text-sm font-semibold'>发货备注</p>
+        <p className='mt-1.5 text-sm text-muted-foreground'>
+          {delivery.remark || "无"}
+        </p>
+        <p className='mt-3 text-sm font-semibold'>关联订单信息</p>
+        <p className='mt-1.5 text-sm text-muted-foreground'>
           客户：{delivery.order?.customerName || "-"}
         </p>
-        <p className="text-sm text-muted-foreground">
+        <p className='text-sm text-muted-foreground'>
           下单时间：
-          {delivery.order?.createdAt ? formatDateTime(delivery.order.createdAt) : "-"}
+          {delivery.order?.createdAt
+            ? formatDateTime(delivery.order.createdAt)
+            : "-"}
         </p>
       </section>
 
       <div
-        className="sticky z-10 -mx-4 border-t border-border bg-background/95 px-4 py-3 backdrop-blur"
-        style={{ bottom: "var(--erp-bottom-nav-safe-h)" }}
+        className='sticky bottom-0 z-10 mt-auto -mx-4 border-t border-border bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8'
       >
-        <div className="flex items-center gap-2 pb-2">
+        <div className='flex items-stretch gap-2 pb-2'>
           <Button
-            className="flex-1 h-10"
+            className='h-10 min-w-0 basis-0 shrink grow overflow-hidden'
             onClick={() =>
               navigate({
                 to: "/orders/$id",
@@ -79,17 +87,19 @@ export function DeliveryDetailMobile({
               })
             }
           >
-            <i className="ri-file-list-3-line mr-1.5" />
-            查看订单 {formatOrderNo(delivery.orderId)}
+            <i className='ri-file-list-3-line mr-1.5 shrink-0' />
+            <span className='truncate'>
+              查看订单 {formatOrderNo(delivery.orderId)}
+            </span>
           </Button>
 
           <Button
-            className="h-10"
-            variant="outline"
+            className='h-10 shrink-0'
+            variant='outline'
             onClick={() => navigate({ to: "/deliveries" })}
           >
-            <i className="ri-list-check mr-1.5" />
-            列表
+            <i className='ri-list-check mr-1.5 shrink-0' />
+            <span className='truncate'>列表</span>
           </Button>
         </div>
       </div>

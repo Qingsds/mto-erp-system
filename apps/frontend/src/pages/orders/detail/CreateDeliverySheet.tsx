@@ -151,26 +151,27 @@ function CreateDeliveryPanel({
         <span className="font-mono font-semibold">合计 {selectedQty} 件</span>
       </div>
 
-      <div className="flex gap-2 pt-1">
+      <div className="flex items-stretch gap-2 pt-1">
         <Button
           type="button"
+          className="h-10 min-w-0 basis-0 shrink grow overflow-hidden"
           onClick={handleSubmit}
           disabled={isSubmitting || selectedItems.length === 0 || hasInvalidQty}
         >
           {isSubmitting ? (
             <>
-              <i className="ri-loader-4-line animate-spin mr-1.5" />
-              创建中…
+              <i className="ri-loader-4-line animate-spin mr-1.5 shrink-0" />
+              <span className="truncate">创建中…</span>
             </>
           ) : (
             <>
-              <i className="ri-truck-line mr-1.5" />
-              创建发货单
+              <i className="ri-truck-line mr-1.5 shrink-0" />
+              <span className="truncate">创建发货单</span>
             </>
           )}
         </Button>
-        <Button type="button" variant="outline" onClick={onCancel}>
-          取消
+        <Button type="button" variant="outline" className="h-10 shrink-0" onClick={onCancel}>
+          <span className="truncate">取消</span>
         </Button>
       </div>
     </div>
