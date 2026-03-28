@@ -65,6 +65,8 @@ export interface DeliveryDetailItem {
   shippedQty: number
   /** 明细备注。 */
   remark?: string | null
+  /** 关联计费条目（存在则表示已被计入对账单）。 */
+  billingItem?: { id: number; billingId: number } | null
   /** 关联订单行（含零件信息）。 */
   orderItem: {
     /** 订单行主键。 */

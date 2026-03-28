@@ -1,20 +1,29 @@
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
 import { useGetSeals } from "@/hooks/api/useSeals"
+import { CreateSealSheet } from "./CreateSealSheet"
 
 export function SealsPage() {
   const { data, isLoading, isFetching } = useGetSeals()
   const seals = data ?? []
+  const [createOpen, setCreateOpen] = useState(false)
 
   return (
     <div className='flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-4'>
-      <div>
-        <h1 className='text-lg md:text-xl font-semibold tracking-tight'>
-          印章管理
-        </h1>
-        <p className='text-xs md:text-sm text-muted-foreground mt-1'>
-          {isFetching && !isLoading
-            ? "刷新中…"
-            : `当前可用印章 ${seals.length} 枚`}
-        </p>
+      <div className='flex items-end justify-between gap-4'>
+        <div>
+          <h1 className='text-lg md:text-xl font-semibold tracking-tight'>
+            印章管理
+          </h1>
+          <p className='text-xs md:text-sm text-muted-foreground mt-1'>
+            {isFetching && !isLoading
+              ? "刷新中…"
+              : `当前可用印章 ${seals.length} 枚`}
+          </p>
+        </div>
+        <Button size='sm' onClick={() => setCreateOpen(true)}>
+          <i className='ri-add-line mr-1' />注册印章
+        </Button>
       </div>
 
       {isLoading ? (
@@ -57,6 +66,8 @@ export function SealsPage() {
           ))}
         </div>
       )}
+
+      <CreateSealSheet open={createOpen} onOpenChange={setCreateOpen} />
     </div>
   )
 }

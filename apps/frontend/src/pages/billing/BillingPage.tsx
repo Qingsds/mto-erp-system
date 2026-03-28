@@ -3,9 +3,12 @@ import type { BillingStatusType } from "@erp/shared-types"
 import { Button } from "@/components/ui/button"
 import {
   useGetBilling,
+  useUpdateBillingStatus,
   decimalToNum,
 } from "@/hooks/api/useBilling"
 import { cn } from "@/lib/utils"
+import { CreateBillingSheet } from "./CreateBillingSheet"
+import { ExecuteSealDialog } from "@/components/billing/ExecuteSealDialog"
 
 type BillingFilter = BillingStatusType | "all"
 
@@ -42,6 +45,11 @@ const PAGE_SIZE = 12
 export function BillingPage() {
   const [status, setStatus] = useState<BillingFilter>("all")
   const [page, setPage] = useState(1)
+  const [createOpen, setCreateOpen] = useState(false)
+  const [createSeed, setCreateSeed] = useState(0)
+  const [sealTarget, setSealTarget] = useState<{ id: number; no: string } | null>(null)
+
+  const updateStatus = useUpdateBillingStatus()
 
   const { data, isLoading, isFetching } = useGetBilling({
     page,
@@ -66,6 +74,12 @@ export function BillingPage() {
             {isFetching && !isLoading ? "刷新中…" : `共 ${total} 张对账单`}
           </p>
         </div>
+        <Button
+          size='sm'
+          onClick={() => { setCreateSeed(s => s + 1); setCreateOpen(true) }}
+        >
+          <i className='ri-add-line mr-1' />新建对账单
+        </Button>
       </div>
 
       <div className='flex items-center gap-1 overflow-x-auto'>
@@ -146,6 +160,32 @@ export function BillingPage() {
               <div className='mt-3 text-xs text-muted-foreground'>
                 创建时间：{bill.createdAt.slice(0, 10)}
               </div>
+
+              {bill.status !== "PAID" && (
+                <div className='mt-3 flex items-center gap-2 pt-3 border-t border-border'>
+                  {bill.status === "DRAFT" && (
+                    <Button
+                      size='sm'
+                      variant='outline'
+                      className='h-7 text-xs'
+                      onClick={() => setSealTarget({ id: bill.id, no: formatBillingNo(bill.id) })}
+                    >
+                      <i className='ri-seal-line mr-1' />盖章
+                    </Button>
+                  )}
+                  {bill.status === "SEALED" && (
+                    <Button
+                      size='sm'
+                      variant='outline'
+                      className='h-7 text-xs'
+                      onClick={() => updateStatus.mutate({ id: bill.id, status: "PAID" })}
+                      disabled={updateStatus.isPending}
+                    >
+                      <i className='ri-check-double-line mr-1' />标记已结清
+                    </Button>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -173,6 +213,21 @@ export function BillingPage() {
             下一页
           </Button>
         </div>
+      )}
+
+      <CreateBillingSheet
+        open={createOpen}
+        seed={createSeed}
+        onOpenChange={setCreateOpen}
+      />
+
+      {sealTarget && (
+        <ExecuteSealDialog
+          open={!!sealTarget}
+          onOpenChange={o => !o && setSealTarget(null)}
+          billingId={sealTarget.id}
+          billingNo={sealTarget.no}
+        />
       )}
     </div>
   )

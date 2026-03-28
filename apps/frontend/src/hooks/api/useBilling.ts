@@ -1,9 +1,12 @@
-import { useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type {
   ApiResponse,
   BillingStatusType,
+  CreateBillingRequest,
+  UpdateBillingStatusRequest,
 } from "@erp/shared-types"
 import request from "@/lib/utils/request"
+import { toast } from "@/lib/toast"
 
 export interface BillingItem {
   id: number
@@ -54,4 +57,33 @@ export function useGetBilling(params: BillingParams) {
 
 export function decimalToNum(value: string | number): number {
   return typeof value === "string" ? parseFloat(value) : value
+}
+
+export function useCreateBilling() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: CreateBillingRequest) =>
+      request.post<unknown, ApiResponse<BillingListItem>>("/api/billing", payload),
+    onSuccess: () => {
+      toast.success("对账单创建成功")
+      qc.invalidateQueries({ queryKey: ["billing"] })
+    },
+    onError: (e: Error) => toast.error(`创建失败：${e.message}`),
+  })
+}
+
+export function useUpdateBillingStatus() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, status }: { id: number; status: BillingStatusType }) =>
+      request.patch<unknown, ApiResponse<BillingListItem>>(
+        `/api/billing/${id}/status`,
+        { status } satisfies UpdateBillingStatusRequest,
+      ),
+    onSuccess: () => {
+      toast.success("状态已更新")
+      qc.invalidateQueries({ queryKey: ["billing"] })
+    },
+    onError: (e: Error) => toast.error(`操作失败：${e.message}`),
+  })
 }

@@ -274,6 +274,7 @@ export class DeliveriesService {
             orderItem: {
               include: { part: true },
             },
+            billingItem: { select: { id: true, billingId: true } },
           },
         },
       },

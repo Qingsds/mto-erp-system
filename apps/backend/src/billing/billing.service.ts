@@ -14,6 +14,38 @@ import { Prisma } from '@erp/database';
 export class BillingService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private toFiniteNumber(value: unknown): number | undefined {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string') {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : undefined;
+    }
+    return undefined;
+  }
+
+  private resolvePriceFromCommonPrices(commonPrices: unknown): number {
+    if (!commonPrices || typeof commonPrices !== 'object' || Array.isArray(commonPrices)) return 0;
+    const priceMap = commonPrices as Record<string, unknown>;
+    const standardPrice = this.toFiniteNumber(priceMap['标准价']);
+    if (standardPrice !== undefined) return standardPrice;
+    for (const value of Object.values(priceMap)) {
+      const parsed = this.toFiniteNumber(value);
+      if (parsed !== undefined) return parsed;
+    }
+    return 0;
+  }
+
+  /** 优先使用订单快照单价，快照为 0 时回退零件当前价格字典（与 deliveries.service 保持一致）。 */
+  private resolveUnitPrice(
+    snapshotUnitPrice: Prisma.Decimal | number | string,
+    fallbackCommonPrices?: unknown,
+  ): number {
+    const snapshot = this.toFiniteNumber(snapshotUnitPrice) ?? 0;
+    if (snapshot > 0) return snapshot;
+    const fallback = this.resolvePriceFromCommonPrices(fallbackCommonPrices);
+    return fallback > 0 ? fallback : snapshot;
+  }
+
   async createBilling(payload: CreateBillingRequest) {
     return this.prisma.client.$transaction(async (tx) => {
       const { deliveryItemIds, extraItems } = payload;
@@ -31,7 +63,7 @@ export class BillingService {
       const deliverItems = await tx.deliveryItem.findMany({
         where: { id: { in: uniqueDeliveryItemIds } },
         include: {
-          orderItem: true,
+          orderItem: { include: { part: true } },
           billingItem: true,
         },
       });
@@ -53,14 +85,18 @@ export class BillingService {
           );
         }
 
-        // 计算公式：单次发货量 * 订单锁定的单价快照
-        const itemAmount = item.shippedQty * Number(item.orderItem.unitPrice);
+        // 计算公式：单次发货量 * 单价（优先快照，快照为 0 时回退零件当前价格字典）
+        const unitPrice = this.resolveUnitPrice(
+          item.orderItem.unitPrice,
+          item.orderItem.part?.commonPrices,
+        );
+        const itemAmount = item.shippedQty * unitPrice;
         totalAmount += itemAmount;
 
         billingItemCreates.push({
           deliveryItem: { connect: { id: item.id } },
           // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-          description: `物料结算: 发货量 ${item.shippedQty} 件, 单价快照 ${item.orderItem.unitPrice}`,
+          description: `物料结算: 发货量 ${item.shippedQty} 件, 单价快照 ${unitPrice}`,
           amount: itemAmount,
         });
       }
