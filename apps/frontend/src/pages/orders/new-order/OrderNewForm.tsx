@@ -1,17 +1,27 @@
+/**
+ * OrderNewForm.tsx
+ *
+ * 职责：
+ * - 承载新建订单表单的布局与交互
+ * - 管理零件明细区的新增、选择与金额汇总
+ */
+
 import { useState } from "react"
 import { useFieldArray, type UseFormReturn } from "react-hook-form"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import {
   apiPricesToForm,
   type PartListItem,
 } from "@/hooks/api/useParts"
+import { useUIStore } from "@/store/ui.store"
 import type {
   OrderFormInput,
   OrderFormValues,
 } from "../orders.schema"
 import { BomRow } from "./BomRow"
+import { OrderBasicInfoPanel } from "./OrderBasicInfoPanel"
+import { OrderDraftSummaryCard } from "./OrderDraftSummaryCard"
+import { OrderNewMobileActions } from "./OrderNewMobileActions"
+import { OrderNewToolbar } from "./OrderNewToolbar"
 import { PartPicker } from "./PartPicker"
 
 interface OrderNewFormProps {
@@ -27,6 +37,7 @@ export function OrderNewForm({
   onSubmit,
   onCancel,
 }: OrderNewFormProps) {
+  const { isMobile } = useUIStore()
   const {
     register,
     control,
@@ -43,6 +54,14 @@ export function OrderNewForm({
   const watchedItems = watch("items")
 
   const [pickerIndex, setPickerIndex] = useState<number | null>(null)
+
+  const appendEmptyItem = () => {
+    append({
+      partId: 0,
+      orderedQty: 1,
+      _displayPrice: 0,
+    })
+  }
 
   const estimatedTotal = watchedItems.reduce(
     (sum, item) =>
@@ -66,106 +85,33 @@ export function OrderNewForm({
     setPickerIndex(null)
   }
 
+  const submitForm = handleSubmit(onSubmit)
+
   return (
     <>
       <div className='flex flex-col flex-1 overflow-hidden'>
-        <div className='flex items-center justify-end gap-2 px-4 py-3 border-b border-border bg-background shrink-0'>
-          <Button
-            variant='outline'
-            size='sm'
-            onClick={onCancel}
-          >
-            <i className='ri-close-line sm:hidden' />
-            <span className='hidden sm:inline'>取消</span>
-          </Button>
-          <Button
-            size='sm'
-            disabled={isSubmitting}
-            onClick={handleSubmit(onSubmit)}
-          >
-            {isSubmitting ? (
-              <>
-                <i className='ri-loader-4-line animate-spin' />
-                <span className='hidden sm:inline ml-1.5'>
-                  提交中…
-                </span>
-              </>
-            ) : (
-              <>
-                <i className='ri-check-line' />
-                <span className='hidden sm:inline ml-1.5'>
-                  创建订单
-                </span>
-              </>
-            )}
-          </Button>
-        </div>
+        <OrderNewToolbar
+          itemCount={fields.length}
+          isSubmitting={isSubmitting}
+          onCancel={onCancel}
+          onSubmit={() => { void submitForm() }}
+          showQuickActions={!isMobile}
+        />
 
         <div className='flex-1 overflow-auto'>
-          <div className='p-4 sm:p-6 lg:p-8'>
-            <form onSubmit={handleSubmit(onSubmit)}>
-              <div className='flex flex-col lg:flex-row gap-8 lg:items-start'>
-                <div className='w-full lg:w-72 xl:w-80 shrink-0 flex flex-col gap-4 lg:order-first'>
-                  <div>
-                    <h2 className='text-base font-semibold'>
-                      基本信息
-                    </h2>
-                  </div>
-
-                  <div className='flex flex-col gap-1.5'>
-                    <Label htmlFor='customerName'>
-                      客户名称{" "}
-                      <span className='text-destructive'>*</span>
-                    </Label>
-                    <Input
-                      id='customerName'
-                      placeholder='输入客户公司名称'
-                      autoComplete='off'
-                      {...register("customerName")}
-                      className={
-                        errors.customerName
-                          ? "border-destructive"
-                          : ""
-                      }
-                    />
-                    {errors.customerName && (
-                      <p className='text-xs text-destructive'>
-                        {errors.customerName.message}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className='flex flex-col gap-1.5'>
-                    <Label htmlFor='remark'>备注</Label>
-                    <textarea
-                      id='remark'
-                      rows={2}
-                      placeholder='可选备注…'
-                      {...register("remark")}
-                      className='w-full border border-input bg-background px-3 py-2 text-sm text-foreground outline-none resize-none focus:ring-2 focus:ring-ring focus:ring-offset-1 transition-shadow placeholder:text-muted-foreground'
-                    />
-                  </div>
-
-                  {estimatedTotal > 0 && (
-                    <div className='p-4 border border-border bg-muted/30 order-last lg:order-none'>
-                      <p className='text-xs text-muted-foreground mb-1'>
-                        预估总金额
-                      </p>
-                      <p className='font-mono font-bold text-2xl tabular-nums'>
-                        ¥
-                        {estimatedTotal.toLocaleString("zh-CN", {
-                          minimumFractionDigits: 2,
-                        })}
-                      </p>
-                      <p className='text-[11px] text-muted-foreground/60 mt-1.5'>
-                        仅供参考，以提交时价格快照为准
-                      </p>
-                    </div>
-                  )}
-                </div>
+          <div className='p-4 pb-28 sm:p-6 sm:pb-6 lg:p-8'>
+            <form onSubmit={submitForm}>
+              <div className='flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-8'>
+                <aside className='flex w-full shrink-0 flex-col gap-4 lg:sticky lg:top-20 lg:w-72 xl:w-80'>
+                  <OrderBasicInfoPanel form={form} />
+                  <OrderDraftSummaryCard
+                    itemCount={fields.length}
+                    estimatedTotal={estimatedTotal}
+                  />
+                </aside>
 
                 <div className='flex-1 min-w-0 flex flex-col gap-4'>
-                  <div className='flex items-center justify-between'>
+                  <section className='border border-border bg-card px-4 py-4'>
                     <div>
                       <h2 className='text-base font-semibold'>
                         零件明细
@@ -174,25 +120,10 @@ export function OrderNewForm({
                         </span>
                       </h2>
                       <p className='text-xs text-muted-foreground mt-0.5'>
-                        {fields.length} 项零件
+                        已添加 {fields.length} 项零件，按当前列表顺序逐项填写。
                       </p>
                     </div>
-                    <Button
-                      type='button'
-                      variant='outline'
-                      size='sm'
-                      onClick={() =>
-                        append({
-                          partId: 0,
-                          orderedQty: 1,
-                          _displayPrice: 0,
-                        })
-                      }
-                    >
-                      <i className='ri-add-line mr-1.5' />
-                      添加零件
-                    </Button>
-                  </div>
+                  </section>
 
                   {errors.items?.root && (
                     <p className='text-xs text-destructive'>
@@ -231,6 +162,17 @@ export function OrderNewForm({
                     })}
                   </div>
 
+                  <button
+                    type='button'
+                    onClick={appendEmptyItem}
+                    className='hidden w-full items-center justify-center gap-2 border border-dashed border-border bg-background px-4 py-3 text-sm text-muted-foreground transition-colors hover:border-primary/50 hover:bg-muted/40 hover:text-foreground lg:flex'
+                  >
+                    <i className='ri-add-line text-base' />
+                    <span>
+                      {fields.length > 0 ? "继续添加零件" : "添加第一个零件"}
+                    </span>
+                  </button>
+
                   {fields.length > 1 && estimatedTotal > 0 && (
                     <div className='flex justify-between items-center px-4 py-3 border border-border bg-muted/20'>
                       <span className='text-sm text-muted-foreground'>
@@ -248,12 +190,27 @@ export function OrderNewForm({
               </div>
             </form>
           </div>
+
+          {isMobile && (
+            <OrderNewMobileActions
+              itemCount={fields.length}
+              estimatedTotal={estimatedTotal}
+              isSubmitting={isSubmitting}
+              onAppendItem={appendEmptyItem}
+              onSubmit={() => { void submitForm() }}
+            />
+          )}
         </div>
       </div>
 
       <PartPicker
         open={pickerIndex !== null}
         parts={parts}
+        selectedPartId={
+          pickerIndex !== null
+            ? watchedItems[pickerIndex]?.partId
+            : undefined
+        }
         onSelect={handlePickerSelect}
         onClose={() => setPickerIndex(null)}
       />

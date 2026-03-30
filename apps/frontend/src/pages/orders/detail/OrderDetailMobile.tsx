@@ -6,10 +6,10 @@
  * - 单列内容 + 底部固定主操作栏
  */
 
-import { Button } from "@/components/ui/button"
 import type { OrderDetail } from "@/hooks/api/useOrders"
+import { OrderDetailMobileActions } from "./OrderDetailMobileActions"
 import { OrderDetailSections } from "./OrderDetailSections"
-import { OrderSummaryCards } from "./OrderSummaryCards"
+import { OrderMobileOverview } from "./OrderMobileOverview"
 import type { DetailTab, OrderItemStatsVM, TimelineEvent } from "./types"
 
 interface OrderDetailMobileProps {
@@ -55,7 +55,11 @@ export function OrderDetailMobile({
 }: OrderDetailMobileProps) {
   return (
     <div className="flex min-h-full flex-col gap-4 p-4 sm:gap-6 sm:p-6 lg:p-8">
-      <OrderSummaryCards order={order} stats={itemStats} isFetching={isFetching} />
+      <OrderMobileOverview
+        order={order}
+        stats={itemStats}
+        isFetching={isFetching}
+      />
 
       <OrderDetailSections
         tab={tab}
@@ -66,31 +70,16 @@ export function OrderDetailMobile({
         timeline={timeline}
       />
 
-      <div
-        className="sticky bottom-0 z-10 mt-auto -mx-4 border-t border-border bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8"
-      >
-        <div className="flex items-stretch gap-2 pb-2">
-          <Button
-            className="h-10 min-w-0 basis-0 shrink grow overflow-hidden"
-            onClick={onOpenCreate}
-            disabled={!canCreateDelivery}
-          >
-            <i className="ri-truck-line mr-1.5 shrink-0" />
-            <span className="truncate">创建发货单</span>
-          </Button>
-          {canCloseShort && (
-            <Button
-              className="h-10 shrink-0"
-              variant="destructive"
-              onClick={onCloseShort}
-              disabled={isClosingShort}
-            >
-              <i className="ri-close-circle-line mr-1.5 shrink-0" />
-              <span className="truncate">短交结案</span>
-            </Button>
-          )}
-        </div>
-      </div>
+      <OrderDetailMobileActions
+        totalOrderedQty={itemStats.totalOrderedQty}
+        totalShippedQty={itemStats.totalShippedQty}
+        totalPendingQty={itemStats.totalPendingQty}
+        canCreateDelivery={canCreateDelivery}
+        canCloseShort={canCloseShort}
+        isClosingShort={isClosingShort}
+        onOpenCreate={onOpenCreate}
+        onCloseShort={onCloseShort}
+      />
     </div>
   )
 }

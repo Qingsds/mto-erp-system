@@ -28,6 +28,7 @@ import { PartDetailEditForm } from "./PartDetailEditForm"
 import { PartDrawingSection } from "./PartDrawingSection"
 import { PartImagePreviewDialog } from "./PartImagePreviewDialog"
 import { PartDetailLoadingState } from "./PartDetailLoadingState"
+import { PartDetailMobileActions } from "./PartDetailMobileActions"
 import { PartReadonlyInfoSection } from "./PartDetailReadonlySection"
 import { PartDetailToolbar } from "./PartDetailToolbar"
 import { useUnsavedChangesGuard } from "./useUnsavedChangesGuard"
@@ -197,7 +198,7 @@ export function PartDetailPage() {
           onToggleEdit={handleToggleEdit}
         />
 
-        <div className='mx-auto flex w-full max-w-7xl flex-col gap-3 p-1 sm:gap-4 sm:p-2 lg:p-3'>
+        <div className='mx-auto flex w-full max-w-7xl flex-col gap-3 p-1 pb-24 sm:gap-4 sm:p-2 sm:pb-2 lg:p-3'>
           <div className='flex flex-col gap-3 items-stretch lg:flex-row lg:items-start lg:gap-4'>
             <PartDrawingSection
               latestDrawing={latest}
@@ -244,6 +245,14 @@ export function PartDetailPage() {
             </div>
           </div>
         </div>
+
+        {isMobile && (
+          <PartDetailMobileActions
+            partNumber={part.partNumber}
+            isEditing={isEditing}
+            onToggleEdit={handleToggleEdit}
+          />
+        )}
       </div>
 
       {/* 隐藏文件 input */}

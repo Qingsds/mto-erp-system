@@ -36,28 +36,36 @@ export function OrderDetailSections({
   onOpenDelivery,
   timeline,
 }: OrderDetailSectionsProps) {
+  const segments = [
+    { key: "items", label: "BOM", mobileLabel: "BOM", icon: "ri-list-check-3" },
+    { key: "deliveries", label: "发货记录", mobileLabel: "发货", icon: "ri-truck-line" },
+    { key: "timeline", label: "操作日志", mobileLabel: "日志", icon: "ri-time-line" },
+  ] as const satisfies {
+    key: DetailTab
+    label: string
+    mobileLabel: string
+    icon: string
+  }[]
+
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-1">
-        {([
-          { key: "items", label: "BOM 明细", icon: "ri-list-check-3" },
-          { key: "deliveries", label: "发货记录", icon: "ri-truck-line" },
-          { key: "timeline", label: "操作日志", icon: "ri-time-line" },
-        ] as const).map(seg => (
+      <div className="flex items-center gap-1 border border-border bg-card p-1">
+        {segments.map(seg => (
           <button
             key={seg.key}
             type="button"
             onClick={() => onChangeTab(seg.key)}
             className={cn(
-              "flex-1 h-8 rounded-md text-xs font-medium transition-colors border-none cursor-pointer bg-transparent",
-              "inline-flex items-center justify-center gap-1",
+              "inline-flex flex-1 items-center justify-center gap-1 border-none bg-transparent px-1.5 text-xs font-medium transition-colors cursor-pointer",
+              "h-8 sm:h-9",
               tab === seg.key
                 ? "bg-primary text-primary-foreground"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted",
             )}
           >
-            <i className={`${seg.icon} text-sm`} />
-            {seg.label}
+            <i className={`${seg.icon} text-[13px] sm:text-sm`} />
+            <span className="sm:hidden">{seg.mobileLabel}</span>
+            <span className="hidden sm:inline">{seg.label}</span>
           </button>
         ))}
       </div>
