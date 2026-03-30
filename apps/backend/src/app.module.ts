@@ -4,7 +4,6 @@ import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
 
 import { OrdersModule } from './orders/orders.module';
-import { PartsService } from './parts/parts.service';
 import { PartsModule } from './parts/parts.module';
 import { DeliveriesModule } from './deliveries/deliveries.module';
 import { BillingModule } from './billing/billing.module';
@@ -22,6 +21,6 @@ import { DocumentsModule } from './documents/documents.module';
     DocumentsModule,
   ],
   controllers: [AppController],
-  providers: [AppService, PartsService],
+  providers: [AppService],
 })
 export class AppModule {}

@@ -4,11 +4,42 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { CreatePartRequest, UpdatePartRequest } from '@erp/shared-types';
+import {
+  CreatePartRequest,
+  FileType,
+  UpdatePartRequest,
+} from '@erp/shared-types';
+import { randomUUID } from 'node:crypto';
+import { extname } from 'node:path';
+import { Readable } from 'node:stream';
+import { StorageService } from '../storage/storage.service';
+
+const MAX_DRAWING_SIZE_BYTES = 10 * 1024 * 1024;
+
+function resolveDrawingFileType(file: Express.Multer.File): FileType {
+  if (file.mimetype.startsWith('image/')) {
+    return FileType.IMAGE;
+  }
+  if (file.mimetype === 'application/pdf') {
+    return FileType.PDF;
+  }
+  throw new BadRequestException('仅支持上传图片或 PDF 图纸');
+}
+
+function resolveFileExtension(file: Express.Multer.File) {
+  const originalExt = extname(file.originalname).toLowerCase();
+  if (originalExt) {
+    return originalExt;
+  }
+  return file.mimetype === 'application/pdf' ? '.pdf' : '.bin';
+}
 
 @Injectable()
 export class PartsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: StorageService,
+  ) {}
   /**
    * 创建零件
    * @params payload
@@ -133,22 +164,26 @@ export class PartsService {
       throw new BadRequestException('未检测到上传的文件');
     }
 
-    // 2. 模拟文件上传到 OSS/MinIO (实际生产环境中，此处会调用对象存储 SDK 并返回真实 URL)
-    const fileExtension = file.originalname.split('.').pop();
-    const fileKey = `drawings/part-${partId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExtension}`;
+    if (!file.buffer?.length) {
+      throw new BadRequestException('上传文件内容为空');
+    }
 
-    // 简单判断文件类型
-    const fileType = file.mimetype.includes('pdf') ? 'PDF' : 'IMAGE';
+    if (file.size > MAX_DRAWING_SIZE_BYTES) {
+      throw new BadRequestException('图纸文件不能超过 10MB');
+    }
+
+    const fileType = resolveDrawingFileType(file);
+    const fileKey = `drawings/part-${partId}/${Date.now()}-${randomUUID()}${resolveFileExtension(file)}`;
+
+    await this.storage.uploadObject({
+      key: fileKey,
+      body: file.buffer,
+      size: file.size,
+      contentType: file.mimetype,
+    });
 
     // 3. 开启事务：处理图纸版本更迭
     return await this.prisma.client.$transaction(async (tx) => {
-      // 步骤 A：将该零件下的所有老图纸状态置为 "非最新"
-      await tx.partDrawing.updateMany({
-        where: { partId: partId },
-        data: { isLatest: false },
-      });
-
-      // 步骤 B：插入本次上传的新图纸，系统默认 isLatest: true
       const newDrawing = await tx.partDrawing.create({
         data: {
           partId: partId,
@@ -159,8 +194,66 @@ export class PartsService {
         },
       });
 
+      await tx.partDrawing.updateMany({
+        where: {
+          partId: partId,
+          id: { not: newDrawing.id },
+        },
+        data: { isLatest: false },
+      });
+
       return newDrawing;
     });
+  }
+
+  async getDrawingFile(
+    partId: number,
+    drawingId: number,
+  ): Promise<{
+    drawing: {
+      id: number;
+      partId: number;
+      fileName: string;
+      fileKey: string;
+      fileType: string;
+    };
+    stream: Readable;
+    size: number;
+    contentType: string;
+  }> {
+    const drawing = await this.prisma.client.partDrawing.findFirst({
+      where: {
+        id: drawingId,
+        partId,
+      },
+    });
+
+    if (!drawing) {
+      throw new NotFoundException('图纸不存在或不属于当前零件');
+    }
+
+    const [stream, stat] = await Promise.all([
+      this.storage.getObjectStream(drawing.fileKey),
+      this.storage.statObject(drawing.fileKey),
+    ]);
+    const drawingFileType = drawing.fileType as FileType;
+    const metaData = stat.metaData as
+      | Record<string, string | undefined>
+      | undefined;
+    const rawContentType = metaData?.['content-type'];
+    const contentType =
+      typeof rawContentType === 'string'
+        ? rawContentType
+        : drawingFileType === FileType.PDF
+          ? 'application/pdf'
+          : 'application/octet-stream';
+
+    return {
+      drawing,
+      stream,
+      size: stat.size,
+      contentType,
+    };
   }
 
   // apps/backend/src/parts/parts.service.ts

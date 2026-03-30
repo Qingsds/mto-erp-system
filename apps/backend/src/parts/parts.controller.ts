@@ -1,4 +1,5 @@
 import {
+  StreamableFile,
   Controller,
   Post,
   Body,
@@ -11,8 +12,10 @@ import {
   UploadedFile,
   UseInterceptors,
   Delete,
+  Res,
 } from '@nestjs/common';
 import { PartsService } from './parts.service';
+import type { Response } from 'express';
 
 import {
   ApiResponse,
@@ -50,6 +53,28 @@ export class PartsController {
   async findOne(@Param('id', ParseIntPipe) id: number): Promise<ApiResponse> {
     const result = await this.partsService.findOne(id);
     return { code: 200, message: '查询成功', data: result };
+  }
+
+  @Get(':id/drawings/:drawingId/file')
+  async getDrawingFile(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('drawingId', ParseIntPipe) drawingId: number,
+    @Query('download') download: string | undefined,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const result = await this.partsService.getDrawingFile(id, drawingId);
+    const dispositionType =
+      download === '1' || download === 'true' ? 'attachment' : 'inline';
+    const encodedFileName = encodeURIComponent(result.drawing.fileName);
+
+    response.setHeader('Content-Type', result.contentType);
+    response.setHeader('Content-Length', String(result.size));
+    response.setHeader(
+      'Content-Disposition',
+      `${dispositionType}; filename*=UTF-8''${encodedFileName}`,
+    );
+
+    return new StreamableFile(result.stream);
   }
 
   @Patch(':id')

@@ -17,7 +17,7 @@ import type {
   CreatePartRequest,
   UpdatePartRequest,
 } from "@erp/shared-types"
-import request   from "@/lib/utils/request"
+import request, { resolveApiUrl } from "@/lib/utils/request"
 import { toast } from "@/lib/toast"
 
 // ─── 本地定义（@erp/shared-types 的 FileType enum 与后端同值，
@@ -65,6 +65,19 @@ export interface PaginatedParts {
   pageSize: number
 }
 
+export const PART_DRAWING_ACCEPT = "image/*,.pdf"
+export const PART_DRAWING_MAX_SIZE_BYTES = 10 * 1024 * 1024
+export const PART_DRAWING_HELP_TEXT = "支持 PNG、JPG、PDF，最大 10MB"
+
+function comparePriceEntries(
+  a: { label: string; value: number },
+  b: { label: string; value: number },
+) {
+  if (a.label === "标准价" && b.label !== "标准价") return -1
+  if (a.label !== "标准价" && b.label === "标准价") return 1
+  return a.label.localeCompare(b.label, "zh-CN")
+}
+
 // ─── commonPrices 格式转换（UI 数组 ↔ API Record）────────
 /** API Record → 表单数组 */
 export function apiPricesToForm(
@@ -73,10 +86,12 @@ export function apiPricesToForm(
   if (!commonPrices || typeof commonPrices !== "object" || Array.isArray(commonPrices)) {
     return []
   }
-  return Object.entries(commonPrices).map(([label, value]) => ({
-    label,
-    value: Number(value),
-  }))
+  return Object.entries(commonPrices)
+    .map(([label, value]) => ({
+      label,
+      value: Number(value),
+    }))
+    .sort(comparePriceEntries)
 }
 
 /** 表单数组 → API Record */
@@ -84,6 +99,40 @@ export function formPricesToApi(
   prices: { label: string; value: number }[],
 ): Record<string, number> {
   return Object.fromEntries(prices.map(p => [p.label, p.value]))
+}
+
+export function getPrimaryPartPrice(
+  commonPrices: Record<string, number> | null | undefined,
+) {
+  return apiPricesToForm(commonPrices)[0] ?? null
+}
+
+export function validatePartDrawingFile(file: File): string | null {
+  if (!file.type.startsWith("image/") && file.type !== "application/pdf") {
+    return "仅支持上传图片或 PDF 图纸"
+  }
+
+  if (file.size > PART_DRAWING_MAX_SIZE_BYTES) {
+    return "图纸文件不能超过 10MB"
+  }
+
+  return null
+}
+
+export function buildPartDrawingFileUrl(
+  partId: number,
+  drawingId: number,
+  options?: { download?: boolean },
+) {
+  const search = new URLSearchParams()
+  if (options?.download) {
+    search.set("download", "1")
+  }
+
+  const path = `/api/parts/${partId}/drawings/${drawingId}/file${
+    search.size > 0 ? `?${search.toString()}` : ""
+  }`
+  return resolveApiUrl(path)
 }
 
 // ─── Query keys ───────────────────────────────────────────

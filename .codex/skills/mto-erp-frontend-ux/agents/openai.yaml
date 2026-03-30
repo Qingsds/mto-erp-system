@@ -1,0 +1,6 @@
+interface:
+  display_name: "MTO ERP Frontend UX"
+  short_description: "面向 ERP 前端页面优化与统一的项目专用 skill"
+  default_prompt: "Use $mto-erp-frontend-ux at /Users/mine/Desktop/development/mto-erp-system/.codex/skills/mto-erp-frontend-ux to optimize or review this MTO ERP frontend page under the repo design system."
+policy:
+  allow_implicit_invocation: true

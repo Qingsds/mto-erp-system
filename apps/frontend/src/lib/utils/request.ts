@@ -6,6 +6,16 @@ import { toast } from "@/lib/toast"
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim()
 
+export function resolveApiUrl(path: string): string {
+  if (!apiBaseUrl) return path
+
+  const normalizedBase = apiBaseUrl.endsWith("/")
+    ? apiBaseUrl
+    : `${apiBaseUrl}/`
+
+  return new URL(path.replace(/^\//, ""), normalizedBase).toString()
+}
+
 const request: AxiosInstance = axios.create({
   // 默认走相对路径，开发环境由 Vite /api 代理转发；部署时可通过 VITE_API_BASE_URL 覆盖。
   baseURL: apiBaseUrl || undefined,
