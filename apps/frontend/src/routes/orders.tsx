@@ -7,7 +7,11 @@
  */
 
 import { createFileRoute, Outlet, useRouterState } from "@tanstack/react-router"
-import { OrdersPage } from "@/pages/orders/OrdersPage"
+import {
+  OrdersPage,
+  type OrdersPageSearch,
+} from "@/pages/orders/OrdersPage"
+import { validateOrdersPageSearch } from "@/pages/orders/list/search"
 
 /**
  * 订单父路由组件：
@@ -17,9 +21,14 @@ import { OrdersPage } from "@/pages/orders/OrdersPage"
 function OrdersRouteComponent() {
   const pathname = useRouterState({ select: s => s.location.pathname })
   const isChildRoute = pathname !== "/orders" && pathname.startsWith("/orders/")
-  return isChildRoute ? <Outlet /> : <OrdersPage />
+  const search = Route.useSearch()
+
+  return isChildRoute ? <Outlet /> : <OrdersPage search={search} />
 }
 
 export const Route = createFileRoute("/orders")({
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): OrdersPageSearch => validateOrdersPageSearch(search),
   component: OrdersRouteComponent,
 })

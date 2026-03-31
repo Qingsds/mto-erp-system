@@ -1,22 +1,9 @@
 import { createColumnHelper } from "@tanstack/react-table"
 import { Button }             from "@/components/ui/button"
 import { ExpandablePanelCell } from "@/components/common/ExpandablePanelCell"
-import { cn }                 from "@/lib/utils"
-import { STATUS_LABEL, STATUS_STYLE, STATUS_ICON } from "./orders.schema"
 import type { OrderListItem }    from "@/hooks/api/useOrders"
 import { formatOrderNo, decimalToNum } from "@/hooks/api/useOrders"
-
-function renderStatusBadge(status: OrderListItem["status"]) {
-  return (
-    <span className={cn(
-      "inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-md border whitespace-nowrap",
-      STATUS_STYLE[status],
-    )}>
-      <i className={cn(STATUS_ICON[status], "text-[11px]")} />
-      {STATUS_LABEL[status]}
-    </span>
-  )
-}
+import { OrderStatusBadge } from "./shared/OrderStatusBadge"
 
 function resolveOrderItemLabel(item: OrderListItem["items"][number]) {
   if (item.partName && item.partName.trim()) {
@@ -57,7 +44,7 @@ export function getOrdersColumns(
     col.accessor("status", {
       header: "状态",
       size:   115,
-      cell:   i => renderStatusBadge(i.getValue()),
+      cell:   i => <OrderStatusBadge status={i.getValue()} />,
     }),
 
     col.accessor("items", {
