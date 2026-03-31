@@ -7,38 +7,10 @@
 
 import { createColumnHelper } from "@tanstack/react-table"
 import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
 import type { DeliveryListItem } from "@/hooks/api/useDeliveries"
 import { formatDeliveryNo, formatOrderNo } from "@/hooks/api/useOrders"
-import {
-  DELIVERY_STATUS_ICON,
-  DELIVERY_STATUS_LABEL,
-  DELIVERY_STATUS_STYLE,
-} from "./deliveries.schema"
 import { formatDateTime } from "./deliveries.utils"
-
-/**
- * 渲染发货状态徽章。
- */
-function renderStatusBadge(status: string) {
-  const label = DELIVERY_STATUS_LABEL[status] ?? status
-  const icon = DELIVERY_STATUS_ICON[status] ?? "ri-information-line"
-  const style =
-    DELIVERY_STATUS_STYLE[status] ??
-    "text-muted-foreground bg-muted border-border"
-
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-md border whitespace-nowrap",
-        style,
-      )}
-    >
-      <i className={cn(icon, "text-[11px]")} />
-      {label}
-    </span>
-  )
-}
+import { DeliveryStatusBadge } from "./shared/DeliveryStatusBadge"
 
 const col = createColumnHelper<DeliveryListItem>()
 
@@ -92,21 +64,7 @@ export function getDeliveriesColumns(
     col.accessor("status", {
       header: "状态",
       size: 96,
-      cell: info => renderStatusBadge(info.getValue()),
-    }),
-
-    col.display({
-      id: "totalAmount",
-      header: "金额",
-      size: 120,
-      cell: info => (
-        <span className="font-mono text-sm font-medium tabular-nums whitespace-nowrap text-foreground">
-          ¥
-          {(info.row.original.totalAmount ?? 0).toLocaleString("zh-CN", {
-            minimumFractionDigits: 2,
-          })}
-        </span>
-      ),
+      cell: info => <DeliveryStatusBadge status={info.getValue()} />,
     }),
 
     col.accessor("remark", {

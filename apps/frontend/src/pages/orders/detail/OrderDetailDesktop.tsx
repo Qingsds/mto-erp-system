@@ -55,7 +55,7 @@ export function OrderDetailDesktop({
   onOpenDelivery,
 }: OrderDetailDesktopProps) {
   return (
-    <div className="p-4 sm:p-6 lg:p-8 flex flex-col gap-4 sm:gap-6">
+    <div className="flex flex-col gap-4 sm:gap-5">
       <OrderSummaryCards order={order} stats={itemStats} isFetching={isFetching} />
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">

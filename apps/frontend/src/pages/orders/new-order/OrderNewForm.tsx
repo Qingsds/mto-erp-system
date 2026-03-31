@@ -12,6 +12,7 @@ import {
   apiPricesToForm,
   type PartListItem,
 } from "@/hooks/api/useParts"
+import { PageContentWrapper } from "@/components/common/PageContentWrapper"
 import { useUIStore } from "@/store/ui.store"
 import type {
   OrderFormInput,
@@ -98,98 +99,96 @@ export function OrderNewForm({
           showQuickActions={!isMobile}
         />
 
-        <div className='flex-1 overflow-auto'>
-          <div className='p-4 pb-28 sm:p-6 sm:pb-6 lg:p-8'>
-            <form onSubmit={submitForm}>
-              <div className='flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-8'>
-                <aside className='flex w-full shrink-0 flex-col gap-4 lg:sticky lg:top-20 lg:w-72 xl:w-80'>
-                  <OrderBasicInfoPanel form={form} />
-                  <OrderDraftSummaryCard
-                    itemCount={fields.length}
-                    estimatedTotal={estimatedTotal}
-                  />
-                </aside>
+        <PageContentWrapper withMobileBottomInset={isMobile}>
+          <form onSubmit={submitForm}>
+            <div className='flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-8'>
+              <aside className='flex w-full shrink-0 flex-col gap-4 lg:sticky lg:top-20 lg:w-72 xl:w-80'>
+                <OrderBasicInfoPanel form={form} />
+                <OrderDraftSummaryCard
+                  itemCount={fields.length}
+                  estimatedTotal={estimatedTotal}
+                />
+              </aside>
 
-                <div className='flex-1 min-w-0 flex flex-col gap-4'>
-                  <section className='border border-border bg-card px-4 py-4'>
-                    <div>
-                      <h2 className='text-base font-semibold'>
-                        零件明细
-                        <span className='text-destructive ml-0.5'>
-                          *
-                        </span>
-                      </h2>
-                      <p className='text-xs text-muted-foreground mt-0.5'>
-                        已添加 {fields.length} 项零件，按当前列表顺序逐项填写。
-                      </p>
-                    </div>
-                  </section>
-
-                  {errors.items?.root && (
-                    <p className='text-xs text-destructive'>
-                      {errors.items.root.message}
+              <div className='flex-1 min-w-0 flex flex-col gap-4'>
+                <section className='border border-border bg-card px-4 py-4'>
+                  <div>
+                    <h2 className='text-base font-semibold'>
+                      零件明细
+                      <span className='text-destructive ml-0.5'>
+                        *
+                      </span>
+                    </h2>
+                    <p className='text-xs text-muted-foreground mt-0.5'>
+                      已添加 {fields.length} 项零件，按当前列表顺序逐项填写。
                     </p>
-                  )}
-
-                  <div className='flex flex-col gap-2'>
-                    {fields.map((field, index) => {
-                      const watchedItem = watchedItems[index]
-                      const selectedPart = parts.find(
-                        part => part.id === watchedItem?.partId,
-                      )
-
-                      return (
-                        <BomRow
-                          key={field.id}
-                          index={index}
-                          selectedPart={selectedPart}
-                          watchedItem={
-                            watchedItem ?? {
-                              partId: 0,
-                              orderedQty: 1,
-                              _displayPrice: 0,
-                            }
-                          }
-                          errors={errors}
-                          register={register}
-                          control={control}
-                          setValue={setValue}
-                          canRemove={fields.length > 1}
-                          onOpenPicker={() => setPickerIndex(index)}
-                          onRemove={() => remove(index)}
-                        />
-                      )
-                    })}
                   </div>
+                </section>
 
-                  <button
-                    type='button'
-                    onClick={appendEmptyItem}
-                    className='hidden w-full items-center justify-center gap-2 border border-dashed border-border bg-background px-4 py-3 text-sm text-muted-foreground transition-colors hover:border-primary/50 hover:bg-muted/40 hover:text-foreground lg:flex'
-                  >
-                    <i className='ri-add-line text-base' />
-                    <span>
-                      {fields.length > 0 ? "继续添加零件" : "添加第一个零件"}
-                    </span>
-                  </button>
+                {errors.items?.root && (
+                  <p className='text-xs text-destructive'>
+                    {errors.items.root.message}
+                  </p>
+                )}
 
-                  {fields.length > 1 && estimatedTotal > 0 && (
-                    <div className='flex justify-between items-center px-4 py-3 border border-border bg-muted/20'>
-                      <span className='text-sm text-muted-foreground'>
-                        合计 {fields.length} 项零件
-                      </span>
-                      <span className='font-mono font-semibold text-lg tabular-nums'>
-                        ¥
-                        {estimatedTotal.toLocaleString("zh-CN", {
-                          minimumFractionDigits: 2,
-                        })}
-                      </span>
-                    </div>
-                  )}
+                <div className='flex flex-col gap-2'>
+                  {fields.map((field, index) => {
+                    const watchedItem = watchedItems[index]
+                    const selectedPart = parts.find(
+                      part => part.id === watchedItem?.partId,
+                    )
+
+                    return (
+                      <BomRow
+                        key={field.id}
+                        index={index}
+                        selectedPart={selectedPart}
+                        watchedItem={
+                          watchedItem ?? {
+                            partId: 0,
+                            orderedQty: 1,
+                            _displayPrice: 0,
+                          }
+                        }
+                        errors={errors}
+                        register={register}
+                        control={control}
+                        setValue={setValue}
+                        canRemove={fields.length > 1}
+                        onOpenPicker={() => setPickerIndex(index)}
+                        onRemove={() => remove(index)}
+                      />
+                    )
+                  })}
                 </div>
+
+                <button
+                  type='button'
+                  onClick={appendEmptyItem}
+                  className='hidden w-full items-center justify-center gap-2 border border-dashed border-border bg-background px-4 py-3 text-sm text-muted-foreground transition-colors hover:border-primary/50 hover:bg-muted/40 hover:text-foreground lg:flex'
+                >
+                  <i className='ri-add-line text-base' />
+                  <span>
+                    {fields.length > 0 ? "继续添加零件" : "添加第一个零件"}
+                  </span>
+                </button>
+
+                {fields.length > 1 && estimatedTotal > 0 && (
+                  <div className='flex justify-between items-center px-4 py-3 border border-border bg-muted/20'>
+                    <span className='text-sm text-muted-foreground'>
+                      合计 {fields.length} 项零件
+                    </span>
+                    <span className='font-mono font-semibold text-lg tabular-nums'>
+                      ¥
+                      {estimatedTotal.toLocaleString("zh-CN", {
+                        minimumFractionDigits: 2,
+                      })}
+                    </span>
+                  </div>
+                )}
               </div>
-            </form>
-          </div>
+            </div>
+          </form>
 
           {isMobile && (
             <OrderNewMobileActions
@@ -200,7 +199,7 @@ export function OrderNewForm({
               onSubmit={() => { void submitForm() }}
             />
           )}
-        </div>
+        </PageContentWrapper>
       </div>
 
       <PartPicker

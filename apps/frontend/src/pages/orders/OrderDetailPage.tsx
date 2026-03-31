@@ -10,6 +10,7 @@
 import { useMemo, useState } from "react"
 import { useNavigate, useParams } from "@tanstack/react-router"
 import type { CreateDeliveryRequest } from "@erp/shared-types"
+import { PageContentWrapper } from "@/components/common/PageContentWrapper"
 import { Button } from "@/components/ui/button"
 import { useUIStore } from "@/store/ui.store"
 import {
@@ -234,7 +235,7 @@ export function OrderDetailPage() {
         actions={<OrderExportAction order={order} />}
       />
 
-      <div className='flex-1 overflow-auto'>
+      <PageContentWrapper withMobileBottomInset={isMobile}>
         {isMobile ? (
           <OrderDetailMobile
             order={order}
@@ -266,7 +267,7 @@ export function OrderDetailPage() {
             onOpenDelivery={handleOpenDelivery}
           />
         )}
-      </div>
+      </PageContentWrapper>
 
       <CreateDeliverySheet
         open={createOpen}
@@ -286,7 +287,6 @@ export function OrderDetailPage() {
         onConfirm={handleConfirmCloseShort}
         onOpenChange={setCloseShortOpen}
       />
-
     </div>
   )
 }

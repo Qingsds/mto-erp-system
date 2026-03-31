@@ -30,7 +30,6 @@ export function OrderDetailMobileActions({
 }: OrderDetailMobileActionsProps) {
   return (
     <MobileActionBar
-      className='mt-auto -mx-4 sm:-mx-6 lg:-mx-8'
       summary={
         <div className='flex items-center justify-between gap-3 text-xs'>
           <span className='text-muted-foreground'>

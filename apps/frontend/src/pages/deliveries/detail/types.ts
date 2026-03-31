@@ -11,8 +11,6 @@ import type { DeliveryDetail } from "@/hooks/api/useDeliveries"
  * 发货明细行视图模型。
  */
 export type DeliveryLineVM = DeliveryDetail["items"][number] & {
-  /** 行金额估算（本次发货数量 * 订单单价）。 */
-  lineAmount: number
   /** 订单剩余待发数量（orderedQty - shippedQty）。 */
   pendingQty: number
 }
@@ -27,8 +25,10 @@ export interface DeliveryStatsVM {
   lineCount: number
   /** 关联零件去重数量。 */
   uniquePartCount: number
+  /** 已关联发票的明细数量。 */
+  billedLineCount: number
+  /** 已完成发货的明细数量。 */
+  completedLineCount: number
   /** 本次发货总件数。 */
   totalShippedQty: number
-  /** 本次发货金额估算。 */
-  totalAmount: number
 }

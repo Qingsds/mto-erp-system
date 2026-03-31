@@ -2,8 +2,7 @@
  * 通用移动端底部操作栏。
  *
  * 提供统一的：
- * - 吸底样式
- * - 安全区内边距
+ * - 固定在底部导航上方
  * - 摘要区
  * - 按钮区
  *
@@ -31,19 +30,21 @@ export function MobileActionBar({
   return (
     <div
       className={cn(
-        "sticky bottom-0 z-10 border-t border-border bg-background/95 px-4 py-3 backdrop-blur",
+        "fixed inset-x-0 z-30 border-t border-border bg-background/95 backdrop-blur",
         className,
       )}
-      style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)" }}
+      style={{ bottom: "var(--erp-bottom-nav-safe-h)" }}
     >
-      {summary && (
-        <div className={cn("mb-2", summaryClassName)}>
-          {summary}
-        </div>
-      )}
+      <div className='mx-auto w-full max-w-7xl px-4 py-3 sm:px-6 lg:px-8'>
+        {summary && (
+          <div className={cn("mb-2", summaryClassName)}>
+            {summary}
+          </div>
+        )}
 
-      <div className={cn("flex items-stretch gap-2", actionsClassName)}>
-        {children}
+        <div className={cn("flex items-stretch gap-2", actionsClassName)}>
+          {children}
+        </div>
       </div>
     </div>
   )

@@ -54,7 +54,7 @@ export function OrderDetailMobile({
   onOpenDelivery,
 }: OrderDetailMobileProps) {
   return (
-    <div className="flex min-h-full flex-col gap-4 p-4 sm:gap-6 sm:p-6 lg:p-8">
+    <div className="flex min-h-full flex-col gap-4 sm:gap-5">
       <OrderMobileOverview
         order={order}
         stats={itemStats}

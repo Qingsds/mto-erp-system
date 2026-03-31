@@ -1,0 +1,4 @@
+interface:
+  display_name: "MTO ERP Change Guard"
+  short_description: "面向 MTO ERP 大改复盘、补丁治理与提交规范的项目技能"
+  default_prompt: "Use $mto-erp-change-guard to review recent MTO ERP changes for patch-on-patch issues, refactor if needed, and prepare the commit in project style."

@@ -8,6 +8,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate, useParams } from "@tanstack/react-router"
+import { PageContentWrapper } from "@/components/common/PageContentWrapper"
 import { Button } from "@/components/ui/button"
 import { ExportPreviewDialog } from "@/components/export/ExportPreviewDialog"
 import { useUIStore } from "@/store/ui.store"
@@ -19,45 +20,18 @@ import {
   type ExportSheetOptions,
 } from "@/lib/documentExportData"
 import {
-  decimalToNum,
   type DeliveryDetail,
   useGetDelivery,
 } from "@/hooks/api/useDeliveries"
-import { formatDeliveryNo } from "@/hooks/api/useOrders"
 import { DeliveryDetailDesktop } from "./detail/DeliveryDetailDesktop"
 import { DeliveryDetailMobile } from "./detail/DeliveryDetailMobile"
-import { DeliveryStatusBadge } from "./detail/DeliveryStatusBadge"
+import { DeliveryDetailMobileActions } from "./detail/DeliveryDetailMobileActions"
+import { DeliveryDetailToolbar } from "./detail/DeliveryDetailToolbar"
 import type { DeliveryStatsVM } from "./detail/types"
 
 type ExportConfig = Required<ExportSheetOptions>
 
 const DEFAULT_EXPORT_CONFIG: ExportConfig = DEFAULT_EXPORT_OPTIONS
-
-function resolveUnitPrice(
-  unitPrice: string,
-  commonPrices: Record<string, number>,
-): number {
-  const snapshotPrice = decimalToNum(unitPrice)
-  if (snapshotPrice > 0) {
-    return snapshotPrice
-  }
-
-  const standardPrice = commonPrices["标准价"]
-  if (
-    typeof standardPrice === "number" &&
-    Number.isFinite(standardPrice)
-  ) {
-    return standardPrice
-  }
-
-  for (const value of Object.values(commonPrices)) {
-    if (typeof value === "number" && Number.isFinite(value)) {
-      return value
-    }
-  }
-
-  return snapshotPrice
-}
 
 /**
  * 发货单详情页面。
@@ -78,11 +52,6 @@ export function DeliveryDetailPage() {
     if (!delivery) return null
 
     const lines = delivery.items.map(item => {
-      const unitPrice = resolveUnitPrice(
-        item.orderItem.unitPrice,
-        item.orderItem.part.commonPrices,
-      )
-      const lineAmount = item.shippedQty * unitPrice
       const pendingQty = Math.max(
         item.orderItem.orderedQty - item.orderItem.shippedQty,
         0,
@@ -90,7 +59,6 @@ export function DeliveryDetailPage() {
 
       return {
         ...item,
-        lineAmount,
         pendingQty,
       }
     })
@@ -101,12 +69,10 @@ export function DeliveryDetailPage() {
       uniquePartCount: new Set(
         lines.map(line => line.orderItem.partId),
       ).size,
+      billedLineCount: lines.filter(line => !!line.billingItem).length,
+      completedLineCount: lines.filter(line => line.pendingQty === 0).length,
       totalShippedQty: lines.reduce(
         (sum, line) => sum + line.shippedQty,
-        0,
-      ),
-      totalAmount: lines.reduce(
-        (sum, line) => sum + line.lineAmount,
         0,
       ),
     }
@@ -149,19 +115,13 @@ export function DeliveryDetailPage() {
 
   return (
     <div className='flex flex-col flex-1 overflow-hidden'>
-      <div className='flex items-center gap-2 px-4 sm:px-6 py-3 border-b border-border bg-background shrink-0'>
-        <div className='flex items-center gap-2'>
-          <span className='font-mono text-sm truncate'>
-            {formatDeliveryNo(delivery.id)}
-          </span>
-          <DeliveryStatusBadge status={delivery.status} />
-        </div>
-        <div className='ml-auto'>
-          <DeliveryExportAction delivery={delivery} />
-        </div>
-      </div>
+      <DeliveryDetailToolbar
+        delivery={delivery}
+        onBack={() => navigate({ to: "/deliveries" })}
+        actions={<DeliveryExportAction delivery={delivery} />}
+      />
 
-      <div className='flex-1 overflow-auto'>
+      <PageContentWrapper withMobileBottomInset={isMobile}>
         {isMobile ? (
           <DeliveryDetailMobile
             delivery={delivery}
@@ -175,7 +135,14 @@ export function DeliveryDetailPage() {
             isFetching={isFetching}
           />
         )}
-      </div>
+      </PageContentWrapper>
+
+      {isMobile && (
+        <DeliveryDetailMobileActions
+          orderId={delivery.orderId}
+          totalShippedQty={stats.totalShippedQty}
+        />
+      )}
     </div>
   )
 }

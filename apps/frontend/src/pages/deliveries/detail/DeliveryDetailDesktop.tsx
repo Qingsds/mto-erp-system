@@ -30,12 +30,12 @@ export function DeliveryDetailDesktop({
   isFetching,
 }: DeliveryDetailDesktopProps) {
   return (
-    <div className="p-4 sm:p-6 lg:p-8 flex flex-col gap-4 sm:gap-6">
+    <div className="flex flex-col gap-3 sm:gap-4">
       <DeliverySummaryCards delivery={delivery} stats={stats} isFetching={isFetching} />
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
-        <section className="rounded-xl border border-border bg-card">
-          <div className="px-4 py-3 border-b border-border">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
+        <section className="border border-border bg-card">
+          <div className="px-4 py-2.5 border-b border-border">
             <h3 className="text-sm font-semibold">发货明细</h3>
             <p className="mt-0.5 text-xs text-muted-foreground">
               本次发货共 {stats.lineCount} 条，合计 {stats.totalShippedQty} 件

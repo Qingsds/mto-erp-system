@@ -24,6 +24,7 @@ import {
   formPricesToApi,
   validatePartDrawingFile,
 } from "@/hooks/api/useParts"
+import { PageContentWrapper } from "@/components/common/PageContentWrapper"
 import { PartDetailEditForm } from "./PartDetailEditForm"
 import { PartDrawingSection } from "./PartDrawingSection"
 import { PartImagePreviewDialog } from "./PartImagePreviewDialog"
@@ -189,60 +190,61 @@ export function PartDetailPage() {
 
   return (
     <div className='flex flex-col flex-1 overflow-hidden bg-muted/20'>
-      <div className='flex-1 overflow-auto'>
-        <PartDetailToolbar
-          partName={part.name}
-          partNumber={part.partNumber}
-          isEditing={isEditing}
-          onBack={handleBack}
-          onToggleEdit={handleToggleEdit}
-        />
+      <PartDetailToolbar
+        partName={part.name}
+        partNumber={part.partNumber}
+        isEditing={isEditing}
+        onBack={handleBack}
+        onToggleEdit={handleToggleEdit}
+      />
 
-        <div className='mx-auto flex w-full max-w-7xl flex-col gap-3 p-1 pb-24 sm:gap-4 sm:p-2 sm:pb-2 lg:p-3'>
-          <div className='flex flex-col gap-3 items-stretch lg:flex-row lg:items-start lg:gap-4'>
-            <PartDrawingSection
-              latestDrawing={latest}
-              drawings={part.drawings ?? []}
-              localPreviewUrl={localPreviewUrl}
-              uploadError={uploadError}
-              isUploading={uploadDrawing.isPending}
-              isMobile={isMobile}
-              onUploadClick={() => fileInputRef.current?.click()}
-              onImagePreview={(src, title) =>
-                setPreviewImage({ src, title })
-              }
-            />
+      <PageContentWrapper
+        withMobileBottomInset={isMobile}
+        className='gap-4'
+      >
+        <div className='flex flex-col items-stretch gap-4 lg:flex-row lg:items-start'>
+          <PartDrawingSection
+            latestDrawing={latest}
+            drawings={part.drawings ?? []}
+            localPreviewUrl={localPreviewUrl}
+            uploadError={uploadError}
+            isUploading={uploadDrawing.isPending}
+            isMobile={isMobile}
+            onUploadClick={() => fileInputRef.current?.click()}
+            onImagePreview={(src, title) =>
+              setPreviewImage({ src, title })
+            }
+          />
 
-            <div className='w-full min-w-0 flex-1'>
-              {isEditing ? (
-                <section className='border border-border bg-card px-3 py-3 sm:px-5 sm:py-4'>
-                  <div className='mb-3 flex items-center justify-between sm:mb-4'>
-                    <div>
-                      <h2 className='text-base font-semibold'>
-                        编辑零件信息
-                      </h2>
-                      <p className='mt-1 text-xs text-muted-foreground'>
-                        优先维护名称、材质、规格和价格字典。
-                      </p>
-                    </div>
+          <div className='w-full min-w-0 flex-1'>
+            {isEditing ? (
+              <section className='border border-border bg-card px-3 py-3 sm:px-5 sm:py-4'>
+                <div className='mb-3 flex items-center justify-between sm:mb-4'>
+                  <div>
+                    <h2 className='text-base font-semibold'>
+                      编辑零件信息
+                    </h2>
+                    <p className='mt-1 text-xs text-muted-foreground'>
+                      优先维护名称、材质、规格和价格字典。
+                    </p>
                   </div>
-                  <PartDetailEditForm
-                    defaultValues={editDefaultValues}
-                    onSave={handleSave}
-                    onCancel={handleExitEditMode}
-                    isSaving={updatePart.isPending}
-                    onDirtyChange={setHasUnsavedChanges}
-                  />
-                </section>
-              ) : (
-                <PartReadonlyInfoSection
-                  part={part}
-                  primaryPrice={primaryPrice}
-                  prices={prices}
-                  latestDrawingName={latest?.fileName}
+                </div>
+                <PartDetailEditForm
+                  defaultValues={editDefaultValues}
+                  onSave={handleSave}
+                  onCancel={handleExitEditMode}
+                  isSaving={updatePart.isPending}
+                  onDirtyChange={setHasUnsavedChanges}
                 />
-              )}
-            </div>
+              </section>
+            ) : (
+              <PartReadonlyInfoSection
+                part={part}
+                primaryPrice={primaryPrice}
+                prices={prices}
+                latestDrawingName={latest?.fileName}
+              />
+            )}
           </div>
         </div>
 
@@ -253,7 +255,7 @@ export function PartDetailPage() {
             onToggleEdit={handleToggleEdit}
           />
         )}
-      </div>
+      </PageContentWrapper>
 
       {/* 隐藏文件 input */}
       <input

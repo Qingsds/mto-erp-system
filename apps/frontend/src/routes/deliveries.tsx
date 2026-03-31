@@ -7,7 +7,11 @@
  */
 
 import { createFileRoute, Outlet, useMatchRoute } from "@tanstack/react-router"
-import { DeliveriesPage } from "@/pages/deliveries/DeliveriesPage"
+import {
+  DeliveriesPage,
+  type DeliveriesPageSearch,
+} from "@/pages/deliveries/DeliveriesPage"
+import { validateDeliveriesPageSearch } from "@/pages/deliveries/list/search"
 
 /**
  * 发货单父路由组件：
@@ -17,11 +21,14 @@ import { DeliveriesPage } from "@/pages/deliveries/DeliveriesPage"
 function DeliveriesRouteComponent() {
   const matchRoute = useMatchRoute()
   const isDetailRoute = !!matchRoute({ to: "/deliveries/$id" })
+  const search = Route.useSearch()
 
-  return isDetailRoute ? <Outlet /> : <DeliveriesPage />
+  return isDetailRoute ? <Outlet /> : <DeliveriesPage search={search} />
 }
 
 export const Route = createFileRoute("/deliveries")({
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): DeliveriesPageSearch => validateDeliveriesPageSearch(search),
   component: DeliveriesRouteComponent,
 })
-
