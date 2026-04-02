@@ -31,3 +31,19 @@ description: 在 MTO ERP 项目中处理 React、Vite、Tailwind v4、shadcn/ui 
 - 不把 ERP 页面改成营销页、品牌官网或通用 SaaS landing 风格。
 - 不做大面积主题重置，不靠重动效或装饰图形建立层级。
 - 优先优化效率、可扫描性、状态反馈、移动端可达性。
+
+## SubPackages Configuration
+
+所有独立功能页面应进行分包处理，使用异步加载减少首屏体积。
+
+| Package Name | Chunk Name | Path |
+| :--- | :--- | :--- |
+| Reconciliation New | reconciliation-new | `src/pages/billing/CreateBillingPage.tsx` |
+
+## Component Inventory (Billing New)
+
+| Component | Path | Description |
+| :--- | :--- | :--- |
+| PageHeader | `src/pages/billing/new/components/PageHeader.tsx` | 包含返回、标题、副标题及桌面端操作按钮。 |
+| FormCard | `src/pages/billing/new/components/FormCard.tsx` | 带有标题、必填标识和统一边框背景的表单区块。 |
+| SubmitBar | `src/pages/billing/new/components/SubmitBar.tsx` | 移动端底部署名栏，包含汇总信息与提交动作。 |

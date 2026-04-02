@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useNavigate } from "@tanstack/react-router"
 import type { BillingStatusType } from "@erp/shared-types"
 import { Button } from "@/components/ui/button"
 import {
@@ -7,7 +8,6 @@ import {
   decimalToNum,
 } from "@/hooks/api/useBilling"
 import { cn } from "@/lib/utils"
-import { CreateBillingSheet } from "./CreateBillingSheet"
 import { ExecuteSealDialog } from "@/components/billing/ExecuteSealDialog"
 
 type BillingFilter = BillingStatusType | "all"
@@ -43,10 +43,9 @@ function formatBillingNo(id: number): string {
 const PAGE_SIZE = 12
 
 export function BillingPage() {
+  const navigate = useNavigate()
   const [status, setStatus] = useState<BillingFilter>("all")
   const [page, setPage] = useState(1)
-  const [createOpen, setCreateOpen] = useState(false)
-  const [createSeed, setCreateSeed] = useState(0)
   const [sealTarget, setSealTarget] = useState<{ id: number; no: string } | null>(null)
 
   const updateStatus = useUpdateBillingStatus()
@@ -76,7 +75,7 @@ export function BillingPage() {
         </div>
         <Button
           size='sm'
-          onClick={() => { setCreateSeed(s => s + 1); setCreateOpen(true) }}
+          onClick={() => navigate({ to: "/billing/new" })}
         >
           <i className='ri-add-line mr-1' />新建对账单
         </Button>
@@ -214,12 +213,6 @@ export function BillingPage() {
           </Button>
         </div>
       )}
-
-      <CreateBillingSheet
-        open={createOpen}
-        seed={createSeed}
-        onOpenChange={setCreateOpen}
-      />
 
       {sealTarget && (
         <ExecuteSealDialog

@@ -19,6 +19,7 @@ import { Route as PartsIdRouteImport } from './routes/parts.$id'
 import { Route as OrdersNewRouteImport } from './routes/orders.new'
 import { Route as OrdersIdRouteImport } from './routes/orders.$id'
 import { Route as DeliveriesIdRouteImport } from './routes/deliveries.$id'
+import { Route as BillingNewRouteImport } from './routes/billing.new'
 
 const SealsRoute = SealsRouteImport.update({
   id: '/seals',
@@ -70,14 +71,20 @@ const DeliveriesIdRoute = DeliveriesIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => DeliveriesRoute,
 } as any)
+const BillingNewRoute = BillingNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => BillingRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/billing': typeof BillingRoute
+  '/billing': typeof BillingRouteWithChildren
   '/deliveries': typeof DeliveriesRouteWithChildren
   '/orders': typeof OrdersRouteWithChildren
   '/parts': typeof PartsRouteWithChildren
   '/seals': typeof SealsRoute
+  '/billing/new': typeof BillingNewRoute
   '/deliveries/$id': typeof DeliveriesIdRoute
   '/orders/$id': typeof OrdersIdRoute
   '/orders/new': typeof OrdersNewRoute
@@ -85,11 +92,12 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/billing': typeof BillingRoute
+  '/billing': typeof BillingRouteWithChildren
   '/deliveries': typeof DeliveriesRouteWithChildren
   '/orders': typeof OrdersRouteWithChildren
   '/parts': typeof PartsRouteWithChildren
   '/seals': typeof SealsRoute
+  '/billing/new': typeof BillingNewRoute
   '/deliveries/$id': typeof DeliveriesIdRoute
   '/orders/$id': typeof OrdersIdRoute
   '/orders/new': typeof OrdersNewRoute
@@ -98,11 +106,12 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/billing': typeof BillingRoute
+  '/billing': typeof BillingRouteWithChildren
   '/deliveries': typeof DeliveriesRouteWithChildren
   '/orders': typeof OrdersRouteWithChildren
   '/parts': typeof PartsRouteWithChildren
   '/seals': typeof SealsRoute
+  '/billing/new': typeof BillingNewRoute
   '/deliveries/$id': typeof DeliveriesIdRoute
   '/orders/$id': typeof OrdersIdRoute
   '/orders/new': typeof OrdersNewRoute
@@ -117,6 +126,7 @@ export interface FileRouteTypes {
     | '/orders'
     | '/parts'
     | '/seals'
+    | '/billing/new'
     | '/deliveries/$id'
     | '/orders/$id'
     | '/orders/new'
@@ -129,6 +139,7 @@ export interface FileRouteTypes {
     | '/orders'
     | '/parts'
     | '/seals'
+    | '/billing/new'
     | '/deliveries/$id'
     | '/orders/$id'
     | '/orders/new'
@@ -141,6 +152,7 @@ export interface FileRouteTypes {
     | '/orders'
     | '/parts'
     | '/seals'
+    | '/billing/new'
     | '/deliveries/$id'
     | '/orders/$id'
     | '/orders/new'
@@ -149,7 +161,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  BillingRoute: typeof BillingRoute
+  BillingRoute: typeof BillingRouteWithChildren
   DeliveriesRoute: typeof DeliveriesRouteWithChildren
   OrdersRoute: typeof OrdersRouteWithChildren
   PartsRoute: typeof PartsRouteWithChildren
@@ -228,8 +240,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DeliveriesIdRouteImport
       parentRoute: typeof DeliveriesRoute
     }
+    '/billing/new': {
+      id: '/billing/new'
+      path: '/new'
+      fullPath: '/billing/new'
+      preLoaderRoute: typeof BillingNewRouteImport
+      parentRoute: typeof BillingRoute
+    }
   }
 }
+
+interface BillingRouteChildren {
+  BillingNewRoute: typeof BillingNewRoute
+}
+
+const BillingRouteChildren: BillingRouteChildren = {
+  BillingNewRoute: BillingNewRoute,
+}
+
+const BillingRouteWithChildren =
+  BillingRoute._addFileChildren(BillingRouteChildren)
 
 interface DeliveriesRouteChildren {
   DeliveriesIdRoute: typeof DeliveriesIdRoute
@@ -268,7 +298,7 @@ const PartsRouteWithChildren = PartsRoute._addFileChildren(PartsRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  BillingRoute: BillingRoute,
+  BillingRoute: BillingRouteWithChildren,
   DeliveriesRoute: DeliveriesRouteWithChildren,
   OrdersRoute: OrdersRouteWithChildren,
   PartsRoute: PartsRouteWithChildren,
