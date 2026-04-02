@@ -2,8 +2,9 @@ import { createColumnHelper } from "@tanstack/react-table"
 import { Button }             from "@/components/ui/button"
 import { ExpandablePanelCell } from "@/components/common/ExpandablePanelCell"
 import type { OrderListItem }    from "@/hooks/api/useOrders"
-import { formatOrderNo, decimalToNum } from "@/hooks/api/useOrders"
-import { OrderStatusBadge } from "./shared/OrderStatusBadge"
+import { formatOrderNo }         from "@/hooks/api/useOrders"
+import { computeListOrderAmount } from "@/domain/orders/pricing"
+import { OrderStatusBadge }      from "./shared/OrderStatusBadge"
 
 function resolveOrderItemLabel(item: OrderListItem["items"][number]) {
   if (item.partName && item.partName.trim()) {
@@ -104,17 +105,7 @@ export function getOrdersColumns(
       header: "金额",
       size: 100,
       cell: i => {
-        const isClosedShort = i.row.original.status === "CLOSED_SHORT"
-        const total = i.row.original.totalAmount ??
-          i.row.original.items.reduce(
-            (s, it) => {
-              const settlementQty = isClosedShort
-                ? Math.max(Math.min(it.shippedQty, it.orderedQty), 0)
-                : it.orderedQty
-              return s + settlementQty * decimalToNum(it.unitPrice)
-            },
-            0,
-          )
+        const total = computeListOrderAmount(i.row.original)
         return (
           <span className="font-mono text-sm font-medium tabular-nums whitespace-nowrap">
             ¥{total.toLocaleString("zh-CN", { minimumFractionDigits: 2 })}

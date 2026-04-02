@@ -14,13 +14,13 @@ import { PageContentWrapper } from "@/components/common/PageContentWrapper"
 import { Button } from "@/components/ui/button"
 import { useUIStore } from "@/store/ui.store"
 import {
-  decimalToNum,
   formatDeliveryNo,
   formatOrderNo,
   useCloseShortOrder,
   useCreateDelivery,
   useGetOrder,
 } from "@/hooks/api/useOrders"
+import { computeOrderStats, resolveUnitPrice } from "@/domain/orders/pricing"
 import { CreateDeliverySheet } from "./detail/CreateDeliverySheet"
 import { CloseShortDialog } from "./detail/CloseShortDialog"
 import { OrderDetailDesktop } from "./detail/OrderDetailDesktop"
@@ -28,32 +28,6 @@ import { OrderExportAction } from "./detail/OrderExportAction"
 import { OrderDetailMobile } from "./detail/OrderDetailMobile"
 import { OrderDetailToolbar } from "./detail/OrderDetailToolbar"
 import type { DetailTab, TimelineEvent } from "./detail/types"
-
-function resolveUnitPrice(
-  unitPrice: string,
-  commonPrices: Record<string, number>,
-): number {
-  const snapshotPrice = decimalToNum(unitPrice)
-  if (snapshotPrice > 0) {
-    return snapshotPrice
-  }
-
-  const standardPrice = commonPrices["标准价"]
-  if (
-    typeof standardPrice === "number" &&
-    Number.isFinite(standardPrice)
-  ) {
-    return standardPrice
-  }
-
-  for (const value of Object.values(commonPrices)) {
-    if (typeof value === "number" && Number.isFinite(value)) {
-      return value
-    }
-  }
-
-  return snapshotPrice
-}
 
 export function OrderDetailPage() {
   const { id } = useParams({ from: "/orders/$id" })
@@ -77,42 +51,7 @@ export function OrderDetailPage() {
 
   const itemStats = useMemo(() => {
     if (!order) return null
-    const isClosedShort = order.status === "CLOSED_SHORT"
-    const lines = order.items.map(item => {
-      const pendingQty = Math.max(
-        item.orderedQty - item.shippedQty,
-        0,
-      )
-      const unitPrice = resolveUnitPrice(
-        item.unitPrice,
-        item.part.commonPrices,
-      )
-      const settlementQty = isClosedShort
-        ? Math.max(Math.min(item.shippedQty, item.orderedQty), 0)
-        : item.orderedQty
-      return {
-        ...item,
-        pendingQty,
-        lineTotal: settlementQty * unitPrice,
-      }
-    })
-
-    return {
-      lines,
-      totalOrderedQty: lines.reduce(
-        (s, item) => s + item.orderedQty,
-        0,
-      ),
-      totalShippedQty: lines.reduce(
-        (s, item) => s + item.shippedQty,
-        0,
-      ),
-      totalPendingQty: lines.reduce(
-        (s, item) => s + item.pendingQty,
-        0,
-      ),
-      totalAmount: lines.reduce((s, item) => s + item.lineTotal, 0),
-    }
+    return computeOrderStats(order)
   }, [order])
 
   const canCloseShort =

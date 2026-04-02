@@ -10,10 +10,10 @@
 import type { DeliveryDetail } from "@/hooks/api/useDeliveries"
 import type { OrderDetail } from "@/hooks/api/useOrders"
 import {
-  decimalToNum,
   formatDeliveryNo,
   formatOrderNo,
 } from "@/hooks/api/useOrders"
+import { resolveSettlementQty, resolveUnitPrice } from "@/domain/orders/pricing"
 
 type CellValue = string | number
 export type RowData = CellValue[]
@@ -138,51 +138,8 @@ function formatMoney(value: number): number {
   return Number(value.toFixed(2))
 }
 
-/**
- * 结算单价优先级：
- * 1) 订单快照单价（下单时锁定）
- * 2) 零件“标准价”
- * 3) 零件价格字典中的任意有效值
- */
-function resolveUnitPrice(
-  unitPrice: string,
-  commonPrices: Record<string, number>,
-): number {
-  const snapshotPrice = decimalToNum(unitPrice)
-  if (snapshotPrice > 0) {
-    return snapshotPrice
-  }
-
-  const standardPrice = commonPrices["标准价"]
-  if (typeof standardPrice === "number" && Number.isFinite(standardPrice)) {
-    return standardPrice
-  }
-
-  for (const value of Object.values(commonPrices)) {
-    if (typeof value === "number" && Number.isFinite(value)) {
-      return value
-    }
-  }
-
-  return snapshotPrice
-}
-
 function filterPreviewMeta(row: RowData): string[] {
   return row.map(cell => String(cell).trim()).filter(Boolean)
-}
-
-/**
- * 结算数量规则：
- * - 正常订单：按下单数量结算
- * - 短交结案：按已发数量结算，但限制在 [0, orderedQty] 区间
- */
-export function resolveSettlementQty(
-  orderedQty: number,
-  shippedQty: number,
-  isClosedShort: boolean,
-): number {
-  if (!isClosedShort) return orderedQty
-  return Math.max(Math.min(shippedQty, orderedQty), 0)
 }
 
 export function buildOrderPriceDetailRows(

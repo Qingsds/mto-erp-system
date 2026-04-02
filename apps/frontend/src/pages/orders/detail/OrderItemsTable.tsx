@@ -6,9 +6,9 @@
  * - 以更直观的进度结构展示需求 / 已发 / 待发数量
  */
 
-import { decimalToNum } from "@/hooks/api/useOrders"
 import { cn } from "@/lib/utils"
 import { useMemo, useState } from "react"
+import { resolveUnitPrice } from "@/domain/orders/pricing"
 import type { OrderLineVM } from "./types"
 
 interface OrderItemsTableProps {
@@ -17,26 +17,6 @@ interface OrderItemsTableProps {
 }
 
 type BomFilter = "all" | "pending" | "completed"
-
-function resolveUnitPrice(unitPrice: string, commonPrices: Record<string, number>): number {
-  const snapshotPrice = decimalToNum(unitPrice)
-  if (snapshotPrice > 0) {
-    return snapshotPrice
-  }
-
-  const standardPrice = commonPrices["标准价"]
-  if (typeof standardPrice === "number" && Number.isFinite(standardPrice)) {
-    return standardPrice
-  }
-
-  for (const value of Object.values(commonPrices)) {
-    if (typeof value === "number" && Number.isFinite(value)) {
-      return value
-    }
-  }
-
-  return snapshotPrice
-}
 
 function formatCurrency(value: number) {
   return value.toLocaleString("zh-CN", {

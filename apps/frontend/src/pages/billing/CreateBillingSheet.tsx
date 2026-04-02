@@ -10,18 +10,10 @@ import {
   DELIVERIES_KEYS,
   type DeliveryDetail,
 } from "@/hooks/api/useDeliveries"
-import { useCreateBilling, decimalToNum } from "@/hooks/api/useBilling"
+import { useCreateBilling } from "@/hooks/api/useBilling"
+import { resolveUnitPrice } from "@/domain/orders/pricing"
 import request from "@/lib/utils/request"
 import { cn } from "@/lib/utils"
-
-/** 优先快照单价，为 0 时回退零件价格字典（优先"标准价"，兜底第一个可用值）。 */
-function resolveUnitPrice(unitPrice: string, commonPrices: Record<string, number>): number {
-  const snapshot = decimalToNum(unitPrice)
-  if (snapshot > 0) return snapshot
-  if (commonPrices["标准价"] != null && commonPrices["标准价"] > 0) return commonPrices["标准价"]
-  const first = Object.values(commonPrices).find(v => v > 0)
-  return first ?? 0
-}
 
 interface ExtraItem {
   desc: string

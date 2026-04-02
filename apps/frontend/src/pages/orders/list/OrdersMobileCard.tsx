@@ -5,10 +5,8 @@
  */
 
 import type { OrderListItem } from "@/hooks/api/useOrders"
-import {
-  decimalToNum,
-  formatOrderNo,
-} from "@/hooks/api/useOrders"
+import { formatOrderNo } from "@/hooks/api/useOrders"
+import { computeListOrderAmount } from "@/domain/orders/pricing"
 import { OrderStatusBadge } from "../shared/OrderStatusBadge"
 
 interface OrdersMobileCardProps {
@@ -16,25 +14,11 @@ interface OrdersMobileCardProps {
   onClick: () => void
 }
 
-function resolveMobileOrderAmount(order: OrderListItem) {
-  if (typeof order.totalAmount === "number") {
-    return order.totalAmount
-  }
-
-  const isClosedShort = order.status === "CLOSED_SHORT"
-  return order.items.reduce((sum, item) => {
-    const settlementQty = isClosedShort
-      ? Math.max(Math.min(item.shippedQty, item.orderedQty), 0)
-      : item.orderedQty
-    return sum + settlementQty * decimalToNum(item.unitPrice)
-  }, 0)
-}
-
 export function OrdersMobileCard({
   order,
   onClick,
 }: OrdersMobileCardProps) {
-  const totalAmount = resolveMobileOrderAmount(order)
+  const totalAmount = computeListOrderAmount(order)
 
   return (
     <button
