@@ -5,6 +5,7 @@
  */
 
 import type { BillingDetail } from "@/hooks/api/useBilling"
+import type { BillingDocument } from "@/hooks/api/useBilling"
 import { BillingDetailDocumentsSection } from "./BillingDetailDocumentsSection"
 import { BillingDetailItemsSection } from "./BillingDetailItemsSection"
 import { BillingDetailSummary } from "./BillingDetailSummary"
@@ -14,6 +15,8 @@ interface BillingDetailMobileProps {
   billing: BillingDetail
   stats: BillingDetailStats
   isFetching: boolean
+  downloadingDocumentId?: number | null
+  onDownloadPdf: (document: BillingDocument) => void
   onOpenDelivery: (deliveryId: number) => void
 }
 
@@ -21,6 +24,8 @@ export function BillingDetailMobile({
   billing,
   stats,
   isFetching,
+  downloadingDocumentId,
+  onDownloadPdf,
   onOpenDelivery,
 }: BillingDetailMobileProps) {
   return (
@@ -38,7 +43,11 @@ export function BillingDetailMobile({
         onOpenDelivery={onOpenDelivery}
       />
 
-      <BillingDetailDocumentsSection billing={billing} />
+      <BillingDetailDocumentsSection
+        billing={billing}
+        downloadingDocumentId={downloadingDocumentId}
+        onDownloadPdf={onDownloadPdf}
+      />
     </div>
   )
 }

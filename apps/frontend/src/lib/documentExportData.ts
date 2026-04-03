@@ -7,8 +7,10 @@
  * - 统一导出配置项（字段显隐、日期格式）与金额/日期/短交结算规则
  */
 
+import type { BillingDetail } from "@/hooks/api/useBilling"
 import type { DeliveryDetail } from "@/hooks/api/useDeliveries"
 import type { OrderDetail } from "@/hooks/api/useOrders"
+import { formatBillingNo } from "@/hooks/api/useBilling"
 import {
   formatDeliveryNo,
   formatOrderNo,
@@ -18,6 +20,7 @@ import { resolveSettlementQty, resolveUnitPrice } from "@/domain/orders/pricing"
 type CellValue = string | number
 export type RowData = CellValue[]
 
+type BillingDetailRow = [string, string, string, number, string]
 type OrderPriceDetailRow = [string, number, number, number, string]
 type DeliveryDetailRow = [string, string, number, string]
 
@@ -189,6 +192,40 @@ export function buildDeliveryDetailRows(
   })
 }
 
+export function buildBillingDetailRows(
+  billing: BillingDetail,
+  dateFormat: ExportDateFormat = DEFAULT_EXPORT_OPTIONS.dateFormat,
+): BillingDetailRow[] {
+  return billing.items.map(item => {
+    if (!item.deliveryItem) {
+      return [
+        item.description?.trim() || "附加费用",
+        "手动附加",
+        "—",
+        formatMoney(decimalToNum(item.amount)),
+        item.description?.trim() || "未填写说明",
+      ]
+    }
+
+    const delivery = item.deliveryItem.deliveryNote
+    const orderItem = item.deliveryItem.orderItem
+    const part = orderItem.part
+    const note = [
+      `${part.partNumber}`,
+      `${item.deliveryItem.shippedQty} 件`,
+      item.deliveryItem.remark?.trim() || item.description?.trim() || "—",
+    ].join(" / ")
+
+    return [
+      part.name,
+      `DLV-${String(delivery.id).padStart(6, "0")}`,
+      note,
+      formatMoney(decimalToNum(item.amount)),
+      formatDateOnly(delivery.deliveryDate, dateFormat),
+    ]
+  })
+}
+
 function buildOrderMetaRow(
   order: OrderDetail,
   options: Required<ExportSheetOptions>,
@@ -325,6 +362,31 @@ function buildDeliveryMetaRow(
   return fields
 }
 
+function buildBillingMetaRow(
+  billing: BillingDetail,
+  options: Required<ExportSheetOptions>,
+  billingDate: string,
+  today: string,
+): RowData {
+  const fields: string[] = []
+
+  fields.push(`对账单号：${formatBillingNo(billing.id)}`)
+  if (options.showCustomer) {
+    fields.push(`客户：${billing.customerName}`)
+  }
+  if (options.showStatus) {
+    fields.push(`状态：${billing.status}`)
+  }
+
+  fields.push(`对账日期：${billingDate}`)
+
+  if (options.showPreparedAt) {
+    fields.push(`制表日期：${today}`)
+  }
+
+  return fields
+}
+
 export function buildDeliverySheetPayload(
   delivery: DeliveryDetail,
   options?: ExportSheetOptions,
@@ -375,6 +437,66 @@ export function buildDeliverySheetPayload(
     contentStartRow: 3,
     preview: {
       title: "发货单",
+      filename,
+      meta: filterPreviewMeta(metaRow),
+      headers,
+      rows: detailRows,
+      totalRows: detailRows.length,
+      summary,
+    },
+  }
+}
+
+export function buildBillingSheetPayload(
+  billing: BillingDetail,
+  options?: ExportSheetOptions,
+): SheetPayload {
+  const resolved = resolveExportOptions(options)
+  const today = formatToday(resolved.dateFormat)
+  const billingDate = formatDateOnly(billing.createdAt, resolved.dateFormat)
+  const rowsWithRemarks = buildBillingDetailRows(billing, resolved.dateFormat)
+
+  const detailRows: RowData[] = resolved.showRemarks
+    ? rowsWithRemarks.map(row => [...row])
+    : rowsWithRemarks.map(([itemName, source, note, amount]) => [
+        itemName,
+        source,
+        note,
+        amount,
+      ])
+
+  const headers = resolved.showRemarks
+    ? ["项目", "来源", "说明", "金额", "日期"]
+    : ["项目", "来源", "说明", "金额"]
+
+  const linkedCount = billing.items.filter(item => !!item.deliveryItem).length
+  const extraCount = billing.items.length - linkedCount
+  const totalAmount = decimalToNum(billing.totalAmount)
+  const summary: RowData = resolved.showRemarks
+    ? ["汇总", `${billing.items.length} 项`, `发货 ${linkedCount} 项 / 附加 ${extraCount} 项`, formatMoney(totalAmount), "—"]
+    : ["汇总", `${billing.items.length} 项`, `发货 ${linkedCount} 项 / 附加 ${extraCount} 项`, formatMoney(totalAmount)]
+
+  const metaRow = buildBillingMetaRow(billing, resolved, billingDate, today)
+  const rows: RowData[] = [
+    ["濮阳市瑞海隆鑫设备制造有限公司"],
+    ["对账单"],
+    metaRow,
+    headers,
+    ...detailRows,
+    summary,
+  ]
+  const filename = `${formatBillingNo(billing.id)}-对账单-${today}.xlsx`
+
+  return {
+    sheetName: "对账单",
+    filename,
+    rows,
+    minColWidths: resolved.showRemarks
+      ? [18, 14, 24, 14, 14]
+      : [18, 14, 26, 14],
+    contentStartRow: 3,
+    preview: {
+      title: "对账单",
       filename,
       meta: filterPreviewMeta(metaRow),
       headers,
@@ -506,6 +628,60 @@ export function getDeliveryExportPreview(
     headers,
     rows: previewRows,
     totalRows: delivery.items.length,
+    summary,
+  }
+}
+
+function decimalToNum(value: string | number): number {
+  return typeof value === "string" ? parseFloat(value) : value
+}
+
+export function getBillingExportPreview(
+  billing: BillingDetail,
+  options?: ExportSheetOptions,
+): ExportPreviewData {
+  const resolved = resolveExportOptions(options)
+  const today = formatToday(resolved.dateFormat)
+  const billingDate = formatDateOnly(billing.createdAt, resolved.dateFormat)
+  const headers = resolved.showRemarks
+    ? ["项目", "来源", "说明", "金额", "日期"]
+    : ["项目", "来源", "说明", "金额"]
+
+  const rowsWithRemarks = buildBillingDetailRows(billing, resolved.dateFormat)
+  const previewRows: RowData[] = rowsWithRemarks
+    .slice(0, PREVIEW_ROW_LIMIT)
+    .map(row => (
+      resolved.showRemarks
+        ? [...row]
+        : [row[0], row[1], row[2], row[3]]
+    ))
+
+  const linkedCount = billing.items.filter(item => !!item.deliveryItem).length
+  const extraCount = billing.items.length - linkedCount
+  const summary: RowData = resolved.showRemarks
+    ? [
+        "汇总",
+        `${billing.items.length} 项`,
+        `发货 ${linkedCount} 项 / 附加 ${extraCount} 项`,
+        formatMoney(decimalToNum(billing.totalAmount)),
+        "—",
+      ]
+    : [
+        "汇总",
+        `${billing.items.length} 项`,
+        `发货 ${linkedCount} 项 / 附加 ${extraCount} 项`,
+        formatMoney(decimalToNum(billing.totalAmount)),
+      ]
+  const metaRow = buildBillingMetaRow(billing, resolved, billingDate, today)
+  const filename = `${formatBillingNo(billing.id)}-对账单-${today}.xlsx`
+
+  return {
+    title: "对账单",
+    filename,
+    meta: filterPreviewMeta(metaRow),
+    headers,
+    rows: previewRows,
+    totalRows: billing.items.length,
     summary,
   }
 }

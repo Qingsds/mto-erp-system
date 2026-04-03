@@ -11,7 +11,12 @@ import type { BillingDetailStats } from "./types"
 interface BillingDetailMobileActionsProps {
   status: "DRAFT" | "SEALED" | "PAID"
   stats: BillingDetailStats
+  canDownloadPdf: boolean
+  isExportingExcel: boolean
+  isDownloadingPdf: boolean
   isSubmitting: boolean
+  onDownloadExcel: () => void
+  onDownloadPdf: () => void
   onOpenSeal: () => void
   onMarkPaid: () => void
 }
@@ -19,7 +24,12 @@ interface BillingDetailMobileActionsProps {
 export function BillingDetailMobileActions({
   status,
   stats,
+  canDownloadPdf,
+  isExportingExcel,
+  isDownloadingPdf,
   isSubmitting,
+  onDownloadExcel,
+  onDownloadPdf,
   onOpenSeal,
   onMarkPaid,
 }: BillingDetailMobileActionsProps) {
@@ -39,24 +49,95 @@ export function BillingDetailMobileActions({
 
   if (status === "PAID") {
     return (
-      <MobileActionBar summary={summary}>
-        <div className='flex h-10 flex-1 items-center justify-center border border-border bg-muted/30 text-sm text-muted-foreground'>
-          已结清，无需后续操作
-        </div>
+      <MobileActionBar summary={summary} actionsClassName='flex-wrap'>
+        <Button
+          className='h-10 min-w-0 basis-[calc(50%-4px)]'
+          variant='outline'
+          onClick={onDownloadExcel}
+          disabled={isExportingExcel}
+        >
+          {isExportingExcel ? (
+            <>
+              <i className='ri-loader-4-line mr-1.5 animate-spin shrink-0' />
+              Excel…
+            </>
+          ) : (
+            <>
+              <i className='ri-file-excel-2-line mr-1.5 shrink-0' />
+              下载 Excel
+            </>
+          )}
+        </Button>
+        <Button
+          className='h-10 min-w-0 basis-[calc(50%-4px)]'
+          variant='outline'
+          onClick={onDownloadPdf}
+          disabled={!canDownloadPdf || isDownloadingPdf}
+        >
+          {isDownloadingPdf ? (
+            <>
+              <i className='ri-loader-4-line mr-1.5 animate-spin shrink-0' />
+              PDF…
+            </>
+          ) : (
+            <>
+              <i className='ri-file-pdf-line mr-1.5 shrink-0' />
+              下载 PDF
+            </>
+          )}
+        </Button>
       </MobileActionBar>
     )
   }
 
   return (
-    <MobileActionBar summary={summary}>
+    <MobileActionBar summary={summary} actionsClassName='flex-wrap'>
+      <Button
+        className='h-10 min-w-0 basis-[calc(50%-4px)]'
+        variant='outline'
+        onClick={onDownloadExcel}
+        disabled={isExportingExcel}
+      >
+        {isExportingExcel ? (
+          <>
+            <i className='ri-loader-4-line mr-1.5 animate-spin shrink-0' />
+            Excel…
+          </>
+        ) : (
+          <>
+            <i className='ri-file-excel-2-line mr-1.5 shrink-0' />
+            下载 Excel
+          </>
+        )}
+      </Button>
+      {canDownloadPdf && (
+        <Button
+          className='h-10 min-w-0 basis-[calc(50%-4px)]'
+          variant='outline'
+          onClick={onDownloadPdf}
+          disabled={isDownloadingPdf}
+        >
+          {isDownloadingPdf ? (
+            <>
+              <i className='ri-loader-4-line mr-1.5 animate-spin shrink-0' />
+              PDF…
+            </>
+          ) : (
+            <>
+              <i className='ri-file-pdf-line mr-1.5 shrink-0' />
+              下载 PDF
+            </>
+          )}
+        </Button>
+      )}
       {status === "DRAFT" ? (
-        <Button className='h-10 flex-1' onClick={onOpenSeal}>
+        <Button className='h-10 min-w-0 flex-1' onClick={onOpenSeal}>
           <i className='ri-seal-line mr-1.5 shrink-0' />
           <span className='truncate'>盖章归档</span>
         </Button>
       ) : (
         <Button
-          className='h-10 flex-1'
+          className='h-10 min-w-0 flex-1'
           onClick={onMarkPaid}
           disabled={isSubmitting}
         >

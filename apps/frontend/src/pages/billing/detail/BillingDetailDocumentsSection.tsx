@@ -1,14 +1,18 @@
 /**
  * 对账归档区。
  *
- * 当前阶段先承载盖章归档记录与审计摘要，不伪造下载能力。
+ * 承载盖章归档记录、审计摘要和 PDF 下载入口。
  */
 
+import { Button } from "@/components/ui/button"
 import type { BillingDetail } from "@/hooks/api/useBilling"
+import type { BillingDocument } from "@/hooks/api/useBilling"
 import { BILLING_DOCUMENT_STATUS_LABEL, formatDateLabel } from "../list/shared"
 
 interface BillingDetailDocumentsSectionProps {
   billing: BillingDetail
+  downloadingDocumentId?: number | null
+  onDownloadPdf: (document: BillingDocument) => void
 }
 
 function formatHash(hash?: string | null) {
@@ -19,13 +23,15 @@ function formatHash(hash?: string | null) {
 
 export function BillingDetailDocumentsSection({
   billing,
+  downloadingDocumentId = null,
+  onDownloadPdf,
 }: BillingDetailDocumentsSectionProps) {
   return (
     <section className='border border-border bg-card'>
       <div className='border-b border-border px-3 py-3 sm:px-5 sm:py-4'>
         <h2 className='text-sm font-semibold text-foreground'>归档记录</h2>
         <p className='mt-1 text-xs text-muted-foreground'>
-          盖章后会生成归档文件与审计日志；当前页面只展示状态，不提供下载。
+          盖章后会生成归档文件与审计日志，可在此下载归档 PDF。
         </p>
       </div>
 
@@ -34,7 +40,7 @@ export function BillingDetailDocumentsSection({
           <i className='ri-folder-open-line text-3xl opacity-40' />
           <p className='mt-3 text-sm font-medium text-foreground'>还没有归档记录</p>
           <p className='mt-1 text-xs'>
-            对账单盖章后，这里会出现归档文件与盖章审计信息。
+            对账单盖章后，这里会出现归档文件、盖章审计信息和 PDF 下载入口。
           </p>
         </div>
       ) : (
@@ -77,6 +83,29 @@ export function BillingDetailDocumentsSection({
                   ) : (
                     <p>当前文档暂无盖章日志</p>
                   )}
+                </div>
+
+                <div className='mt-3 flex justify-end'>
+                  <Button
+                    type='button'
+                    size='sm'
+                    variant='outline'
+                    className='h-8 text-xs'
+                    onClick={() => onDownloadPdf(document)}
+                    disabled={downloadingDocumentId === document.id}
+                  >
+                    {downloadingDocumentId === document.id ? (
+                      <>
+                        <i className='ri-loader-4-line mr-1.5 animate-spin' />
+                        下载中…
+                      </>
+                    ) : (
+                      <>
+                        <i className='ri-file-pdf-line mr-1.5' />
+                        下载 PDF
+                      </>
+                    )}
+                  </Button>
                 </div>
               </article>
             )

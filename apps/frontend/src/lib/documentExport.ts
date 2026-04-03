@@ -8,14 +8,17 @@
  */
 
 import * as XLSX from "xlsx-js-style"
+import type { BillingDetail } from "@/hooks/api/useBilling"
 import type { DeliveryDetail } from "@/hooks/api/useDeliveries"
 import type { OrderDetail } from "@/hooks/api/useOrders"
 import {
+  buildBillingSheetPayload,
   buildDeliverySheetPayload,
   buildOrderSheetPayload,
   type ExportSheetOptions,
   type RowData,
 } from "./documentExportData"
+export { resolveSettlementQty } from "@/domain/orders/pricing"
 
 const CELL_FONT = "Microsoft YaHei"
 
@@ -169,6 +172,21 @@ export function exportDeliveryNote(
   options?: ExportSheetOptions,
 ): string {
   const payload = buildDeliverySheetPayload(delivery, options)
+  const wb = buildWorkbook(
+    payload.sheetName,
+    payload.rows,
+    payload.minColWidths,
+    payload.contentStartRow,
+  )
+  XLSX.writeFile(wb, payload.filename)
+  return payload.filename
+}
+
+export function exportBillingStatement(
+  billing: BillingDetail,
+  options?: ExportSheetOptions,
+): string {
+  const payload = buildBillingSheetPayload(billing, options)
   const wb = buildWorkbook(
     payload.sheetName,
     payload.rows,

@@ -3,6 +3,7 @@
  */
 
 import type { BillingStatusType } from "@erp/shared-types"
+export { formatBillingNo } from "@/hooks/api/useBilling"
 
 export type BillingFilter = BillingStatusType | "all"
 
@@ -22,10 +23,6 @@ export const BILLING_STATUS_STYLE: Record<BillingStatusType, string> = {
 export const BILLING_DOCUMENT_STATUS_LABEL: Record<string, string> = {
   DRAFT: "未盖章",
   SIGNED: "已归档",
-}
-
-export function formatBillingNo(id: number): string {
-  return `BIL-${String(id).padStart(6, "0")}`
 }
 
 export function formatDateLabel(value: string): string {

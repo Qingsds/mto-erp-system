@@ -20,6 +20,7 @@ import { BillingDetailMobile } from "./BillingDetailMobile"
 import { BillingDetailMobileActions } from "./BillingDetailMobileActions"
 import { BillingDetailToolbar } from "./BillingDetailToolbar"
 import { buildBillingDetailStats } from "./types"
+import { useBillingDetailDownloads } from "./useBillingDetailDownloads"
 
 export function BillingDetailPage() {
   const params = useParams({ strict: false })
@@ -40,9 +41,19 @@ export function BillingDetailPage() {
     () => (billing ? buildBillingDetailStats(billing) : null),
     [billing],
   )
+  const latestDocument = billing?.documents[0] ?? null
+  const {
+    actionError,
+    isExportingExcel,
+    downloadingDocumentId,
+    exportExcel,
+    downloadPdf,
+    clearActionError,
+  } = useBillingDetailDownloads(billing)
 
   const handleMarkPaid = async () => {
     if (!billing || billing.status !== "SEALED") return
+    clearActionError()
     await updateStatus.mutateAsync({ id: billing.id, status: "PAID" })
   }
 
@@ -90,13 +101,57 @@ export function BillingDetailPage() {
 
   const canSeal = billing.status === "DRAFT"
   const canMarkPaid = billing.status === "SEALED"
+  const canDownloadPdf = billing.status !== "DRAFT" && !!latestDocument
   const desktopActions = !isMobile && (
     <>
+      <Button
+        size='sm'
+        variant='outline'
+        className='h-8 px-2.5 text-xs'
+        onClick={() => void exportExcel()}
+        disabled={isExportingExcel}
+      >
+        {isExportingExcel ? (
+          <>
+            <i className='ri-loader-4-line mr-1.5 animate-spin' />
+            导出中…
+          </>
+        ) : (
+          <>
+            <i className='ri-file-excel-2-line mr-1.5' />
+            下载 Excel
+          </>
+        )}
+      </Button>
+      {billing.status !== "DRAFT" && (
+        <Button
+          size='sm'
+          variant='outline'
+          className='h-8 px-2.5 text-xs'
+          onClick={() => latestDocument && void downloadPdf(latestDocument)}
+          disabled={!canDownloadPdf || downloadingDocumentId === latestDocument?.id}
+        >
+          {downloadingDocumentId === latestDocument?.id ? (
+            <>
+              <i className='ri-loader-4-line mr-1.5 animate-spin' />
+              下载中…
+            </>
+          ) : (
+            <>
+              <i className='ri-file-pdf-line mr-1.5' />
+              下载 PDF
+            </>
+          )}
+        </Button>
+      )}
       {canSeal && (
         <Button
           size='sm'
           className='h-8 px-2.5 text-xs'
-          onClick={() => setSealOpen(true)}
+          onClick={() => {
+            clearActionError()
+            setSealOpen(true)
+          }}
         >
           <i className='ri-seal-line mr-1.5' />
           盖章归档
@@ -134,11 +189,33 @@ export function BillingDetailPage() {
       />
 
       <PageContentWrapper withMobileBottomInset={isMobile}>
+        {actionError && (
+          <div className='border border-destructive/20 bg-destructive/5 px-3 py-3 text-sm text-destructive sm:px-4'>
+            <div className='flex items-start justify-between gap-3'>
+              <div>
+                <p className='font-medium'>操作失败</p>
+                <p className='mt-1 text-xs text-destructive/80'>
+                  {actionError}
+                </p>
+              </div>
+              <button
+                type='button'
+                className='shrink-0 text-destructive/70 transition-colors hover:text-destructive'
+                onClick={clearActionError}
+              >
+                <i className='ri-close-line text-base' />
+              </button>
+            </div>
+          </div>
+        )}
+
         {isMobile ? (
           <BillingDetailMobile
             billing={billing}
             stats={stats}
             isFetching={isFetching}
+            downloadingDocumentId={downloadingDocumentId}
+            onDownloadPdf={document => void downloadPdf(document)}
             onOpenDelivery={handleOpenDelivery}
           />
         ) : (
@@ -146,6 +223,8 @@ export function BillingDetailPage() {
             billing={billing}
             stats={stats}
             isFetching={isFetching}
+            downloadingDocumentId={downloadingDocumentId}
+            onDownloadPdf={document => void downloadPdf(document)}
             onOpenDelivery={handleOpenDelivery}
           />
         )}
@@ -155,8 +234,16 @@ export function BillingDetailPage() {
         <BillingDetailMobileActions
           status={billing.status}
           stats={stats}
+          canDownloadPdf={canDownloadPdf}
+          isExportingExcel={isExportingExcel}
+          isDownloadingPdf={downloadingDocumentId === latestDocument?.id}
           isSubmitting={updateStatus.isPending}
-          onOpenSeal={() => setSealOpen(true)}
+          onDownloadExcel={() => void exportExcel()}
+          onDownloadPdf={() => latestDocument && void downloadPdf(latestDocument)}
+          onOpenSeal={() => {
+            clearActionError()
+            setSealOpen(true)
+          }}
           onMarkPaid={() => void handleMarkPaid()}
         />
       )}
