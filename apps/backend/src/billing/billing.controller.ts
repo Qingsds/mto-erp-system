@@ -38,6 +38,12 @@ export class BillingController {
     return { code: 200, message: '查询成功', data: result };
   }
 
+  @Get(':id')
+  async findOne(@Param('id', ParseIntPipe) id: number): Promise<ApiResponse> {
+    const result = await this.billingService.findOne(id);
+    return { code: 200, message: '查询成功', data: result };
+  }
+
   @Patch(':id/status')
   async updateStatus(
     @Param('id', ParseIntPipe) id: number,

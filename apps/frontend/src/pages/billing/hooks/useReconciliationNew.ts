@@ -104,15 +104,15 @@ export function useReconciliationNew() {
   const validExtraItems = extraItems.filter(e => e.desc.trim() && parseFloat(e.amount) > 0)
   const canSubmit = validateCanSubmit(selectedItemIds, searchedCustomer)
 
-  const handleSubmit = async (onSuccess?: () => void) => {
+  const handleSubmit = async (onSuccess?: (billingId: number) => void) => {
     if (!canSubmit) return
     const payload: CreateBillingRequest = {
       customerName: searchedCustomer,
       deliveryItemIds: [...selectedItemIds],
       extraItems: validExtraItems.map(e => ({ desc: e.desc.trim(), amount: parseFloat(e.amount) })),
     }
-    await createBilling.mutateAsync(payload)
-    onSuccess?.()
+    const billing = await createBilling.mutateAsync(payload)
+    onSuccess?.(billing.id)
   }
 
   return {

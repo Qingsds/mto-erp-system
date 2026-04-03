@@ -20,6 +20,7 @@ import { Route as OrdersNewRouteImport } from './routes/orders.new'
 import { Route as OrdersIdRouteImport } from './routes/orders.$id'
 import { Route as DeliveriesIdRouteImport } from './routes/deliveries.$id'
 import { Route as BillingNewRouteImport } from './routes/billing.new'
+import { Route as BillingIdRouteImport } from './routes/billing.$id'
 
 const SealsRoute = SealsRouteImport.update({
   id: '/seals',
@@ -76,6 +77,11 @@ const BillingNewRoute = BillingNewRouteImport.update({
   path: '/new',
   getParentRoute: () => BillingRoute,
 } as any)
+const BillingIdRoute = BillingIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => BillingRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -84,6 +90,7 @@ export interface FileRoutesByFullPath {
   '/orders': typeof OrdersRouteWithChildren
   '/parts': typeof PartsRouteWithChildren
   '/seals': typeof SealsRoute
+  '/billing/$id': typeof BillingIdRoute
   '/billing/new': typeof BillingNewRoute
   '/deliveries/$id': typeof DeliveriesIdRoute
   '/orders/$id': typeof OrdersIdRoute
@@ -97,6 +104,7 @@ export interface FileRoutesByTo {
   '/orders': typeof OrdersRouteWithChildren
   '/parts': typeof PartsRouteWithChildren
   '/seals': typeof SealsRoute
+  '/billing/$id': typeof BillingIdRoute
   '/billing/new': typeof BillingNewRoute
   '/deliveries/$id': typeof DeliveriesIdRoute
   '/orders/$id': typeof OrdersIdRoute
@@ -111,6 +119,7 @@ export interface FileRoutesById {
   '/orders': typeof OrdersRouteWithChildren
   '/parts': typeof PartsRouteWithChildren
   '/seals': typeof SealsRoute
+  '/billing/$id': typeof BillingIdRoute
   '/billing/new': typeof BillingNewRoute
   '/deliveries/$id': typeof DeliveriesIdRoute
   '/orders/$id': typeof OrdersIdRoute
@@ -126,6 +135,7 @@ export interface FileRouteTypes {
     | '/orders'
     | '/parts'
     | '/seals'
+    | '/billing/$id'
     | '/billing/new'
     | '/deliveries/$id'
     | '/orders/$id'
@@ -139,6 +149,7 @@ export interface FileRouteTypes {
     | '/orders'
     | '/parts'
     | '/seals'
+    | '/billing/$id'
     | '/billing/new'
     | '/deliveries/$id'
     | '/orders/$id'
@@ -152,6 +163,7 @@ export interface FileRouteTypes {
     | '/orders'
     | '/parts'
     | '/seals'
+    | '/billing/$id'
     | '/billing/new'
     | '/deliveries/$id'
     | '/orders/$id'
@@ -247,14 +259,23 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BillingNewRouteImport
       parentRoute: typeof BillingRoute
     }
+    '/billing/$id': {
+      id: '/billing/$id'
+      path: '/$id'
+      fullPath: '/billing/$id'
+      preLoaderRoute: typeof BillingIdRouteImport
+      parentRoute: typeof BillingRoute
+    }
   }
 }
 
 interface BillingRouteChildren {
+  BillingIdRoute: typeof BillingIdRoute
   BillingNewRoute: typeof BillingNewRoute
 }
 
 const BillingRouteChildren: BillingRouteChildren = {
+  BillingIdRoute: BillingIdRoute,
   BillingNewRoute: BillingNewRoute,
 }
 

@@ -3,6 +3,7 @@ import type {
   ApiResponse,
   BillingStatusType,
   CreateBillingRequest,
+  DocumentStatusType,
   UpdateBillingStatusRequest,
 } from "@erp/shared-types"
 import request from "@/lib/utils/request"
@@ -25,6 +26,75 @@ export interface BillingListItem {
   items: BillingItem[]
 }
 
+export interface BillingDetailItem {
+  id: number
+  billingId: number
+  deliveryItemId?: number | null
+  description?: string | null
+  amount: string | number
+  deliveryItem?: {
+    id: number
+    deliveryNoteId: number
+    shippedQty: number
+    remark?: string | null
+    deliveryNote: {
+      id: number
+      orderId: number
+      deliveryDate: string
+      status: string
+      remark?: string | null
+    }
+    orderItem: {
+      id: number
+      orderId: number
+      orderedQty: number
+      shippedQty: number
+      unitPrice: string | number
+      part: {
+        id: number
+        partNumber: string
+        name: string
+        material: string
+        spec?: string | null
+      }
+    }
+  } | null
+}
+
+export interface BillingDocumentLog {
+  id: number
+  actionTime: string
+  ipAddress?: string | null
+  seal: {
+    id: number
+    name: string
+  }
+  user: {
+    id: number
+    username: string
+    realName: string
+  }
+}
+
+export interface BillingDocument {
+  id: number
+  fileName: string
+  status: DocumentStatusType | string
+  createdAt: string
+  fileHash?: string | null
+  sealLogs: BillingDocumentLog[]
+}
+
+export interface BillingDetail {
+  id: number
+  customerName: string
+  totalAmount: string | number
+  status: BillingStatusType
+  createdAt: string
+  items: BillingDetailItem[]
+  documents: BillingDocument[]
+}
+
 export interface PaginatedBilling {
   total: number
   data: BillingListItem[]
@@ -40,6 +110,7 @@ export interface BillingParams {
 
 export const BILLING_KEYS = {
   list: (p: BillingParams) => ["billing", p] as const,
+  detail: (id: number) => ["billing", "detail", id] as const,
 }
 
 export function useGetBilling(params: BillingParams) {
@@ -55,6 +126,17 @@ export function useGetBilling(params: BillingParams) {
   })
 }
 
+export function useGetBillingDetail(id?: number) {
+  return useQuery({
+    queryKey: BILLING_KEYS.detail(id!),
+    queryFn: () =>
+      request
+        .get<unknown, ApiResponse<BillingDetail>>(`/api/billing/${id}`)
+        .then(res => res.data!),
+    enabled: !!id,
+  })
+}
+
 export function decimalToNum(value: string | number): number {
   return typeof value === "string" ? parseFloat(value) : value
 }
@@ -63,7 +145,9 @@ export function useCreateBilling() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (payload: CreateBillingRequest) =>
-      request.post<unknown, ApiResponse<BillingListItem>>("/api/billing", payload),
+      request
+        .post<unknown, ApiResponse<BillingListItem>>("/api/billing", payload)
+        .then(res => res.data!),
     onSuccess: () => {
       toast.success("对账单创建成功")
       qc.invalidateQueries({ queryKey: ["billing"] })
@@ -76,10 +160,12 @@ export function useUpdateBillingStatus() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ id, status }: { id: number; status: BillingStatusType }) =>
-      request.patch<unknown, ApiResponse<BillingListItem>>(
-        `/api/billing/${id}/status`,
-        { status } satisfies UpdateBillingStatusRequest,
-      ),
+      request
+        .patch<unknown, ApiResponse<BillingListItem>>(
+          `/api/billing/${id}/status`,
+          { status } satisfies UpdateBillingStatusRequest,
+        )
+        .then(res => res.data!),
     onSuccess: () => {
       toast.success("状态已更新")
       qc.invalidateQueries({ queryKey: ["billing"] })

@@ -38,7 +38,10 @@ export function CreateBillingPage() {
   } = useReconciliationNew()
 
   const onCancel = () => navigate({ to: "/billing" })
-  const onSuccess = () => navigate({ to: "/billing" })
+  const onSuccess = (billingId: number) => navigate({
+    to: "/billing/$id",
+    params: { id: String(billingId) },
+  })
 
   const onSubmit = () => {
     void handleSubmit(onSuccess)

@@ -18,6 +18,7 @@ interface BillingCardProps {
   bill: BillingListItem
   compact?: boolean
   isUpdating?: boolean
+  onOpenDetail: (id: number) => void
   onOpenSeal: (id: number) => void
   onMarkPaid: (id: number) => void
 }
@@ -32,15 +33,25 @@ export function BillingCard({
   bill,
   compact = false,
   isUpdating = false,
+  onOpenDetail,
   onOpenSeal,
   onMarkPaid,
 }: BillingCardProps) {
   return (
     <article
+      role='button'
+      tabIndex={0}
       className={cn(
-        "border border-border bg-card",
+        "border border-border bg-card transition-colors hover:bg-muted/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30",
         compact ? "px-3.5 py-3" : "px-4 py-3.5 md:px-5 md:py-4",
       )}
+      onClick={() => onOpenDetail(bill.id)}
+      onKeyDown={event => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault()
+          onOpenDetail(bill.id)
+        }
+      }}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
@@ -91,7 +102,10 @@ export function BillingCard({
             size="sm"
             variant="outline"
             className={cn("text-xs", compact ? "h-9 w-full" : "h-8")}
-            onClick={() => onOpenSeal(bill.id)}
+            onClick={event => {
+              event.stopPropagation()
+              onOpenSeal(bill.id)
+            }}
           >
             <i className="ri-seal-line mr-1.5" />
             盖章
@@ -102,7 +116,10 @@ export function BillingCard({
           <Button
             size="sm"
             className={cn("text-xs", compact ? "h-9 w-full" : "h-8")}
-            onClick={() => onMarkPaid(bill.id)}
+            onClick={event => {
+              event.stopPropagation()
+              onMarkPaid(bill.id)
+            }}
             disabled={isUpdating}
           >
             {isUpdating ? (
@@ -124,6 +141,10 @@ export function BillingCard({
             {BILLING_STATUS_LABEL.PAID}，无需后续操作
           </p>
         )}
+      </div>
+
+      <div className="mt-2 flex items-center justify-end text-[11px] text-muted-foreground">
+        点击卡片查看详情
       </div>
     </article>
   )

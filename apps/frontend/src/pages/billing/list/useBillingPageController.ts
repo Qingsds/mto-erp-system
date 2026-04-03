@@ -94,6 +94,13 @@ export function useBillingPageController() {
     void navigate({ to: "/billing/new" })
   }, [navigate])
 
+  const openDetail = useCallback((id: number) => {
+    void navigate({
+      to: "/billing/$id",
+      params: { id: String(id) },
+    })
+  }, [navigate])
+
   const handleStatusFilterChange = useCallback((status: BillingFilter) => {
     setStatusFilter(status)
     setPage(1)
@@ -133,6 +140,7 @@ export function useBillingPageController() {
     isFetching: listQuery.isFetching,
     setPage,
     openCreate,
+    openDetail,
     handleStatusFilterChange,
     openSealDialog,
     closeSealDialog,

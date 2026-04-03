@@ -28,6 +28,7 @@ export function BillingMobile({ controller }: BillingMobileProps) {
     isLoading,
     handleStatusFilterChange,
     openCreate,
+    openDetail,
     closeSealDialog,
     openSealDialog,
     markPaid,
@@ -104,6 +105,7 @@ export function BillingMobile({ controller }: BillingMobileProps) {
                   bill={bill}
                   compact
                   isUpdating={isBillingUpdating(bill.id)}
+                  onOpenDetail={openDetail}
                   onOpenSeal={openSealDialog}
                   onMarkPaid={markPaid}
                 />

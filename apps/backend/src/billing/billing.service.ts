@@ -24,7 +24,13 @@ export class BillingService {
   }
 
   private resolvePriceFromCommonPrices(commonPrices: unknown): number {
-    if (!commonPrices || typeof commonPrices !== 'object' || Array.isArray(commonPrices)) return 0;
+    if (
+      !commonPrices ||
+      typeof commonPrices !== 'object' ||
+      Array.isArray(commonPrices)
+    ) {
+      return 0;
+    }
     const priceMap = commonPrices as Record<string, unknown>;
     const standardPrice = this.toFiniteNumber(priceMap['标准价']);
     if (standardPrice !== undefined) return standardPrice;
@@ -95,7 +101,6 @@ export class BillingService {
 
         billingItemCreates.push({
           deliveryItem: { connect: { id: item.id } },
-          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           description: `物料结算: 发货量 ${item.shippedQty} 件, 单价快照 ${unitPrice}`,
           amount: itemAmount,
         });
@@ -152,7 +157,60 @@ export class BillingService {
     return { total, data, page: Number(page), pageSize: Number(pageSize) };
   }
 
-  // 3. 修改对账单状态 (如：变更为 PAID 已结清)
+  // 3. 查询单张对账单详情（含来源发货项与归档记录）
+  async findOne(id: number) {
+    const billing = await this.prisma.client.billingStatement.findUnique({
+      where: { id },
+      include: {
+        items: {
+          orderBy: { id: 'asc' },
+          include: {
+            deliveryItem: {
+              include: {
+                deliveryNote: true,
+                orderItem: {
+                  include: {
+                    part: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        documents: {
+          orderBy: { createdAt: 'desc' },
+          include: {
+            sealLogs: {
+              orderBy: { actionTime: 'desc' },
+              include: {
+                seal: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+                user: {
+                  select: {
+                    id: true,
+                    username: true,
+                    realName: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!billing) {
+      throw new NotFoundException(`对账单 ID: ${id} 不存在`);
+    }
+
+    return billing;
+  }
+
+  // 4. 修改对账单状态 (如：变更为 PAID 已结清)
   async updateStatus(id: number, payload: UpdateBillingStatusRequest) {
     const billing = await this.prisma.client.billingStatement.findUnique({
       where: { id },

@@ -19,6 +19,15 @@ export const BILLING_STATUS_STYLE: Record<BillingStatusType, string> = {
   PAID: "bg-emerald-50 text-emerald-700 border-emerald-200",
 }
 
+export const BILLING_DOCUMENT_STATUS_LABEL: Record<string, string> = {
+  DRAFT: "未盖章",
+  SIGNED: "已归档",
+}
+
 export function formatBillingNo(id: number): string {
   return `BIL-${String(id).padStart(6, "0")}`
+}
+
+export function formatDateLabel(value: string): string {
+  return value.slice(0, 16).replace("T", " ")
 }

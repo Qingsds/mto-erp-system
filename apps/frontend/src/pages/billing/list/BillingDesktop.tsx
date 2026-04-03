@@ -28,6 +28,7 @@ export function BillingDesktop({ controller }: BillingDesktopProps) {
     isLoading,
     handleStatusFilterChange,
     openCreate,
+    openDetail,
     closeSealDialog,
     openSealDialog,
     markPaid,
@@ -103,6 +104,7 @@ export function BillingDesktop({ controller }: BillingDesktopProps) {
                 key={bill.id}
                 bill={bill}
                 isUpdating={isBillingUpdating(bill.id)}
+                onOpenDetail={openDetail}
                 onOpenSeal={openSealDialog}
                 onMarkPaid={markPaid}
               />
