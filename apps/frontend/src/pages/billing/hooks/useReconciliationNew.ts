@@ -7,7 +7,6 @@ import {
   type DeliveryDetail,
 } from "@/hooks/api/useDeliveries"
 import { useCreateBilling } from "@/hooks/api/useBilling"
-import { resolveUnitPrice } from "@/domain/orders/pricing"
 import request from "@/lib/utils/request"
 
 import { calculateEstimatedTotal, validateCanSubmit } from "../new/logic"
@@ -87,7 +86,11 @@ export function useReconciliationNew() {
     if (billedItemIds.has(itemId)) return
     setSelectedItemIds(prev => {
       const next = new Set(prev)
-      next.has(itemId) ? next.delete(itemId) : next.add(itemId)
+      if (next.has(itemId)) {
+        next.delete(itemId)
+      } else {
+        next.add(itemId)
+      }
       return next
     })
   }

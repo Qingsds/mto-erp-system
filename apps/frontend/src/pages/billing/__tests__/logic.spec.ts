@@ -3,6 +3,8 @@ import { calculateEstimatedTotal, validateCanSubmit } from "../new/logic"
 
 describe("Billing Creation Logic", () => {
   describe("calculateEstimatedTotal", () => {
+    type MockItems = Parameters<typeof calculateEstimatedTotal>[0]
+
     const mockItems = [
       {
         id: 1,
@@ -20,7 +22,7 @@ describe("Billing Creation Logic", () => {
           part: { commonPrices: { 标准价: 8 } },
         },
       },
-    ] as any
+    ] as unknown as MockItems
 
     it("正确计算已选明细的总额", () => {
       const selectedIds = new Set([1, 2])
