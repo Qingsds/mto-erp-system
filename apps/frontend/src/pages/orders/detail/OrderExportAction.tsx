@@ -16,6 +16,7 @@ import {
 } from "@/lib/documentExportData"
 import { toast } from "@/lib/toast"
 import type { OrderDetail } from "@/hooks/api/useOrders"
+import { useCanViewMoney } from "@/lib/permissions"
 
 type ExportConfig = Required<ExportSheetOptions>
 
@@ -28,6 +29,7 @@ interface OrderExportActionProps {
 export function OrderExportAction({
   order,
 }: OrderExportActionProps) {
+  const canViewMoney = useCanViewMoney()
   const [exportOpen, setExportOpen] = useState(false)
   const [isPreparingExport, setIsPreparingExport] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
@@ -83,6 +85,10 @@ export function OrderExportAction({
     } finally {
       setIsExporting(false)
     }
+  }
+
+  if (!canViewMoney) {
+    return null
   }
 
   return (

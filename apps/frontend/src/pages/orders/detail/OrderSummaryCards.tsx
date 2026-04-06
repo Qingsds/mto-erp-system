@@ -39,21 +39,26 @@ interface OrderSummaryCardsProps {
   stats: OrderItemStatsVM
   /** 订单详情是否正在后台刷新。 */
   isFetching: boolean
+  /** 是否允许查看金额信息。 */
+  canViewMoney: boolean
 }
 
 export function OrderSummaryCards({
   order,
   stats,
   isFetching,
+  canViewMoney,
 }: OrderSummaryCardsProps) {
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+    <div className={`grid grid-cols-2 gap-3 ${canViewMoney ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>
       <StatCard label="客户" value={order.customerName} hint={formatDateTime(order.createdAt)} />
-      <StatCard
-        label="金额总计"
-        value={`¥${stats.totalAmount.toLocaleString("zh-CN", { minimumFractionDigits: 2 })}`}
-        hint={`${order.items.length} 项零件`}
-      />
+      {canViewMoney && (
+        <StatCard
+          label="金额总计"
+          value={`¥${stats.totalAmount.toLocaleString("zh-CN", { minimumFractionDigits: 2 })}`}
+          hint={`${order.items.length} 项零件`}
+        />
+      )}
       <StatCard
         label="发货进度"
         value={`${stats.totalShippedQty} / ${stats.totalOrderedQty}`}

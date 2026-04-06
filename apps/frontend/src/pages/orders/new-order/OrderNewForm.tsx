@@ -13,6 +13,7 @@ import {
   type PartListItem,
 } from "@/hooks/api/useParts"
 import { PageContentWrapper } from "@/components/common/PageContentWrapper"
+import { useCanViewMoney } from "@/lib/permissions"
 import { useUIStore } from "@/store/ui.store"
 import type {
   OrderFormInput,
@@ -39,6 +40,7 @@ export function OrderNewForm({
   onCancel,
 }: OrderNewFormProps) {
   const { isMobile } = useUIStore()
+  const canViewMoney = useCanViewMoney()
   const {
     register,
     control,
@@ -107,6 +109,7 @@ export function OrderNewForm({
                 <OrderDraftSummaryCard
                   itemCount={fields.length}
                   estimatedTotal={estimatedTotal}
+                  canViewMoney={canViewMoney}
                 />
               </aside>
 
@@ -154,6 +157,7 @@ export function OrderNewForm({
                         register={register}
                         control={control}
                         setValue={setValue}
+                        canViewMoney={canViewMoney}
                         canRemove={fields.length > 1}
                         onOpenPicker={() => setPickerIndex(index)}
                         onRemove={() => remove(index)}
@@ -173,7 +177,7 @@ export function OrderNewForm({
                   </span>
                 </button>
 
-                {fields.length > 1 && estimatedTotal > 0 && (
+                {canViewMoney && fields.length > 1 && estimatedTotal > 0 && (
                   <div className='flex justify-between items-center px-4 py-3 border border-border bg-muted/20'>
                     <span className='text-sm text-muted-foreground'>
                       合计 {fields.length} 项零件
@@ -194,6 +198,7 @@ export function OrderNewForm({
             <OrderNewMobileActions
               itemCount={fields.length}
               estimatedTotal={estimatedTotal}
+              canViewMoney={canViewMoney}
               isSubmitting={isSubmitting}
               onAppendItem={appendEmptyItem}
               onSubmit={() => { void submitForm() }}

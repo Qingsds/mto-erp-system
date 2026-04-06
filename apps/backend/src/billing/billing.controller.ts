@@ -15,7 +15,9 @@ import {
   UpdateBillingStatusRequest,
   BillingStatusType,
 } from '@erp/shared-types';
+import { Roles } from '../auth/roles.decorator';
 
+@Roles('ADMIN')
 @Controller('api/billing')
 export class BillingController {
   constructor(private readonly billingService: BillingService) {}

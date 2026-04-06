@@ -15,6 +15,7 @@ import {
   apiPricesToForm,
   type PartListItem,
 } from "@/hooks/api/useParts"
+import { useCanViewMoney } from "@/lib/permissions"
 import { useUIStore } from "@/store/ui.store"
 
 interface PartPickerDialogProps {
@@ -40,6 +41,7 @@ export function PartPickerDialog({
   onSelect,
 }: PartPickerDialogProps) {
   const { isMobile } = useUIStore()
+  const canViewMoney = useCanViewMoney()
   const [query, setQuery] = useState("")
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -176,7 +178,7 @@ export function PartPickerDialog({
                       </p>
                     </div>
 
-                    {primaryPrice && (
+                    {canViewMoney && primaryPrice && (
                       <div className='shrink-0 text-right'>
                         <p className='font-mono text-sm font-medium text-foreground'>
                           ¥{formatPrice(primaryPrice.value)}

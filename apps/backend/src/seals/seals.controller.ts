@@ -21,7 +21,9 @@ import {
 } from '@erp/shared-types';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
+import { Roles } from '../auth/roles.decorator';
 
+@Roles('ADMIN')
 @Controller('api/seals')
 export class SealsController {
   constructor(private readonly sealsService: SealsService) {}

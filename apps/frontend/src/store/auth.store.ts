@@ -6,9 +6,11 @@ interface AuthState {
   token: string | null
   user: AuthUserInfo | null
   hasHydrated: boolean
+  isBootstrapping: boolean
   setSession: (payload: { token: string; user: AuthUserInfo }) => void
   clearSession: () => void
   markHydrated: (value: boolean) => void
+  setBootstrapping: (value: boolean) => void
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -17,9 +19,11 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       user: null,
       hasHydrated: false,
+      isBootstrapping: false,
       setSession: ({ token, user }) => set({ token, user }),
       clearSession: () => set({ token: null, user: null }),
       markHydrated: value => set({ hasHydrated: value }),
+      setBootstrapping: value => set({ isBootstrapping: value }),
     }),
     {
       name: "erp-auth",

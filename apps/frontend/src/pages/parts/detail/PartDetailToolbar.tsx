@@ -6,6 +6,7 @@ interface PartDetailToolbarProps {
   partName: string
   partNumber: string
   isEditing: boolean
+  canManage: boolean
   onBack: () => void
   onToggleEdit: () => void
 }
@@ -20,6 +21,7 @@ export function PartDetailToolbar({
   partName,
   partNumber,
   isEditing,
+  canManage,
   onBack,
   onToggleEdit,
 }: PartDetailToolbarProps) {
@@ -30,20 +32,24 @@ export function PartDetailToolbar({
       backLabel=''
       onBack={onBack}
       actions={
-        <Button
-          variant={isEditing ? "secondary" : "outline"}
-          size='sm'
-          className='h-8 shrink-0 px-2.5 text-xs'
-          onClick={onToggleEdit}
-        >
-          <i
-            className={cn(
-              "mr-1.5",
-              isEditing ? "ri-eye-line" : "ri-edit-line",
-            )}
-          />
-          {isEditing ? "查看信息" : "编辑"}
-        </Button>
+        canManage
+          ? (
+              <Button
+                variant={isEditing ? "secondary" : "outline"}
+                size='sm'
+                className='h-8 shrink-0 px-2.5 text-xs'
+                onClick={onToggleEdit}
+              >
+                <i
+                  className={cn(
+                    "mr-1.5",
+                    isEditing ? "ri-eye-line" : "ri-edit-line",
+                  )}
+                />
+                {isEditing ? "查看信息" : "编辑"}
+              </Button>
+            )
+          : undefined
       }
     />
   )

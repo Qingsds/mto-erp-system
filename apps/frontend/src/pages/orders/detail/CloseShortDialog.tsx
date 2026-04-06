@@ -23,6 +23,7 @@ interface CloseShortDialogProps {
   orderId: number
   pendingQty: number
   settlementAmount: number
+  canViewMoney: boolean
   isSubmitting: boolean
   onConfirm: (reason: string) => Promise<void>
   onOpenChange: (open: boolean) => void
@@ -40,6 +41,7 @@ export function CloseShortDialog({
   orderId,
   pendingQty,
   settlementAmount,
+  canViewMoney,
   isSubmitting,
   onConfirm,
   onOpenChange,
@@ -71,11 +73,12 @@ export function CloseShortDialog({
             确认短交结案 {formatOrderNo(orderId)}
           </DialogTitle>
           <DialogDescription>
-            结案后，当前订单将不再进入后续发货流程，请先确认数量与金额影响。
+            结案后，当前订单将不再进入后续发货流程，请先确认数量
+            {canViewMoney ? "与金额影响" : "影响"}。
           </DialogDescription>
         </DialogHeader>
 
-        <div className='grid grid-cols-2 gap-3'>
+        <div className={`grid gap-3 ${canViewMoney ? "grid-cols-2" : "grid-cols-1"}`}>
           <div className='border border-border bg-muted/30 px-3 py-2.5'>
             <p className='text-[11px] text-muted-foreground'>
               本次转为短交的待发数量
@@ -84,14 +87,16 @@ export function CloseShortDialog({
               {pendingQty} 件
             </p>
           </div>
-          <div className='border border-border bg-muted/30 px-3 py-2.5'>
-            <p className='text-[11px] text-muted-foreground'>
-              按已发数量结算的订单金额
-            </p>
-            <p className='mt-1 text-sm font-semibold text-foreground'>
-              ¥{formatCurrency(settlementAmount)}
-            </p>
-          </div>
+          {canViewMoney && (
+            <div className='border border-border bg-muted/30 px-3 py-2.5'>
+              <p className='text-[11px] text-muted-foreground'>
+                按已发数量结算的订单金额
+              </p>
+              <p className='mt-1 text-sm font-semibold text-foreground'>
+                ¥{formatCurrency(settlementAmount)}
+              </p>
+            </div>
+          )}
         </div>
 
         <div className='space-y-2'>

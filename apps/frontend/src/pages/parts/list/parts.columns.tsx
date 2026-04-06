@@ -28,8 +28,12 @@ function formatPrice(value: number) {
 export function getPartsColumns(
   onEdit: (part: PartListItem) => void,
   onDelete: (part: PartListItem) => void,
+  options?: {
+    canViewMoney?: boolean
+    canManage?: boolean
+  },
 ) {
-  return [
+  const columns = [
     column.accessor("partNumber", {
       header: "零件编号",
       size: 120,
@@ -77,7 +81,20 @@ export function getPartsColumns(
       ),
     }),
 
-    column.accessor("commonPrices", {
+    column.accessor("createdAt", {
+      header: "创建日期",
+      size: 100,
+      cell: info => (
+        <span className='font-mono text-xs whitespace-nowrap text-muted-foreground'>
+          {info.getValue().slice(0, 10)}
+        </span>
+      ),
+    }),
+
+  ]
+
+  if (options?.canViewMoney ?? true) {
+    columns.splice(4, 0, column.accessor("commonPrices", {
       header: () => (
         <span className='inline-flex items-center gap-1.5'>
           价格字典
@@ -122,19 +139,11 @@ export function getPartsColumns(
           />
         )
       },
-    }),
+    }))
+  }
 
-    column.accessor("createdAt", {
-      header: "创建日期",
-      size: 100,
-      cell: info => (
-        <span className='font-mono text-xs whitespace-nowrap text-muted-foreground'>
-          {info.getValue().slice(0, 10)}
-        </span>
-      ),
-    }),
-
-    column.display({
+  if (options?.canManage ?? true) {
+    columns.push(column.display({
       id: "actions",
       size: 100,
       cell: info => (
@@ -164,6 +173,8 @@ export function getPartsColumns(
           </Button>
         </div>
       ),
-    }),
-  ]
+    }))
+  }
+
+  return columns
 }

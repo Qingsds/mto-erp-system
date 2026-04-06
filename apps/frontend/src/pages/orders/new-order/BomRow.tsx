@@ -22,6 +22,7 @@ interface BomRowProps {
   register: UseFormReturn<OrderFormInput, unknown, OrderFormValues>["register"]
   control: UseFormReturn<OrderFormInput, unknown, OrderFormValues>["control"]
   setValue: UseFormReturn<OrderFormInput, unknown, OrderFormValues>["setValue"]
+  canViewMoney: boolean
   canRemove: boolean
   onOpenPicker: () => void
   onRemove: () => void
@@ -35,6 +36,7 @@ export function BomRow({
   register,
   control,
   setValue,
+  canViewMoney,
   canRemove,
   onOpenPicker,
   onRemove,
@@ -59,7 +61,7 @@ export function BomRow({
           <p className="text-xs font-medium text-muted-foreground">
             第 {index + 1} 项零件
           </p>
-          {selectedPart && price > 0 && qty > 0 && (
+          {canViewMoney && selectedPart && price > 0 && qty > 0 && (
             <div className="text-right">
               <p className="text-[11px] text-muted-foreground">
                 小计
@@ -127,7 +129,7 @@ export function BomRow({
           )}
         </div>
 
-        {selectedPart && prices.length > 0 && (
+        {canViewMoney && selectedPart && prices.length > 0 ? (
           <PartPriceOptionGroup
             prices={prices}
             activeValue={price}
@@ -135,6 +137,13 @@ export function BomRow({
               setValue(`items.${index}._displayPrice`, nextPrice)
             }
           />
+        ) : (
+          <div className="flex flex-col gap-1.5">
+            <span className="text-xs text-muted-foreground">价格策略</span>
+            <div className="border border-border bg-background px-3 py-2 text-sm text-muted-foreground">
+              普通用户不展示金额，提交后由系统按后台规则写入价格快照。
+            </div>
+          </div>
         )}
       </div>
     </section>

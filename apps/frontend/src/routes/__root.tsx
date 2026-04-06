@@ -1,4 +1,5 @@
 // src/routes/__root.tsx
+import { useAuthMe } from "@/hooks/api/useAuth"
 import { Navigate, Outlet, createRootRoute, useRouterState } from "@tanstack/react-router"
 import { AppLayout } from "@/components/layout/AppLayout"
 import { useAuthStore } from "@/store/auth.store"
@@ -13,11 +14,14 @@ function RootRouteComponent() {
   })
   const token = useAuthStore(state => state.token)
   const hasHydrated = useAuthStore(state => state.hasHydrated)
+  const isBootstrapping = useAuthStore(state => state.isBootstrapping)
 
-  if (!hasHydrated) {
+  useAuthMe(Boolean(token) && hasHydrated)
+
+  if (!hasHydrated || (token && isBootstrapping)) {
     return (
       <div className='flex min-h-dvh items-center justify-center bg-background text-sm text-muted-foreground'>
-        正在初始化登录状态...
+        正在校验登录状态...
       </div>
     )
   }

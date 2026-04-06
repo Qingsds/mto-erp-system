@@ -7,6 +7,7 @@
 import type { OrderListItem } from "@/hooks/api/useOrders"
 import { formatOrderNo } from "@/hooks/api/useOrders"
 import { computeListOrderAmount } from "@/domain/orders/pricing"
+import { useCanViewMoney } from "@/lib/permissions"
 import { OrderStatusBadge } from "../shared/OrderStatusBadge"
 
 interface OrdersMobileCardProps {
@@ -18,6 +19,7 @@ export function OrdersMobileCard({
   order,
   onClick,
 }: OrdersMobileCardProps) {
+  const canViewMoney = useCanViewMoney()
   const totalAmount = computeListOrderAmount(order)
 
   return (
@@ -45,16 +47,18 @@ export function OrdersMobileCard({
           <p className='mt-0.5 font-mono'>{order.createdAt.slice(0, 10)}</p>
         </div>
 
-        <div className='text-right'>
-          <p className='text-[11px] text-muted-foreground'>订单金额</p>
-          <p className='font-mono text-sm font-semibold text-foreground'>
-            ¥
-            {totalAmount.toLocaleString("zh-CN", {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}
-          </p>
-        </div>
+        {canViewMoney && (
+          <div className='text-right'>
+            <p className='text-[11px] text-muted-foreground'>订单金额</p>
+            <p className='font-mono text-sm font-semibold text-foreground'>
+              ¥
+              {totalAmount.toLocaleString("zh-CN", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+            </p>
+          </div>
+        )}
       </div>
     </button>
   )

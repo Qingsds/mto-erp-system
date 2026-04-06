@@ -1,7 +1,10 @@
+import { useState } from "react"
 import { useUIStore, type Density, type FontSize, type LineHeight } from "@/store/ui.store"
+import { useAuthStore } from "@/store/auth.store"
 import { Button }    from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { cn }        from "@/lib/utils"
+import { ChangePasswordSheet } from "./ChangePasswordSheet"
 
 // ─── Option chip ──────────────────────────────────────────
 function Chip({
@@ -74,56 +77,83 @@ export function SettingsPanel() {
     density, setDensity,
     toggleSettings,
   } = useUIStore()
+  const user = useAuthStore(state => state.user)
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false)
 
   return (
-    <aside className="absolute top-0 right-0 bottom-0 w-72 z-50 flex flex-col bg-background border-l border-border shadow-lg">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3.5 border-b border-border shrink-0">
-        <span className="text-sm font-semibold">外观设置</span>
-        <Button variant="ghost" size="icon" onClick={toggleSettings} className="h-7 w-7">
-          <i className="ri-close-line text-base" />
-        </Button>
-      </div>
-
-      {/* Options */}
-      <div className="flex-1 overflow-y-auto px-4">
-        <Row label="主题">
-          <Chip label="🌞 亮色" active={!isDark} onClick={() => setDark(false)} />
-          <Chip label="🌙 暗色" active={isDark}  onClick={() => setDark(true)} />
-        </Row>
-        <Separator />
-        <Row label="字体大小">
-          {([12, 14, 16, 18] as FontSize[]).map((v) => (
-            <Chip key={v} label={`${v}px`} active={fontSize === v} onClick={() => setFontSize(v)} />
-          ))}
-        </Row>
-        <Separator />
-        <Row label="行高">
-          {([
-            { v: 1.4 as LineHeight, l: "紧凑" },
-            { v: 1.6 as LineHeight, l: "默认" },
-            { v: 1.8 as LineHeight, l: "宽松" },
-          ]).map(({ v, l }) => (
-            <Chip key={v} label={l} active={lineHeight === v} onClick={() => setLineHeight(v)} />
-          ))}
-        </Row>
-        <Separator />
-        <Row label="信息密度">
-          {([
-            { v: "compact"     as Density, l: "紧凑" },
-            { v: "default"     as Density, l: "默认" },
-            { v: "comfortable" as Density, l: "舒适" },
-          ]).map(({ v, l }) => (
-            <Chip key={v} label={l} active={density === v} onClick={() => setDensity(v)} />
-          ))}
-        </Row>
-
-        {/* Live preview */}
-        <div className="py-3">
-          <p className="text-xs text-muted-foreground mb-1">实时预览</p>
-          <Preview />
+    <>
+      <aside className="absolute top-0 right-0 bottom-0 w-72 z-50 flex flex-col bg-background border-l border-border shadow-lg">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3.5 border-b border-border shrink-0">
+          <span className="text-sm font-semibold">外观设置</span>
+          <Button variant="ghost" size="icon" onClick={toggleSettings} className="h-7 w-7">
+            <i className="ri-close-line text-base" />
+          </Button>
         </div>
-      </div>
-    </aside>
+
+        {/* Options */}
+        <div className="flex-1 overflow-y-auto px-4">
+          <div className="py-3">
+            <p className="text-xs font-medium text-muted-foreground mb-2.5">当前账号</p>
+            <div className="border border-border bg-card px-3 py-3 text-xs">
+              <p className="font-medium text-foreground">{user?.realName ?? "未登录"}</p>
+              <p className="mt-1 text-muted-foreground">{user?.username ?? "--"}</p>
+              <Button
+                type="button"
+                variant="outline"
+                className="mt-3 h-8 w-full text-xs"
+                onClick={() => setChangePasswordOpen(true)}
+              >
+                <i className="ri-lock-password-line mr-1.5" />
+                修改密码
+              </Button>
+            </div>
+          </div>
+
+          <Separator />
+          <Row label="主题">
+            <Chip label="🌞 亮色" active={!isDark} onClick={() => setDark(false)} />
+            <Chip label="🌙 暗色" active={isDark}  onClick={() => setDark(true)} />
+          </Row>
+          <Separator />
+          <Row label="字体大小">
+            {([12, 14, 16, 18] as FontSize[]).map((v) => (
+              <Chip key={v} label={`${v}px`} active={fontSize === v} onClick={() => setFontSize(v)} />
+            ))}
+          </Row>
+          <Separator />
+          <Row label="行高">
+            {([
+              { v: 1.4 as LineHeight, l: "紧凑" },
+              { v: 1.6 as LineHeight, l: "默认" },
+              { v: 1.8 as LineHeight, l: "宽松" },
+            ]).map(({ v, l }) => (
+              <Chip key={v} label={l} active={lineHeight === v} onClick={() => setLineHeight(v)} />
+            ))}
+          </Row>
+          <Separator />
+          <Row label="信息密度">
+            {([
+              { v: "compact"     as Density, l: "紧凑" },
+              { v: "default"     as Density, l: "默认" },
+              { v: "comfortable" as Density, l: "舒适" },
+            ]).map(({ v, l }) => (
+              <Chip key={v} label={l} active={density === v} onClick={() => setDensity(v)} />
+            ))}
+          </Row>
+
+          {/* Live preview */}
+          <div className="py-3">
+            <p className="text-xs text-muted-foreground mb-1">实时预览</p>
+            <Preview />
+          </div>
+        </div>
+      </aside>
+
+      <ChangePasswordSheet
+        open={changePasswordOpen}
+        onOpenChange={setChangePasswordOpen}
+      />
+    </>
   )
 }

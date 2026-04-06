@@ -6,9 +6,11 @@ import {
   ParseIntPipe,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
 import { DeliveriesService } from './deliveries.service';
 import { ApiResponse, CreateDeliveryRequest } from '@erp/shared-types';
+import type { AuthenticatedRequest } from '../auth/auth-request';
 
 @Controller('api/deliveries')
 export class DeliveriesController {
@@ -36,6 +38,7 @@ export class DeliveriesController {
     @Query('deliveryDateStart') deliveryDateStart?: string,
     @Query('deliveryDateEnd') deliveryDateEnd?: string,
     @Query('hasRemark') hasRemark?: string,
+    @Req() request?: AuthenticatedRequest,
   ): Promise<ApiResponse> {
     const result = await this.deliveriesService.findAll(
       page,
@@ -45,13 +48,17 @@ export class DeliveriesController {
       deliveryDateStart,
       deliveryDateEnd,
       hasRemark === undefined ? undefined : hasRemark === 'true',
+      request?.user.role,
     );
     return { code: 200, message: '查询成功', data: result };
   }
 
   @Get(':id')
-  async findOne(@Param('id', ParseIntPipe) id: number): Promise<ApiResponse> {
-    const result = await this.deliveriesService.findOne(id);
+  async findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<ApiResponse> {
+    const result = await this.deliveriesService.findOne(id, request.user.role);
     return { code: 200, message: '查询成功', data: result };
   }
 }

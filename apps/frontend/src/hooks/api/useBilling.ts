@@ -108,6 +108,10 @@ export interface BillingParams {
   status?: BillingStatusType
 }
 
+interface BillingQueryOptions {
+  enabled?: boolean
+}
+
 export const BILLING_KEYS = {
   list: (p: BillingParams) => ["billing", p] as const,
   detail: (id: number) => ["billing", "detail", id] as const,
@@ -117,7 +121,10 @@ export function formatBillingNo(id: number): string {
   return `BIL-${String(id).padStart(6, "0")}`
 }
 
-export function useGetBilling(params: BillingParams) {
+export function useGetBilling(
+  params: BillingParams,
+  options?: BillingQueryOptions,
+) {
   return useQuery({
     queryKey: BILLING_KEYS.list(params),
     queryFn: () =>
@@ -126,6 +133,7 @@ export function useGetBilling(params: BillingParams) {
           params,
         })
         .then(res => res.data!),
+    enabled: options?.enabled ?? true,
     placeholderData: prev => prev,
   })
 }

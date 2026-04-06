@@ -11,6 +11,7 @@
 import { useNavigate } from "@tanstack/react-router"
 import { Button } from "@/components/ui/button"
 import { useDebouncedValue } from "@/hooks/useDebouncedValue"
+import { useIsAdmin } from "@/lib/permissions"
 import type { PartsPageProps } from "./PartsPage"
 import { PartManagementSheet } from "./PartManagementSheet"
 import { usePartsPageController } from "./usePartsPageController"
@@ -18,6 +19,7 @@ import { useState } from "react"
 
 export function PartsMobile({ quickAction }: PartsPageProps) {
   const navigate = useNavigate()
+  const canManage = useIsAdmin()
   const [search, setSearch] = useState("")
   const debouncedSearch = useDebouncedValue(search.trim(), 300)
 
@@ -121,23 +123,25 @@ export function PartsMobile({ quickAction }: PartsPageProps) {
                   ? "可以调整关键词后重试，或直接新增零件。"
                   : "可以先新增单个零件，或通过 Excel 批量导入。"}
               </p>
-              <div className='mt-4 flex w-full gap-2'>
-                <Button
-                  variant='outline'
-                  className='h-10 flex-1'
-                  onClick={openImportPanel}
-                >
-                  <i className='ri-upload-2-line mr-1.5' />
-                  批量导入
-                </Button>
-                <Button
-                  className='h-10 flex-1'
-                  onClick={openAddPanel}
-                >
-                  <i className='ri-add-line mr-1.5' />
-                  新增零件
-                </Button>
-              </div>
+              {canManage && (
+                <div className='mt-4 flex w-full gap-2'>
+                  <Button
+                    variant='outline'
+                    className='h-10 flex-1'
+                    onClick={openImportPanel}
+                  >
+                    <i className='ri-upload-2-line mr-1.5' />
+                    批量导入
+                  </Button>
+                  <Button
+                    className='h-10 flex-1'
+                    onClick={openAddPanel}
+                  >
+                    <i className='ri-add-line mr-1.5' />
+                    新增零件
+                  </Button>
+                </div>
+              )}
             </div>
           ) : (
             <>
@@ -170,17 +174,19 @@ export function PartsMobile({ quickAction }: PartsPageProps) {
                     </div>
 
                     <div className='flex shrink-0 items-center gap-1'>
-                      <Button
-                        variant='ghost'
-                        size='sm'
-                        className='h-8 px-2 text-xs text-muted-foreground'
-                        onClick={event => {
-                          event.stopPropagation()
-                          openEditPanel(part)
-                        }}
-                      >
-                        编辑
-                      </Button>
+                      {canManage && (
+                        <Button
+                          variant='ghost'
+                          size='sm'
+                          className='h-8 px-2 text-xs text-muted-foreground'
+                          onClick={event => {
+                            event.stopPropagation()
+                            openEditPanel(part)
+                          }}
+                        >
+                          编辑
+                        </Button>
+                      )}
                       <i className='ri-arrow-right-s-line text-muted-foreground' />
                     </div>
                   </div>
@@ -219,34 +225,38 @@ export function PartsMobile({ quickAction }: PartsPageProps) {
         </div>
       </div>
 
-      <div className='shrink-0 border-t border-border bg-background px-4 py-3'>
-        <div className='flex gap-2'>
-          <Button
-            variant='outline'
-            className='h-11 flex-1'
-            onClick={openImportPanel}
-          >
-            <i className='ri-upload-2-line mr-2' />
-            批量导入
-          </Button>
-          <Button
-            className='h-11 flex-[1.4]'
-            onClick={openAddPanel}
-          >
-            <i className='ri-add-line mr-2' />
-            新增零件
-          </Button>
-        </div>
-      </div>
+      {canManage && (
+        <>
+          <div className='shrink-0 border-t border-border bg-background px-4 py-3'>
+            <div className='flex gap-2'>
+              <Button
+                variant='outline'
+                className='h-11 flex-1'
+                onClick={openImportPanel}
+              >
+                <i className='ri-upload-2-line mr-2' />
+                批量导入
+              </Button>
+              <Button
+                className='h-11 flex-[1.4]'
+                onClick={openAddPanel}
+              >
+                <i className='ri-add-line mr-2' />
+                新增零件
+              </Button>
+            </div>
+          </div>
 
-      <PartManagementSheet
-        panel={panel}
-        form={form}
-        editingPart={editingPart}
-        onClose={closePanel}
-        onImport={handleImport}
-        onSubmit={handleSubmit}
-      />
+          <PartManagementSheet
+            panel={panel}
+            form={form}
+            editingPart={editingPart}
+            onClose={closePanel}
+            onImport={handleImport}
+            onSubmit={handleSubmit}
+          />
+        </>
+      )}
     </div>
   )
 }

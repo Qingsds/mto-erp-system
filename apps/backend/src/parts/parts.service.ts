@@ -8,6 +8,7 @@ import {
   CreatePartRequest,
   FileType,
   UpdatePartRequest,
+  UserRoleType,
 } from '@erp/shared-types';
 import { randomUUID } from 'node:crypto';
 import { extname } from 'node:path';
@@ -40,6 +41,13 @@ export class PartsService {
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
   ) {}
+
+  private sanitizePartForUser<T extends { commonPrices: unknown }>(part: T) {
+    return {
+      ...part,
+      commonPrices: {},
+    };
+  }
   /**
    * 创建零件
    * @params payload
@@ -68,7 +76,12 @@ export class PartsService {
   }
 
   // 分页与模糊查询
-  async findAll(page: number = 1, pageSize: number = 1, keyword?: string) {
+  async findAll(
+    page: number = 1,
+    pageSize: number = 1,
+    keyword?: string,
+    role: UserRoleType = 'ADMIN',
+  ) {
     const skip = (page - 1) * pageSize;
 
     // 构建查询条件：支持按零件号或名称进行模糊匹配
@@ -91,11 +104,19 @@ export class PartsService {
       }),
     ]);
 
-    return { total, data, page: Number(page), pageSize: Number(pageSize) };
+    return {
+      total,
+      data:
+        role === 'ADMIN'
+          ? data
+          : data.map(part => this.sanitizePartForUser(part)),
+      page: Number(page),
+      pageSize: Number(pageSize),
+    };
   }
 
   // 3. 查询单条详情及图纸
-  async findOne(id: number) {
+  async findOne(id: number, role: UserRoleType = 'ADMIN') {
     const part = await this.prisma.client.part.findUnique({
       where: { id },
       include: { drawings: true }, // 联表查出关联的图纸数据
@@ -104,7 +125,7 @@ export class PartsService {
     if (!part) {
       throw new NotFoundException(`零件 ID: ${id} 不存在`);
     }
-    return part;
+    return role === 'ADMIN' ? part : this.sanitizePartForUser(part);
   }
 
   // 4. 修改零件信息

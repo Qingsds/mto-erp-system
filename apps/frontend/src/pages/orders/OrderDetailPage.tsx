@@ -21,6 +21,7 @@ import {
   useGetOrder,
 } from "@/hooks/api/useOrders"
 import { computeOrderStats, resolveUnitPrice } from "@/domain/orders/pricing"
+import { useCanViewMoney } from "@/lib/permissions"
 import { CreateDeliverySheet } from "./detail/CreateDeliverySheet"
 import { CloseShortDialog } from "./detail/CloseShortDialog"
 import { OrderDetailDesktop } from "./detail/OrderDetailDesktop"
@@ -33,6 +34,7 @@ export function OrderDetailPage() {
   const { id } = useParams({ from: "/orders/$id" })
   const navigate = useNavigate()
   const { isMobile } = useUIStore()
+  const canViewMoney = useCanViewMoney()
   const orderId = Number(id)
 
   const { data: order, isLoading, isFetching } = useGetOrder(orderId)
@@ -189,6 +191,7 @@ export function OrderDetailPage() {
             onOpenCreate={openCreatePanel}
             onCloseShort={handleCloseShort}
             onOpenDelivery={handleOpenDelivery}
+            canViewMoney={canViewMoney}
           />
         ) : (
           <OrderDetailDesktop
@@ -204,6 +207,7 @@ export function OrderDetailPage() {
             onOpenCreate={openCreatePanel}
             onCloseShort={handleCloseShort}
             onOpenDelivery={handleOpenDelivery}
+            canViewMoney={canViewMoney}
           />
         )}
       </PageContentWrapper>
@@ -222,6 +226,7 @@ export function OrderDetailPage() {
         orderId={order.id}
         pendingQty={itemStats.totalPendingQty}
         settlementAmount={shortCloseSettlementAmount}
+        canViewMoney={canViewMoney}
         isSubmitting={closeShort.isPending}
         onConfirm={handleConfirmCloseShort}
         onOpenChange={setCloseShortOpen}

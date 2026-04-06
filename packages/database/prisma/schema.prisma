@@ -20,6 +20,8 @@ model User {
   passwordHash String @map("password_hash") @db.VarChar(255)
   /// 操作人员真实姓名，用于日志和界面展示
   realName String  @map("real_name") @db.VarChar(50)
+  /// 账号角色：ADMIN 为管理员，USER 为普通用户
+  role     UserRole @default(USER)
   /// 账号状态标识：true为正常，false为已禁用
   isActive Boolean @default(true) @map("is_active")
 
@@ -27,6 +29,11 @@ model User {
   sealLogs SealUsageLog[]
 
   @@map("user")
+}
+
+enum UserRole {
+  ADMIN
+  USER
 }
 
 // ==========================================

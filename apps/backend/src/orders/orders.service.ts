@@ -4,7 +4,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CloseShortOrderRequest, CreateOrderRequest } from '@erp/shared-types';
+import {
+  CloseShortOrderRequest,
+  CreateOrderRequest,
+  UserRoleType,
+} from '@erp/shared-types';
 import { OrderStatus, Prisma } from '@erp/database';
 
 @Injectable()
@@ -70,6 +74,48 @@ export class OrdersService {
 
     const fallback = this.resolvePriceFromCommonPrices(fallbackCommonPrices);
     return fallback > 0 ? fallback : snapshot;
+  }
+
+  private sanitizeListItemForUser(order: {
+    totalAmount?: number;
+    items: {
+      unitPrice: Prisma.Decimal | string | number;
+      [key: string]: unknown;
+    }[];
+    [key: string]: unknown;
+  }) {
+    const { totalAmount, items, ...rest } = order;
+    return {
+      ...rest,
+      items: items.map(item => ({
+        ...item,
+        unitPrice: '0',
+      })),
+    };
+  }
+
+  private sanitizeDetailForUser(order: {
+    items: {
+      unitPrice: Prisma.Decimal | string | number;
+      part: {
+        commonPrices: unknown;
+        [key: string]: unknown;
+      };
+      [key: string]: unknown;
+    }[];
+    [key: string]: unknown;
+  }) {
+    return {
+      ...order,
+      items: order.items.map(item => ({
+        ...item,
+        unitPrice: '0',
+        part: {
+          ...item.part,
+          commonPrices: {},
+        },
+      })),
+    };
   }
 
   /**
@@ -168,6 +214,7 @@ export class OrdersService {
     pageSize: number = 10,
     status?: OrderStatus,
     customerName?: string,
+    role: UserRoleType = 'ADMIN',
   ) {
     const skip = (page - 1) * pageSize;
 
@@ -224,11 +271,19 @@ export class OrdersService {
       return { ...order, items, totalAmount };
     });
 
-    return { total, data, page: Number(page), pageSize: Number(pageSize) };
+    return {
+      total,
+      data:
+        role === 'ADMIN'
+          ? data
+          : data.map(order => this.sanitizeListItemForUser(order)),
+      page: Number(page),
+      pageSize: Number(pageSize),
+    };
   }
 
   // 2. 查询单条订单详情
-  async findOne(id: number) {
+  async findOne(id: number, role: UserRoleType = 'ADMIN') {
     const order = await this.prisma.client.order.findUnique({
       where: { id },
       include: {
@@ -242,6 +297,6 @@ export class OrdersService {
     if (!order) {
       throw new NotFoundException(`订单 ID: ${id} 不存在`);
     }
-    return order;
+    return role === 'ADMIN' ? order : this.sanitizeDetailForUser(order);
   }
 }

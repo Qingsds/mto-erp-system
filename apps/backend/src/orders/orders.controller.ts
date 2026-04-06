@@ -7,6 +7,7 @@ import {
   Patch,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import {
@@ -15,6 +16,7 @@ import {
   CreateOrderRequest,
 } from '@erp/shared-types';
 import { OrderStatus } from '@erp/database';
+import type { AuthenticatedRequest } from '../auth/auth-request';
 
 @Controller('api/orders')
 export class OrdersController {
@@ -52,19 +54,24 @@ export class OrdersController {
     @Query('pageSize') pageSize: number = 10,
     @Query('status') status?: OrderStatus,
     @Query('customerName') customerName?: string,
+    @Req() request?: AuthenticatedRequest,
   ): Promise<ApiResponse> {
     const result = await this.ordersService.findAll(
       page,
       pageSize,
       status,
       customerName,
+      request?.user.role,
     );
     return { code: 200, message: '查询成功', data: result };
   }
 
   @Get(':id')
-  async findOne(@Param('id', ParseIntPipe) id: number): Promise<ApiResponse> {
-    const result = await this.ordersService.findOne(id);
+  async findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<ApiResponse> {
+    const result = await this.ordersService.findOne(id, request.user.role);
     return { code: 200, message: '查询成功', data: result };
   }
 }

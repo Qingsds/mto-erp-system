@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as UsersRouteImport } from './routes/users'
 import { Route as SealsRouteImport } from './routes/seals'
 import { Route as PartsRouteImport } from './routes/parts'
 import { Route as OrdersRouteImport } from './routes/orders'
@@ -24,6 +25,11 @@ import { Route as BillingNewRouteImport } from './routes/billing.new'
 import { Route as BillingIdRouteImport } from './routes/billing.$id'
 import { Route as SealsIdLogsRouteImport } from './routes/seals.$id.logs'
 
+const UsersRoute = UsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SealsRoute = SealsRouteImport.update({
   id: '/seals',
   path: '/seals',
@@ -103,6 +109,7 @@ export interface FileRoutesByFullPath {
   '/orders': typeof OrdersRouteWithChildren
   '/parts': typeof PartsRouteWithChildren
   '/seals': typeof SealsRouteWithChildren
+  '/users': typeof UsersRoute
   '/billing/$id': typeof BillingIdRoute
   '/billing/new': typeof BillingNewRoute
   '/deliveries/$id': typeof DeliveriesIdRoute
@@ -119,6 +126,7 @@ export interface FileRoutesByTo {
   '/orders': typeof OrdersRouteWithChildren
   '/parts': typeof PartsRouteWithChildren
   '/seals': typeof SealsRouteWithChildren
+  '/users': typeof UsersRoute
   '/billing/$id': typeof BillingIdRoute
   '/billing/new': typeof BillingNewRoute
   '/deliveries/$id': typeof DeliveriesIdRoute
@@ -136,6 +144,7 @@ export interface FileRoutesById {
   '/orders': typeof OrdersRouteWithChildren
   '/parts': typeof PartsRouteWithChildren
   '/seals': typeof SealsRouteWithChildren
+  '/users': typeof UsersRoute
   '/billing/$id': typeof BillingIdRoute
   '/billing/new': typeof BillingNewRoute
   '/deliveries/$id': typeof DeliveriesIdRoute
@@ -154,6 +163,7 @@ export interface FileRouteTypes {
     | '/orders'
     | '/parts'
     | '/seals'
+    | '/users'
     | '/billing/$id'
     | '/billing/new'
     | '/deliveries/$id'
@@ -170,6 +180,7 @@ export interface FileRouteTypes {
     | '/orders'
     | '/parts'
     | '/seals'
+    | '/users'
     | '/billing/$id'
     | '/billing/new'
     | '/deliveries/$id'
@@ -186,6 +197,7 @@ export interface FileRouteTypes {
     | '/orders'
     | '/parts'
     | '/seals'
+    | '/users'
     | '/billing/$id'
     | '/billing/new'
     | '/deliveries/$id'
@@ -203,10 +215,18 @@ export interface RootRouteChildren {
   OrdersRoute: typeof OrdersRouteWithChildren
   PartsRoute: typeof PartsRouteWithChildren
   SealsRoute: typeof SealsRouteWithChildren
+  UsersRoute: typeof UsersRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/users': {
+      id: '/users'
+      path: '/users'
+      fullPath: '/users'
+      preLoaderRoute: typeof UsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/seals': {
       id: '/seals'
       path: '/seals'
@@ -374,6 +394,7 @@ const rootRouteChildren: RootRouteChildren = {
   OrdersRoute: OrdersRouteWithChildren,
   PartsRoute: PartsRouteWithChildren,
   SealsRoute: SealsRouteWithChildren,
+  UsersRoute: UsersRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

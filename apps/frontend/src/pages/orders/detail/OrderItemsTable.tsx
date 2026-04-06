@@ -14,6 +14,8 @@ import type { OrderLineVM } from "./types"
 interface OrderItemsTableProps {
   /** 已加工过的订单行视图模型列表。 */
   lines: OrderLineVM[]
+  /** 是否允许查看金额信息。 */
+  canViewMoney: boolean
 }
 
 type BomFilter = "all" | "pending" | "completed"
@@ -33,7 +35,7 @@ function resolveProgress(line: OrderLineVM) {
   )
 }
 
-export function OrderItemsTable({ lines }: OrderItemsTableProps) {
+export function OrderItemsTable({ lines, canViewMoney }: OrderItemsTableProps) {
   const [filter, setFilter] = useState<BomFilter>("all")
 
   const filterTabs = useMemo(() => [
@@ -104,16 +106,18 @@ export function OrderItemsTable({ lines }: OrderItemsTableProps) {
                 {line.part.partNumber} · {line.part.material}
               </p>
             </div>
-            <div className="shrink-0 text-right">
-              <p className="font-mono text-sm text-foreground">
-                ¥{formatCurrency(
-                  resolveUnitPrice(line.unitPrice, line.part.commonPrices),
-                )}
-              </p>
-              <p className="text-[11px] text-muted-foreground">
-                小计 ¥{formatCurrency(line.lineTotal)}
-              </p>
-            </div>
+            {canViewMoney && (
+              <div className="shrink-0 text-right">
+                <p className="font-mono text-sm text-foreground">
+                  ¥{formatCurrency(
+                    resolveUnitPrice(line.unitPrice, line.part.commonPrices),
+                  )}
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  小计 ¥{formatCurrency(line.lineTotal)}
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="mt-3">

@@ -1,5 +1,5 @@
 import { Prisma } from '@erp/database';
-import { CreateDeliveryRequest } from '@erp/shared-types';
+import { CreateDeliveryRequest, UserRoleType } from '@erp/shared-types';
 import {
   BadRequestException,
   Injectable,
@@ -10,6 +10,44 @@ import { PrismaService } from 'src/prisma/prisma.service';
 @Injectable()
 export class DeliveriesService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private sanitizeListItemForUser(delivery: {
+    totalAmount?: number;
+    [key: string]: unknown;
+  }) {
+    const { totalAmount, ...rest } = delivery;
+    return rest;
+  }
+
+  private sanitizeDetailForUser(delivery: {
+    items: {
+      orderItem: {
+        unitPrice: Prisma.Decimal | string | number;
+        part: {
+          commonPrices: unknown;
+          [key: string]: unknown;
+        };
+        [key: string]: unknown;
+      };
+      [key: string]: unknown;
+    }[];
+    [key: string]: unknown;
+  }) {
+    return {
+      ...delivery,
+      items: delivery.items.map(item => ({
+        ...item,
+        orderItem: {
+          ...item.orderItem,
+          unitPrice: '0',
+          part: {
+            ...item.orderItem.part,
+            commonPrices: {},
+          },
+        },
+      })),
+    };
+  }
 
   /**
    * 将 unknown 价格值解析为 number。
@@ -173,6 +211,7 @@ export class DeliveriesService {
     deliveryDateStart?: string,
     deliveryDateEnd?: string,
     hasRemark?: boolean,
+    role: UserRoleType = 'ADMIN',
   ) {
     const skip = (page - 1) * pageSize;
 
@@ -254,11 +293,19 @@ export class DeliveriesService {
       return { ...rest, totalAmount };
     });
 
-    return { total, data, page: Number(page), pageSize: Number(pageSize) };
+    return {
+      total,
+      data:
+        role === 'ADMIN'
+          ? data
+          : data.map(delivery => this.sanitizeListItemForUser(delivery)),
+      page: Number(page),
+      pageSize: Number(pageSize),
+    };
   }
 
   // 2. 查询发货单详情及深度追溯
-  async findOne(id: number) {
+  async findOne(id: number, role: UserRoleType = 'ADMIN') {
     const delivery = await this.prisma.client.deliveryNote.findUnique({
       where: { id },
       include: {
@@ -283,6 +330,6 @@ export class DeliveriesService {
     if (!delivery) {
       throw new NotFoundException(`发货单 ID: ${id} 不存在`);
     }
-    return delivery;
+    return role === 'ADMIN' ? delivery : this.sanitizeDetailForUser(delivery);
   }
 }

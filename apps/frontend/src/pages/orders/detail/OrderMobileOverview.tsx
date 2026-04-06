@@ -13,6 +13,7 @@ interface OrderMobileOverviewProps {
   order: OrderDetail
   stats: OrderItemStatsVM
   isFetching: boolean
+  canViewMoney: boolean
 }
 
 function formatCurrency(value: number) {
@@ -26,6 +27,7 @@ export function OrderMobileOverview({
   order,
   stats,
   isFetching,
+  canViewMoney,
 }: OrderMobileOverviewProps) {
   const progress =
     stats.totalOrderedQty > 0
@@ -79,7 +81,7 @@ export function OrderMobileOverview({
         </div>
       </div>
 
-      <div className='mt-4 grid grid-cols-3 gap-2'>
+      <div className={`mt-4 grid gap-2 ${canViewMoney ? "grid-cols-3" : "grid-cols-2"}`}>
         <div className='border border-border bg-background px-3 py-2'>
           <p className='text-[11px] text-muted-foreground'>
             待发数量
@@ -88,14 +90,16 @@ export function OrderMobileOverview({
             {stats.totalPendingQty}
           </p>
         </div>
-        <div className='border border-border bg-background px-3 py-2'>
-          <p className='text-[11px] text-muted-foreground'>
-            订单金额
-          </p>
-          <p className='mt-1 truncate text-sm font-semibold text-foreground'>
-            ¥{formatCurrency(stats.totalAmount)}
-          </p>
-        </div>
+        {canViewMoney && (
+          <div className='border border-border bg-background px-3 py-2'>
+            <p className='text-[11px] text-muted-foreground'>
+              订单金额
+            </p>
+            <p className='mt-1 truncate text-sm font-semibold text-foreground'>
+              ¥{formatCurrency(stats.totalAmount)}
+            </p>
+          </div>
+        )}
         <div className='border border-border bg-background px-3 py-2'>
           <p className='text-[11px] text-muted-foreground'>
             零件项数

@@ -14,11 +14,13 @@ import { DocumentsService } from './documents.service';
 import { ExecuteSealRequest, ApiResponse } from '@erp/shared-types';
 import type { Response } from 'express';
 import type { AuthenticatedRequest } from '../auth/auth-request';
+import { Roles } from '../auth/roles.decorator';
 
 @Controller('api/documents')
 export class DocumentsController {
   constructor(private readonly documentsService: DocumentsService) {}
 
+  @Roles('ADMIN')
   @Post('seal')
   async executeSeal(
     @Body() requestBody: ExecuteSealRequest,
@@ -29,6 +31,7 @@ export class DocumentsController {
   }
 
   @Get(':id/file')
+  @Roles('ADMIN')
   async getDocumentFile(
     @Param('id', ParseIntPipe) id: number,
     @Res({ passthrough: true }) response: Response,

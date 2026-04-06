@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 interface OrderNewMobileActionsProps {
   itemCount: number
   estimatedTotal: number
+  canViewMoney: boolean
   isSubmitting: boolean
   onAppendItem: () => void
   onSubmit: () => void
@@ -26,6 +27,7 @@ function formatCurrency(value: number) {
 export function OrderNewMobileActions({
   itemCount,
   estimatedTotal,
+  canViewMoney,
   isSubmitting,
   onAppendItem,
   onSubmit,
@@ -37,9 +39,11 @@ export function OrderNewMobileActions({
           <span className='text-muted-foreground'>
             已添加 {itemCount} 项零件
           </span>
-          <span className='font-mono font-semibold text-foreground'>
-            ¥{formatCurrency(estimatedTotal)}
-          </span>
+          {canViewMoney && (
+            <span className='font-mono font-semibold text-foreground'>
+              ¥{formatCurrency(estimatedTotal)}
+            </span>
+          )}
         </div>
       }
     >

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Injectable,
   Logger,
   OnModuleInit,
@@ -7,7 +8,9 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import {
   AuthLoginResponse,
+  ChangePasswordRequest,
   LoginRequest,
+  UserRoleType,
 } from '@erp/shared-types';
 import { PrismaService } from '../prisma/prisma.service';
 import { hashPassword, verifyPassword } from './password.util';
@@ -71,6 +74,7 @@ export class AuthService implements OnModuleInit {
         data: {
           passwordHash: hashPassword(password),
           realName,
+          role: 'ADMIN',
           isActive: true,
         },
       });
@@ -86,6 +90,7 @@ export class AuthService implements OnModuleInit {
         username,
         passwordHash: hashPassword(password),
         realName,
+        role: 'ADMIN',
         isActive: true,
       },
     });
@@ -113,6 +118,7 @@ export class AuthService implements OnModuleInit {
         username: true,
         passwordHash: true,
         realName: true,
+        role: true,
         isActive: true,
       },
     });
@@ -129,12 +135,14 @@ export class AuthService implements OnModuleInit {
       id: user.id,
       username: user.username,
       realName: user.realName,
+      role: user.role as UserRoleType,
       isActive: user.isActive,
     };
     const accessToken = await this.jwtService.signAsync({
       sub: user.id,
       username: user.username,
       realName: user.realName,
+      role: user.role,
     });
 
     return this.buildAuthResponse(authUser, accessToken);
@@ -142,5 +150,32 @@ export class AuthService implements OnModuleInit {
 
   getCurrentUser(user: AuthenticatedUser): AuthenticatedUser {
     return user;
+  }
+
+  async changePassword(userId: number, payload: ChangePasswordRequest) {
+    const user = await this.prisma.client.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        passwordHash: true,
+      },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('当前登录状态无效，请重新登录');
+    }
+    if (!verifyPassword(payload.currentPassword, user.passwordHash)) {
+      throw new BadRequestException('当前密码错误');
+    }
+    if (payload.currentPassword === payload.newPassword) {
+      throw new BadRequestException('新密码不能与当前密码相同');
+    }
+
+    await this.prisma.client.user.update({
+      where: { id: userId },
+      data: {
+        passwordHash: hashPassword(payload.newPassword),
+      },
+    });
   }
 }

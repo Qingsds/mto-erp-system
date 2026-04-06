@@ -19,6 +19,7 @@ import { DataTable } from "@/components/common/DataTable"
 import { TableToolbar } from "@/components/common/TableToolbar"
 import { Button } from "@/components/ui/button"
 import { useDebouncedValue } from "@/hooks/useDebouncedValue"
+import { useCanViewMoney, useIsAdmin } from "@/lib/permissions"
 import type { PartsPageProps } from "./PartsPage"
 import { PartManagementSheet } from "./PartManagementSheet"
 import { getPartsColumns } from "./parts.columns"
@@ -26,6 +27,8 @@ import { usePartsPageController } from "./usePartsPageController"
 
 export function PartsDesktop({ quickAction }: PartsPageProps) {
   const navigate = useNavigate()
+  const canViewMoney = useCanViewMoney()
+  const canManage = useIsAdmin()
   const [sorting, setSorting] = useState<SortingState>([])
   const [search, setSearch] = useState("")
   const debouncedSearch = useDebouncedValue(search.trim(), 300)
@@ -56,7 +59,8 @@ export function PartsDesktop({ quickAction }: PartsPageProps) {
   const columns = useMemo(() => getPartsColumns(
     openEditPanel,
     part => { void handleDelete(part) },
-  ), [handleDelete, openEditPanel])
+    { canViewMoney, canManage },
+  ), [canManage, canViewMoney, handleDelete, openEditPanel])
 
   const table = useReactTable({
     data: parts,
@@ -118,23 +122,27 @@ export function PartsDesktop({ quickAction }: PartsPageProps) {
                 : undefined
             }
             actions={
-              <>
-                <Button
-                  variant='outline'
-                  size='sm'
-                  onClick={openImportPanel}
-                >
-                  <i className='ri-upload-2-line mr-1.5' />
-                  批量导入
-                </Button>
-                <Button
-                  size='sm'
-                  onClick={openAddPanel}
-                >
-                  <i className='ri-add-line mr-1.5' />
-                  新增零件
-                </Button>
-              </>
+              canManage
+                ? (
+                    <>
+                      <Button
+                        variant='outline'
+                        size='sm'
+                        onClick={openImportPanel}
+                      >
+                        <i className='ri-upload-2-line mr-1.5' />
+                        批量导入
+                      </Button>
+                      <Button
+                        size='sm'
+                        onClick={openAddPanel}
+                      >
+                        <i className='ri-add-line mr-1.5' />
+                        新增零件
+                      </Button>
+                    </>
+                  )
+                : undefined
             }
           />
         }
@@ -165,15 +173,17 @@ export function PartsDesktop({ quickAction }: PartsPageProps) {
         }
       />
 
-      <PartManagementSheet
-        panel={panel}
-        form={form}
-        editingPart={editingPart}
-        onClose={closePanel}
-        onImport={handleImport}
-        onSubmit={handleSubmit}
-        width={580}
-      />
+      {canManage && (
+        <PartManagementSheet
+          panel={panel}
+          form={form}
+          editingPart={editingPart}
+          onClose={closePanel}
+          onImport={handleImport}
+          onSubmit={handleSubmit}
+          width={580}
+        />
+      )}
     </>
   )
 }

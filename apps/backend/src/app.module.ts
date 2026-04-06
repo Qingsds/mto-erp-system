@@ -10,11 +10,13 @@ import { BillingModule } from './billing/billing.module';
 import { SealsModule } from './seals/seals.module';
 import { DocumentsModule } from './documents/documents.module';
 import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
     PrismaModule,
     AuthModule,
+    UsersModule,
     OrdersModule,
     PartsModule,
     DeliveriesModule,

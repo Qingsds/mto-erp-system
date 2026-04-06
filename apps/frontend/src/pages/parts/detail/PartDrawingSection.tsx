@@ -10,6 +10,7 @@ interface PartDrawingSectionProps {
   uploadError: string | null
   isUploading: boolean
   isMobile: boolean
+  canUpload: boolean
   onUploadClick: () => void
   onImagePreview: (src: string, title: string) => void
 }
@@ -21,6 +22,7 @@ export function PartDrawingSection({
   uploadError,
   isUploading,
   isMobile,
+  canUpload,
   onUploadClick,
   onImagePreview,
 }: PartDrawingSectionProps) {
@@ -32,28 +34,32 @@ export function PartDrawingSection({
             <div>
               <h2 className='text-sm font-semibold'>工程图纸</h2>
               <p className='mt-1 text-xs text-muted-foreground'>
-                {PART_DRAWING_HELP_TEXT}，上传后旧版本自动归档
+                {canUpload
+                  ? `${PART_DRAWING_HELP_TEXT}，上传后旧版本自动归档`
+                  : "可查看最新图纸与历史版本，上传维护仅管理员可用"}
               </p>
             </div>
-            <Button
-              size='sm'
-              variant='outline'
-              className='h-8 shrink-0 px-2.5 text-xs'
-              onClick={onUploadClick}
-              disabled={isUploading}
-            >
-              {isUploading ? (
-                <>
-                  <i className='ri-loader-4-line mr-1 animate-spin' />
-                  上传中
-                </>
-              ) : (
-                <>
-                  <i className='ri-upload-2-line mr-1' />
-                  上传图纸
-                </>
-              )}
-            </Button>
+            {canUpload && (
+              <Button
+                size='sm'
+                variant='outline'
+                className='h-8 shrink-0 px-2.5 text-xs'
+                onClick={onUploadClick}
+                disabled={isUploading}
+              >
+                {isUploading ? (
+                  <>
+                    <i className='ri-loader-4-line mr-1 animate-spin' />
+                    上传中
+                  </>
+                ) : (
+                  <>
+                    <i className='ri-upload-2-line mr-1' />
+                    上传图纸
+                  </>
+                )}
+              </Button>
+            )}
           </div>
         </div>
         <div className='p-3 sm:p-4'>
@@ -64,6 +70,7 @@ export function PartDrawingSection({
             isUploading={isUploading}
             errorMessage={uploadError}
             onImagePreview={onImagePreview}
+            canUpload={canUpload}
           />
         </div>
       </section>

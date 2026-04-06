@@ -21,6 +21,7 @@ import {
   TableToolbar,
 } from "@/components/common/TableToolbar"
 import { Button } from "@/components/ui/button"
+import { useCanViewMoney } from "@/lib/permissions"
 import { getOrdersColumns } from "../orders.columns"
 import type { OrdersPageSearch } from "./search"
 import { useOrdersPageController } from "./useOrdersPageController"
@@ -32,6 +33,7 @@ interface OrdersDesktopProps {
 }
 
 export function OrdersDesktop({ search }: OrdersDesktopProps) {
+  const canViewMoney = useCanViewMoney()
   const [sorting, setSorting] = useState<SortingState>([])
   const {
     keyword,
@@ -59,8 +61,8 @@ export function OrdersDesktop({ search }: OrdersDesktopProps) {
     () =>
       getOrdersColumns(order => {
         openDetail(order.id)
-      }),
-    [openDetail],
+      }, { canViewMoney }),
+    [canViewMoney, openDetail],
   )
 
   const table = useReactTable({

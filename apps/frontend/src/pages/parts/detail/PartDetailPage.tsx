@@ -25,6 +25,7 @@ import {
   validatePartDrawingFile,
 } from "@/hooks/api/useParts"
 import { PageContentWrapper } from "@/components/common/PageContentWrapper"
+import { useCanViewMoney, useIsAdmin } from "@/lib/permissions"
 import { PartDetailEditForm } from "./PartDetailEditForm"
 import { PartDrawingSection } from "./PartDrawingSection"
 import { PartImagePreviewDialog } from "./PartImagePreviewDialog"
@@ -41,6 +42,8 @@ export function PartDetailPage() {
   const { id } = useParams({ from: "/parts/$id" })
   const navigate = useNavigate()
   const { isMobile } = useUIStore()
+  const canViewMoney = useCanViewMoney()
+  const canManage = useIsAdmin()
   const partId = Number(id)
 
   const { data: part, isLoading } = useGetPart(partId)
@@ -194,6 +197,7 @@ export function PartDetailPage() {
         partName={part.name}
         partNumber={part.partNumber}
         isEditing={isEditing}
+        canManage={canManage}
         onBack={handleBack}
         onToggleEdit={handleToggleEdit}
       />
@@ -210,6 +214,7 @@ export function PartDetailPage() {
             uploadError={uploadError}
             isUploading={uploadDrawing.isPending}
             isMobile={isMobile}
+            canUpload={canManage}
             onUploadClick={() => fileInputRef.current?.click()}
             onImagePreview={(src, title) =>
               setPreviewImage({ src, title })
@@ -217,7 +222,7 @@ export function PartDetailPage() {
           />
 
           <div className='w-full min-w-0 flex-1'>
-            {isEditing ? (
+            {isEditing && canManage ? (
               <section className='border border-border bg-card px-3 py-3 sm:px-5 sm:py-4'>
                 <div className='mb-3 flex items-center justify-between sm:mb-4'>
                   <div>
@@ -243,12 +248,13 @@ export function PartDetailPage() {
                 primaryPrice={primaryPrice}
                 prices={prices}
                 latestDrawingName={latest?.fileName}
+                canViewMoney={canViewMoney}
               />
             )}
           </div>
         </div>
 
-        {isMobile && (
+        {isMobile && canManage && (
           <PartDetailMobileActions
             partNumber={part.partNumber}
             isEditing={isEditing}

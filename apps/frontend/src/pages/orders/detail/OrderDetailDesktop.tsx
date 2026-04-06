@@ -38,6 +38,8 @@ interface OrderDetailDesktopProps {
   onCloseShort: () => void
   /** 打开发货单详情回调。 */
   onOpenDelivery: (deliveryId: number) => void
+  /** 是否允许查看金额信息。 */
+  canViewMoney: boolean
 }
 
 export function OrderDetailDesktop({
@@ -53,10 +55,16 @@ export function OrderDetailDesktop({
   onOpenCreate,
   onCloseShort,
   onOpenDelivery,
+  canViewMoney,
 }: OrderDetailDesktopProps) {
   return (
     <div className="flex flex-col gap-4 sm:gap-5">
-      <OrderSummaryCards order={order} stats={itemStats} isFetching={isFetching} />
+      <OrderSummaryCards
+        order={order}
+        stats={itemStats}
+        isFetching={isFetching}
+        canViewMoney={canViewMoney}
+      />
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
         <OrderDetailSections
@@ -66,6 +74,7 @@ export function OrderDetailDesktop({
           deliveries={order.deliveries}
           onOpenDelivery={onOpenDelivery}
           timeline={timeline}
+          canViewMoney={canViewMoney}
         />
 
         <aside className="lg:sticky lg:top-4">

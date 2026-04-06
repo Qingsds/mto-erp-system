@@ -8,7 +8,9 @@ import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { IS_PUBLIC_KEY } from './public.decorator';
+import { ROLES_KEY } from './roles.decorator';
 import type { AuthenticatedRequest } from './auth-request';
+import type { UserRoleType } from '@erp/shared-types';
 
 interface JwtPayload {
   sub: number;
@@ -50,6 +52,10 @@ export class JwtAuthGuard implements CanActivate {
     const request = context
       .switchToHttp()
       .getRequest<AuthenticatedRequest>();
+    const requiredRoles = this.reflector.getAllAndOverride<UserRoleType[]>(
+      ROLES_KEY,
+      [context.getHandler(), context.getClass()],
+    );
     const token = this.extractBearerToken(request);
     if (!token) {
       throw new UnauthorizedException('请先登录');
@@ -68,12 +74,16 @@ export class JwtAuthGuard implements CanActivate {
         id: true,
         username: true,
         realName: true,
+        role: true,
         isActive: true,
       },
     });
 
     if (!user || !user.isActive) {
       throw new UnauthorizedException('当前账号不可用，请重新登录');
+    }
+    if (requiredRoles && requiredRoles.length > 0 && !requiredRoles.includes(user.role)) {
+      throw new UnauthorizedException('当前账号无权访问该功能');
     }
 
     request.user = user;

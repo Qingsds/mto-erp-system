@@ -12,6 +12,7 @@ import {
   UploadedFile,
   UseInterceptors,
   Delete,
+  Req,
   Res,
 } from '@nestjs/common';
 import { PartsService } from './parts.service';
@@ -23,11 +24,14 @@ import {
   UpdatePartRequest,
 } from '@erp/shared-types';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Roles } from '../auth/roles.decorator';
+import type { AuthenticatedRequest } from '../auth/auth-request';
 
 @Controller('api/parts')
 export class PartsController {
   constructor(private readonly partsService: PartsService) {}
 
+  @Roles('ADMIN')
   @Post()
   async create(@Body() requestBody: CreatePartRequest): Promise<ApiResponse> {
     const result = await this.partsService.create(requestBody);
@@ -44,14 +48,23 @@ export class PartsController {
     @Query('page') page: number = 1,
     @Query('pageSize') pageSize: number = 10,
     @Query('keyword') keyword?: string,
+    @Req() request?: AuthenticatedRequest,
   ): Promise<ApiResponse> {
-    const result = await this.partsService.findAll(page, pageSize, keyword);
+    const result = await this.partsService.findAll(
+      page,
+      pageSize,
+      keyword,
+      request?.user.role,
+    );
     return { code: 200, message: '查询成功', data: result };
   }
 
   @Get(':id')
-  async findOne(@Param('id', ParseIntPipe) id: number): Promise<ApiResponse> {
-    const result = await this.partsService.findOne(id);
+  async findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<ApiResponse> {
+    const result = await this.partsService.findOne(id, request.user.role);
     return { code: 200, message: '查询成功', data: result };
   }
 
@@ -77,6 +90,7 @@ export class PartsController {
     return new StreamableFile(result.stream);
   }
 
+  @Roles('ADMIN')
   @Patch(':id')
   async updatePart(
     @Param('id', ParseIntPipe) id: number,
@@ -86,6 +100,7 @@ export class PartsController {
     return { code: 200, message: '零件修改成功', data: result };
   }
 
+  @Roles('ADMIN')
   @Delete(':id')
   async deletePart(
     @Param('id', ParseIntPipe) id: number,
@@ -98,6 +113,7 @@ export class PartsController {
    * 图纸上传接口
    * 采用 multipart/form-data 格式，字段名为 'file'
    */
+  @Roles('ADMIN')
   @Post(':id/drawings')
   @UseInterceptors(FileInterceptor('file')) // 拦截名为 'file' 的表单数据
   async uploadDrawing(
@@ -118,6 +134,7 @@ export class PartsController {
   }
 
   // 新增：批量导入接口
+  @Roles('ADMIN')
   @Post('batch')
   async createBatch(
     @Body() requestBody: CreatePartRequest[],

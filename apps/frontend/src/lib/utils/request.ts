@@ -51,6 +51,7 @@ request.interceptors.response.use(
     const { response } = error
     const errorMsg = response?.data?.message || error.message || "网络请求失败"
     const requestUrl = String(response?.config?.url || "")
+    const isAuthMeRequest = requestUrl.includes("/api/auth/me")
 
     if (
       response?.status === 401 &&
@@ -64,7 +65,9 @@ request.interceptors.response.use(
       }
     }
 
-    toast.error(errorMsg)
+    if (!isAuthMeRequest) {
+      toast.error(errorMsg)
+    }
     return Promise.reject(error)
   },
 )

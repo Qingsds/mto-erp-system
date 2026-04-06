@@ -38,6 +38,7 @@ import {
   useGetOrders,
 } from "@/hooks/api/useOrders"
 import { useGetParts } from "@/hooks/api/useParts"
+import { useCanViewMoney } from "@/lib/permissions"
 import { useUIStore } from "@/store/ui.store"
 
 // ─── Types ────────────────────────────────────────────────
@@ -167,7 +168,13 @@ function MobileCardSkeleton() {
 }
 
 // ─── Mobile: order card ───────────────────────────────────
-function MobileOrderCard({ order }: { order: DashboardOrderItem }) {
+function MobileOrderCard({
+  order,
+  canViewMoney,
+}: {
+  order: DashboardOrderItem
+  canViewMoney: boolean
+}) {
   return (
     <Card className='cursor-pointer active:bg-muted/50 transition-colors'>
       <CardContent className='p-4'>
@@ -195,9 +202,11 @@ function MobileOrderCard({ order }: { order: DashboardOrderItem }) {
           <span className='text-xs text-muted-foreground'>
             {order.count} 件 · {order.date}
           </span>
-          <span className='font-mono text-sm font-semibold'>
-            {order.amount}
-          </span>
+          {canViewMoney && (
+            <span className='font-mono text-sm font-semibold'>
+              {order.amount}
+            </span>
+          )}
         </div>
       </CardContent>
     </Card>
@@ -209,10 +218,12 @@ function MobileDashboard({
   isLoading,
   stats,
   orders,
+  canViewMoney,
 }: {
   isLoading: boolean
   stats: StatItem[]
   orders: DashboardOrderItem[]
+  canViewMoney: boolean
 }) {
   return (
     <div className='flex-1 overflow-y-auto p-4 flex flex-col gap-4'>
@@ -289,6 +300,7 @@ function MobileDashboard({
                 <MobileOrderCard
                   key={o.id}
                   order={o}
+                  canViewMoney={canViewMoney}
                 />
               ))}
         </div>
@@ -303,11 +315,13 @@ function DesktopDashboard({
   stats,
   orders,
   todos,
+  canViewMoney,
 }: {
   isLoading: boolean
   stats: StatItem[]
   orders: DashboardOrderItem[]
   todos: TodoItem[]
+  canViewMoney: boolean
 }) {
   return (
     <div className='flex-1 overflow-y-auto p-6 flex flex-col gap-6'>
@@ -409,7 +423,7 @@ function DesktopDashboard({
                   <TableHead>订单号</TableHead>
                   <TableHead>客户名称</TableHead>
                   <TableHead>零件数</TableHead>
-                  <TableHead>金额</TableHead>
+                  {canViewMoney && <TableHead>金额</TableHead>}
                   <TableHead>状态</TableHead>
                   <TableHead>日期</TableHead>
                 </TableRow>
@@ -433,9 +447,11 @@ function DesktopDashboard({
                         <TableCell className='text-muted-foreground'>
                           {row.count} 件
                         </TableCell>
-                        <TableCell className='font-mono font-medium'>
-                          {row.amount}
-                        </TableCell>
+                        {canViewMoney && (
+                          <TableCell className='font-mono font-medium'>
+                            {row.amount}
+                          </TableCell>
+                        )}
                         <TableCell>
                           <OrderBadge status={row.status} />
                         </TableCell>
@@ -523,6 +539,7 @@ function DesktopDashboard({
 // ─── Page ─────────────────────────────────────────────────
 export function DashboardPage() {
   const { isMobile } = useUIStore()
+  const canViewMoney = useCanViewMoney()
 
   // 看板按“当前自然月”聚合发货数据，边界使用本地时区日期。
   const now = new Date()
@@ -553,8 +570,14 @@ export function DashboardPage() {
     deliveryDateStart: monthStart,
     deliveryDateEnd: monthEnd,
   })
-  const billingDraftQuery = useGetBilling({ page: 1, pageSize: 1, status: "DRAFT" })
-  const billingSealedQuery = useGetBilling({ page: 1, pageSize: 1, status: "SEALED" })
+  const billingDraftQuery = useGetBilling(
+    { page: 1, pageSize: 1, status: "DRAFT" },
+    { enabled: canViewMoney },
+  )
+  const billingSealedQuery = useGetBilling(
+    { page: 1, pageSize: 1, status: "SEALED" },
+    { enabled: canViewMoney },
+  )
   const partsTotalQuery = useGetParts({ page: 1, pageSize: 1 })
   const partsSnapshotQuery = useGetParts({ page: 1, pageSize: 50 })
 
@@ -565,8 +588,7 @@ export function DashboardPage() {
     partialOrdersQuery,
     closedOrdersQuery,
     monthlyDeliveriesQuery,
-    billingDraftQuery,
-    billingSealedQuery,
+    ...(canViewMoney ? [billingDraftQuery, billingSealedQuery] : []),
     partsTotalQuery,
     partsSnapshotQuery,
   ].some(query => query.isLoading)
@@ -576,13 +598,9 @@ export function DashboardPage() {
       (pendingOrdersQuery.data?.total ?? 0) +
       (partialOrdersQuery.data?.total ?? 0)
     const monthlyDeliveryCount = monthlyDeliveriesQuery.data?.total ?? 0
-    const draftCount = billingDraftQuery.data?.total ?? 0
-    const sealedCount = billingSealedQuery.data?.total ?? 0
-    // 待结算单 = 草稿 + 已盖章（尚未完成回款/结算闭环）。
-    const receivableCount = draftCount + sealedCount
     const partsTotal = partsTotalQuery.data?.total ?? 0
 
-    return [
+    const items: StatItem[] = [
       {
         label: "进行中订单",
         value: String(ongoingCount),
@@ -598,13 +616,6 @@ export function DashboardPage() {
         icon: "ri-truck-line",
       },
       {
-        label: "待结算单",
-        value: String(receivableCount),
-        delta: `草稿 ${draftCount} · 已盖章 ${sealedCount}`,
-        trend: receivableCount > 0 ? "warn" : "neutral",
-        icon: "ri-bank-card-line",
-      },
-      {
         label: "零件总数",
         value: String(partsTotal),
         delta: "已录入零件总量",
@@ -612,9 +623,35 @@ export function DashboardPage() {
         icon: "ri-settings-3-line",
       },
     ]
+
+    if (canViewMoney) {
+      const draftCount = billingDraftQuery.data?.total ?? 0
+      const sealedCount = billingSealedQuery.data?.total ?? 0
+      const receivableCount = draftCount + sealedCount
+
+      items.splice(2, 0, {
+        label: "待结算单",
+        value: String(receivableCount),
+        delta: `草稿 ${draftCount} · 已盖章 ${sealedCount}`,
+        trend: receivableCount > 0 ? "warn" : "neutral",
+        icon: "ri-bank-card-line",
+      })
+    } else {
+      items.splice(2, 0, {
+        label: "短交结案",
+        value: String(closedOrdersQuery.data?.total ?? 0),
+        delta: "普通用户仅展示履约状态",
+        trend: (closedOrdersQuery.data?.total ?? 0) > 0 ? "warn" : "neutral",
+        icon: "ri-close-circle-line",
+      })
+    }
+
+    return items
   }, [
+    canViewMoney,
     billingDraftQuery.data?.total,
     billingSealedQuery.data?.total,
+    closedOrdersQuery.data?.total,
     monthEnd,
     monthStart,
     monthlyDeliveriesQuery.data?.total,
@@ -656,25 +693,28 @@ export function DashboardPage() {
     const ongoingCount =
       (pendingOrdersQuery.data?.total ?? 0) +
       (partialOrdersQuery.data?.total ?? 0)
-    const draftCount = billingDraftQuery.data?.total ?? 0
-    const sealedCount = billingSealedQuery.data?.total ?? 0
-    const pendingBills = draftCount + sealedCount
     const shortClosedCount = closedOrdersQuery.data?.total ?? 0
-    const missingPriceCount = (partsSnapshotQuery.data?.data ?? []).filter(part => {
-      // commonPrices 任一价格 > 0 即视为已配置；全空或全 0 视为缺失。
-      const entries = Object.values(part.commonPrices ?? {})
-      if (entries.length === 0) return true
-      return entries.every(value => billingDecimalToNum(value) <= 0)
-    }).length
 
     if (ongoingCount > 0) {
       list.push({ text: `${ongoingCount} 张订单待履约/发货推进`, type: "warn" })
     }
-    if (pendingBills > 0) {
-      list.push({ text: `${pendingBills} 张对账单待确认或结清`, type: "warn" })
-    }
-    if (missingPriceCount > 0) {
-      list.push({ text: `${missingPriceCount} 个零件价格未配置或为 0（近 50 条）`, type: "danger" })
+    if (canViewMoney) {
+      const draftCount = billingDraftQuery.data?.total ?? 0
+      const sealedCount = billingSealedQuery.data?.total ?? 0
+      const pendingBills = draftCount + sealedCount
+      const missingPriceCount = (partsSnapshotQuery.data?.data ?? []).filter(part => {
+        // commonPrices 任一价格 > 0 即视为已配置；全空或全 0 视为缺失。
+        const entries = Object.values(part.commonPrices ?? {})
+        if (entries.length === 0) return true
+        return entries.every(value => billingDecimalToNum(value) <= 0)
+      }).length
+
+      if (pendingBills > 0) {
+        list.push({ text: `${pendingBills} 张对账单待确认或结清`, type: "warn" })
+      }
+      if (missingPriceCount > 0) {
+        list.push({ text: `${missingPriceCount} 个零件价格未配置或为 0（近 50 条）`, type: "danger" })
+      }
     }
     list.push({ text: `短交结案订单累计 ${shortClosedCount} 张`, type: "success" })
 
@@ -684,6 +724,7 @@ export function DashboardPage() {
 
     return list
   }, [
+    canViewMoney,
     billingDraftQuery.data?.total,
     billingSealedQuery.data?.total,
     closedOrdersQuery.data?.total,
@@ -697,6 +738,7 @@ export function DashboardPage() {
       isLoading={isLoading}
       stats={stats}
       orders={orders}
+      canViewMoney={canViewMoney}
     />
   ) : (
     <DesktopDashboard
@@ -704,6 +746,7 @@ export function DashboardPage() {
       stats={stats}
       orders={orders}
       todos={todos}
+      canViewMoney={canViewMoney}
     />
   )
 }

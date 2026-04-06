@@ -1,6 +1,7 @@
 import { useNavigate, useRouterState } from "@tanstack/react-router"
 import { useUIStore } from "@/store/ui.store"
 import { useAuthStore } from "@/store/auth.store"
+import { useLogout } from "@/hooks/api/useAuth"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 
@@ -10,6 +11,7 @@ type RoutePath =
   | "/orders"
   | "/deliveries"
   | "/billing"
+  | "/users"
   | "/seals"
 
 interface BreadcrumbItem {
@@ -23,6 +25,7 @@ const SECTION_LABELS: Record<string, string> = {
   orders: "订单管理",
   deliveries: "发货管理",
   billing: "财务对账",
+  users: "用户管理",
   seals: "印章管理",
 }
 
@@ -31,6 +34,7 @@ const SECTION_PATHS: Record<string, RoutePath | undefined> = {
   orders: "/orders",
   deliveries: "/deliveries",
   billing: "/billing",
+  users: "/users",
   seals: "/seals",
 }
 
@@ -79,15 +83,10 @@ export function Header() {
     select: state => state.location.pathname,
   })
   const user = useAuthStore(state => state.user)
-  const clearSession = useAuthStore(state => state.clearSession)
+  const logout = useLogout()
   const breadcrumbs = getBreadcrumbItems(pathname)
   const mobileLabel =
     breadcrumbs[breadcrumbs.length - 1]?.label ?? "MTO ERP"
-
-  const handleLogout = () => {
-    clearSession()
-    navigate({ to: "/login" })
-  }
 
   return (
     <header
@@ -222,7 +221,7 @@ export function Header() {
           variant='ghost'
           size='icon'
           title='退出登录'
-          onClick={handleLogout}
+          onClick={logout}
         >
           <i className='ri-logout-box-r-line text-base' />
         </Button>

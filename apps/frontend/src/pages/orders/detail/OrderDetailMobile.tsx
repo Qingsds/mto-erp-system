@@ -37,6 +37,8 @@ interface OrderDetailMobileProps {
   onCloseShort: () => void
   /** 打开发货单详情回调。 */
   onOpenDelivery: (deliveryId: number) => void
+  /** 是否允许查看金额信息。 */
+  canViewMoney: boolean
 }
 
 export function OrderDetailMobile({
@@ -52,6 +54,7 @@ export function OrderDetailMobile({
   onOpenCreate,
   onCloseShort,
   onOpenDelivery,
+  canViewMoney,
 }: OrderDetailMobileProps) {
   return (
     <div className="flex min-h-full flex-col gap-4 sm:gap-5">
@@ -59,6 +62,7 @@ export function OrderDetailMobile({
         order={order}
         stats={itemStats}
         isFetching={isFetching}
+        canViewMoney={canViewMoney}
       />
 
       <OrderDetailSections
@@ -68,6 +72,7 @@ export function OrderDetailMobile({
         deliveries={order.deliveries}
         onOpenDelivery={onOpenDelivery}
         timeline={timeline}
+        canViewMoney={canViewMoney}
       />
 
       <OrderDetailMobileActions

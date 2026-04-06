@@ -11,6 +11,7 @@
  *  - request                ← @/lib/utils/request
  */
 
+import { useEffect, useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import type {
   ApiResponse,
@@ -133,6 +134,92 @@ export function buildPartDrawingFileUrl(
     search.size > 0 ? `?${search.toString()}` : ""
   }`
   return resolveApiUrl(path)
+}
+
+async function fetchPartDrawingBlob(drawing: PartDrawing) {
+  return request.get<Blob, Blob>(
+    buildPartDrawingFileUrl(drawing.partId, drawing.id),
+    { responseType: "blob" },
+  )
+}
+
+export function triggerPartDrawingDownload(
+  blob: Blob,
+  fileName: string,
+) {
+  const objectUrl = window.URL.createObjectURL(blob)
+  const anchor = document.createElement("a")
+  anchor.href = objectUrl
+  anchor.download = fileName
+  document.body.append(anchor)
+  anchor.click()
+  anchor.remove()
+  window.URL.revokeObjectURL(objectUrl)
+}
+
+/**
+ * 图纸预览地址。
+ *
+ * 通过带鉴权头的请求拉取 blob，再转成 object URL，
+ * 避免浏览器直接访问受保护文件接口时丢失 Authorization。
+ */
+export function usePartDrawingPreviewUrl(drawing?: PartDrawing) {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [previewError, setPreviewError] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+
+  useEffect(() => {
+    if (!drawing) {
+      setPreviewUrl(null)
+      setPreviewError(null)
+      setIsLoading(false)
+      return
+    }
+
+    let currentUrl: string | null = null
+    let cancelled = false
+
+    const loadPreview = async () => {
+      try {
+        setIsLoading(true)
+        setPreviewError(null)
+        const blob = await fetchPartDrawingBlob(drawing)
+        if (cancelled) return
+        currentUrl = window.URL.createObjectURL(blob)
+        setPreviewUrl(currentUrl)
+      } catch (error) {
+        if (cancelled) return
+        setPreviewUrl(null)
+        setPreviewError(
+          error instanceof Error ? error.message : "图纸加载失败",
+        )
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    void loadPreview()
+
+    return () => {
+      cancelled = true
+      if (currentUrl) {
+        window.URL.revokeObjectURL(currentUrl)
+      }
+    }
+  }, [drawing])
+
+  return {
+    previewUrl,
+    previewError,
+    isLoading,
+  }
+}
+
+export async function downloadPartDrawingFile(drawing: PartDrawing) {
+  const blob = await fetchPartDrawingBlob(drawing)
+  triggerPartDrawingDownload(blob, drawing.fileName)
 }
 
 // ─── Query keys ───────────────────────────────────────────

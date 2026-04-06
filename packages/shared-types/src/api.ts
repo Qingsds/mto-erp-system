@@ -11,6 +11,7 @@ import {
   IsNotEmpty,
   IsObject,
   IsIn,
+  MinLength,
 } from "class-validator"
 import { Type } from "class-transformer"
 
@@ -23,16 +24,56 @@ export interface ApiResponse<T = any> {
   data?: T
 }
 
+export type UserRoleType = "ADMIN" | "USER"
+
 export interface AuthUserInfo {
   id: number
   username: string
   realName: string
+  role: UserRoleType
   isActive: boolean
 }
 
 export interface AuthLoginResponse {
   accessToken: string
   user: AuthUserInfo
+}
+
+export class CreateUserRequest {
+  @IsString({ message: "用户名必须是字符串" })
+  @IsNotEmpty({ message: "用户名不能为空" })
+  username!: string
+
+  @IsString({ message: "姓名必须是字符串" })
+  @IsNotEmpty({ message: "姓名不能为空" })
+  realName!: string
+
+  @IsIn(["ADMIN", "USER"], { message: "角色只能是 ADMIN 或 USER" })
+  role!: UserRoleType
+
+  @IsString({ message: "密码必须是字符串" })
+  @IsNotEmpty({ message: "密码不能为空" })
+  @MinLength(8, { message: "密码长度不能少于 8 位" })
+  password!: string
+}
+
+export class UpdateUserRequest {
+  @IsString({ message: "姓名必须是字符串" })
+  @IsOptional()
+  realName?: string
+
+  @IsIn(["ADMIN", "USER"], { message: "角色只能是 ADMIN 或 USER" })
+  @IsOptional()
+  role?: UserRoleType
+
+  @IsBoolean({ message: "账号状态必须是布尔值" })
+  @IsOptional()
+  isActive?: boolean
+
+  @IsString({ message: "重置密码必须是字符串" })
+  @MinLength(8, { message: "重置密码长度不能少于 8 位" })
+  @IsOptional()
+  password?: string
 }
 
 export type OrderStatusType =
@@ -206,6 +247,17 @@ export class LoginRequest {
   @IsString({ message: "密码必须是字符串" })
   @IsNotEmpty({ message: "密码不能为空" })
   password!: string
+}
+
+export class ChangePasswordRequest {
+  @IsString({ message: "当前密码必须是字符串" })
+  @IsNotEmpty({ message: "当前密码不能为空" })
+  currentPassword!: string
+
+  @IsString({ message: "新密码必须是字符串" })
+  @IsNotEmpty({ message: "新密码不能为空" })
+  @MinLength(8, { message: "新密码长度不能少于 8 位" })
+  newPassword!: string
 }
 
 export class ExecuteSealRequest {

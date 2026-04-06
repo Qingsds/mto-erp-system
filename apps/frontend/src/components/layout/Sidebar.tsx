@@ -2,6 +2,8 @@ import { Link, useRouterState } from "@tanstack/react-router"
 import { cn } from "@/lib/utils"
 import { useUIStore } from "@/store/ui.store"
 import { useAuthStore } from "@/store/auth.store"
+import { useLogout } from "@/hooks/api/useAuth"
+import { useIsAdmin } from "@/lib/permissions"
 
 // ─── Nav config ───────────────────────────────────────────
 const NAV = [
@@ -45,6 +47,7 @@ const NAV = [
         icon: "ri-bank-card-line",
         iconActive: "ri-bank-card-fill",
         badge: "4",
+        adminOnly: true,
       },
     ],
   },
@@ -56,6 +59,14 @@ const NAV = [
         label: "印章管理",
         icon: "ri-seal-line",
         iconActive: "ri-seal-fill",
+        adminOnly: true,
+      },
+      {
+        to: "/users",
+        label: "用户管理",
+        icon: "ri-user-settings-line",
+        iconActive: "ri-user-settings-fill",
+        adminOnly: true,
       },
     ],
   },
@@ -117,7 +128,13 @@ function NavItem({
 export function Sidebar() {
   const { collapsed, toggleCollapsed, toggleSettings } = useUIStore()
   const user = useAuthStore(state => state.user)
-  const clearSession = useAuthStore(state => state.clearSession)
+  const isAdmin = useIsAdmin()
+  const logout = useLogout()
+
+  const navSections = NAV.map(section => ({
+    ...section,
+    items: section.items.filter(item => !item.adminOnly || isAdmin),
+  })).filter(section => section.items.length > 0)
 
   return (
     <aside
@@ -156,7 +173,7 @@ export function Sidebar() {
 
       {/* Nav */}
       <nav className='flex-1 overflow-y-auto py-2 px-2 flex flex-col gap-0.5'>
-        {NAV.map(section => (
+        {navSections.map(section => (
           <div key={section.section}>
             {!collapsed && (
               <p className='text-[10.5px] font-medium tracking-widest text-muted-foreground/60 px-2.5 pt-3 pb-1 uppercase'>
@@ -207,7 +224,7 @@ export function Sidebar() {
 
         <button
           title={collapsed ? "退出登录" : undefined}
-          onClick={clearSession}
+          onClick={logout}
           className={cn(
             "flex items-center gap-2.5 w-full rounded-md px-2.5 py-2 text-sm",
             "text-muted-foreground hover:bg-accent hover:text-accent-foreground",

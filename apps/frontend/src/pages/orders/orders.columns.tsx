@@ -21,8 +21,9 @@ const col = createColumnHelper<OrderListItem>()
 
 export function getOrdersColumns(
   onView:   (o: OrderListItem) => void,
+  options?: { canViewMoney?: boolean },
 ) {
-  return [
+  const columns = [
     col.display({
       id:   "orderNo",
       header: "订单编号",
@@ -100,20 +101,6 @@ export function getOrdersColumns(
       },
     }),
 
-    col.display({
-      id:   "totalAmount",
-      header: "金额",
-      size: 100,
-      cell: i => {
-        const total = computeListOrderAmount(i.row.original)
-        return (
-          <span className="font-mono text-sm font-medium tabular-nums whitespace-nowrap">
-            ¥{total.toLocaleString("zh-CN", { minimumFractionDigits: 2 })}
-          </span>
-        )
-      },
-    }),
-
     col.accessor("createdAt", {
       header: "创建日期",
       size:   100,
@@ -137,4 +124,22 @@ export function getOrdersColumns(
       ),
     }),
   ]
+
+  if (options?.canViewMoney ?? true) {
+    columns.splice(4, 0, col.display({
+      id: "totalAmount",
+      header: "金额",
+      size: 100,
+      cell: i => {
+        const total = computeListOrderAmount(i.row.original)
+        return (
+          <span className="font-mono text-sm font-medium tabular-nums whitespace-nowrap">
+            ¥{total.toLocaleString("zh-CN", { minimumFractionDigits: 2 })}
+          </span>
+        )
+      },
+    }))
+  }
+
+  return columns
 }

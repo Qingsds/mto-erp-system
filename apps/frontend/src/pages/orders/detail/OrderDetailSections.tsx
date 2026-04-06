@@ -26,6 +26,8 @@ interface OrderDetailSectionsProps {
   onOpenDelivery?: (deliveryId: number) => void
   /** 时间线事件列表。 */
   timeline: TimelineEvent[]
+  /** 是否允许查看金额信息。 */
+  canViewMoney: boolean
 }
 
 export function OrderDetailSections({
@@ -35,6 +37,7 @@ export function OrderDetailSections({
   deliveries,
   onOpenDelivery,
   timeline,
+  canViewMoney,
 }: OrderDetailSectionsProps) {
   const segments = [
     { key: "items", label: "BOM", mobileLabel: "BOM", icon: "ri-list-check-3" },
@@ -71,7 +74,12 @@ export function OrderDetailSections({
       </div>
 
       <div className="rounded-xl border border-border bg-card">
-        {tab === "items" && <OrderItemsTable lines={itemStats.lines} />}
+        {tab === "items" && (
+          <OrderItemsTable
+            lines={itemStats.lines}
+            canViewMoney={canViewMoney}
+          />
+        )}
         {tab === "deliveries" && (
           <DeliveryList
             deliveries={deliveries}
