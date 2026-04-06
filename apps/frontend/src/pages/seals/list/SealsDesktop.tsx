@@ -26,9 +26,11 @@ export function SealsDesktop({ controller }: SealsDesktopProps) {
     queryError,
     clearActionError,
     openCreate,
+    handleReprocessExisting,
     handleToggleStatus,
     handleOpenLogs,
     isUpdatingSeal,
+    isReprocessingExisting,
     resolveQueryError,
   } = controller
 
@@ -44,10 +46,32 @@ export function SealsDesktop({ controller }: SealsDesktopProps) {
           </p>
         </div>
 
-        <Button size='sm' onClick={openCreate}>
-          <i className='ri-add-line mr-1.5' />
-          注册印章
-        </Button>
+        <div className='flex items-center gap-2'>
+          <Button
+            size='sm'
+            variant='outline'
+            onClick={() => {
+              void handleReprocessExisting()
+            }}
+            disabled={isReprocessingExisting || seals.length === 0}
+          >
+            {isReprocessingExisting ? (
+              <>
+                <i className='ri-loader-4-line mr-1.5 animate-spin' />
+                补处理中…
+              </>
+            ) : (
+              <>
+                <i className='ri-refresh-line mr-1.5' />
+                补处理历史印章
+              </>
+            )}
+          </Button>
+          <Button size='sm' onClick={openCreate}>
+            <i className='ri-add-line mr-1.5' />
+            注册印章
+          </Button>
+        </div>
       </div>
 
       <div className='flex-1 overflow-y-auto py-4'>

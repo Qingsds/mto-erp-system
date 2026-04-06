@@ -1,16 +1,22 @@
 /**
  * 印章注册抽屉。
  *
- * 采用固定两步：
- * 1. 选择 PNG 文件上传
- * 2. 提交印章名称完成注册
+ * 固定流程：
+ * 1. 选择 PNG 原图后立即上传并生成清洗预览
+ * 2. 确认原图 / 处理图效果
+ * 3. 输入名称完成最终注册
  */
 
-import { useState, type ChangeEvent } from "react"
+import { useEffect, useState, type ChangeEvent } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ErpSheet } from "@/components/common/ErpSheet"
-import { useCreateSeal, useUploadSeal } from "@/hooks/api/useSeals"
+import {
+  useCreateSeal,
+  useDiscardUploadedSeal,
+  useUploadSeal,
+  type UploadedSealFile,
+} from "@/hooks/api/useSeals"
 import {
   formatFileSize,
   MAX_SEAL_FILE_SIZE_BYTES,
@@ -34,55 +40,132 @@ function validateSealFile(file: File | null) {
 export function CreateSealSheet({ open, onOpenChange }: CreateSealSheetProps) {
   const [name, setName] = useState("")
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null)
+  const [uploadedFile, setUploadedFile] = useState<UploadedSealFile | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
 
   const uploadSeal = useUploadSeal()
+  const discardUpload = useDiscardUploadedSeal()
   const createSeal = useCreateSeal()
 
-  const isSubmitting = uploadSeal.isPending || createSeal.isPending
-  const canSubmit = name.trim().length > 0 && !!selectedFile && !isSubmitting
+  const isUploadingPreview = uploadSeal.isPending
+  const isSubmitting = createSeal.isPending
+  const canSubmit =
+    name.trim().length > 0 &&
+    !!selectedFile &&
+    !!uploadedFile &&
+    !isUploadingPreview &&
+    !isSubmitting
 
-  const resetForm = () => {
-    setName("")
-    setSelectedFile(null)
-    setFormError(null)
+  useEffect(() => {
+    return () => {
+      if (localPreviewUrl) {
+        window.URL.revokeObjectURL(localPreviewUrl)
+      }
+    }
+  }, [localPreviewUrl])
+
+  const cleanupUploadedTemp = async (payload?: UploadedSealFile | null) => {
+    if (!payload) return
+
+    try {
+      await discardUpload.mutateAsync({
+        fileKey: payload.fileKey,
+        originalFileKey: payload.originalFileKey,
+      })
+    } catch {
+      // 清理失败不阻断用户后续操作，后端已对已注册文件做了保护。
+    }
   }
 
-  const handleOpenChange = (nextOpen: boolean) => {
+  const resetForm = async (options?: { discardUploaded?: boolean }) => {
+    const shouldDiscard = options?.discardUploaded ?? true
+    const previousUpload = uploadedFile
+    const previousPreview = localPreviewUrl
+
+    setName("")
+    setSelectedFile(null)
+    setLocalPreviewUrl(null)
+    setUploadedFile(null)
+    setFormError(null)
+
+    if (previousPreview) {
+      window.URL.revokeObjectURL(previousPreview)
+    }
+    if (shouldDiscard) {
+      await cleanupUploadedTemp(previousUpload)
+    }
+  }
+
+  const handleOpenChange = async (nextOpen: boolean) => {
     if (!nextOpen) {
-      resetForm()
+      await resetForm()
     }
     onOpenChange(nextOpen)
   }
 
-  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const nextFile = event.target.files?.[0] ?? null
     const nextError = validateSealFile(nextFile)
 
-    setSelectedFile(nextError ? null : nextFile)
+    event.target.value = ""
+
+    const previousPreview = localPreviewUrl
+    const previousUpload = uploadedFile
+
+    setUploadedFile(null)
+    setSelectedFile(null)
     setFormError(nextError)
+    setLocalPreviewUrl(null)
+
+    if (previousPreview) {
+      window.URL.revokeObjectURL(previousPreview)
+    }
+    if (previousUpload) {
+      void cleanupUploadedTemp(previousUpload)
+    }
+
+    if (nextError || !nextFile) {
+      return
+    }
+
+    const objectUrl = window.URL.createObjectURL(nextFile)
+    setSelectedFile(nextFile)
+    setLocalPreviewUrl(objectUrl)
+
+    try {
+      const uploaded = await uploadSeal.mutateAsync(nextFile)
+      setUploadedFile(uploaded)
+      setFormError(null)
+    } catch (error) {
+      setUploadedFile(null)
+      setFormError(error instanceof Error ? error.message : "印章图片处理失败")
+    }
   }
 
   const handleSubmit = async () => {
-    const fileError = validateSealFile(selectedFile)
-
-    if (!name.trim()) {
-      setFormError("请输入印章名称")
+    if (!selectedFile) {
+      setFormError("请先选择 PNG 印章图片")
       return
     }
-    if (fileError) {
-      setFormError(fileError)
+    if (!uploadedFile) {
+      setFormError("请等待印章图片清洗完成后再提交")
+      return
+    }
+    if (!name.trim()) {
+      setFormError("请输入印章名称")
       return
     }
 
     try {
       setFormError(null)
-      const uploaded = await uploadSeal.mutateAsync(selectedFile!)
       await createSeal.mutateAsync({
         name: name.trim(),
-        fileKey: uploaded.fileKey,
+        fileKey: uploadedFile.fileKey,
+        originalFileKey: uploadedFile.originalFileKey,
       })
-      handleOpenChange(false)
+      await resetForm({ discardUploaded: false })
+      onOpenChange(false)
     } catch (error) {
       setFormError(error instanceof Error ? error.message : "印章注册失败")
     }
@@ -91,10 +174,12 @@ export function CreateSealSheet({ open, onOpenChange }: CreateSealSheetProps) {
   return (
     <ErpSheet
       open={open}
-      onOpenChange={handleOpenChange}
+      onOpenChange={nextOpen => {
+        void handleOpenChange(nextOpen)
+      }}
       title="注册新印章"
-            description="仅支持 PNG 透明底图，上传后即可用于订单、发货单和对账单盖章"
-      width={520}
+      description="上传 PNG 原图后，系统会自动清洗边缘和背景，再用于列表预览与 PDF 盖章"
+      width={560}
     >
       <div className='flex flex-col gap-4'>
         {formError && (
@@ -115,54 +200,79 @@ export function CreateSealSheet({ open, onOpenChange }: CreateSealSheetProps) {
 
         <div className='flex flex-col gap-2'>
           <div className='flex items-center justify-between gap-3'>
-            <label className='text-xs text-muted-foreground'>印章 PNG *</label>
+            <label className='text-xs text-muted-foreground'>印章 PNG 原图 *</label>
             <span className='text-[11px] text-muted-foreground'>
               上限 {formatFileSize(MAX_SEAL_FILE_SIZE_BYTES)}
             </span>
           </div>
 
           <label className='flex cursor-pointer flex-col gap-2 border border-dashed border-border bg-muted/20 px-3 py-3 text-sm transition-colors hover:border-primary/40 hover:bg-muted/40'>
-            <span className='font-medium text-foreground'>选择 PNG 文件</span>
+            <span className='font-medium text-foreground'>
+              {isUploadingPreview ? "正在生成清洗预览…" : "选择 PNG 文件"}
+            </span>
             <span className='text-[11px] text-muted-foreground'>
-              仅支持透明底图，用于生成签章版 PDF
+              仅支持透明底图，系统会自动去背景、提纯红章颜色并生成处理图
             </span>
             <input
               type='file'
               accept={SEAL_FILE_ACCEPT}
               className='hidden'
-              onChange={handleFileChange}
+              onChange={event => {
+                void handleFileChange(event)
+              }}
             />
           </label>
-
-          {selectedFile ? (
-            <div className='border border-border bg-card px-3 py-2 text-xs'>
-              <p className='font-medium text-foreground'>{selectedFile.name}</p>
-              <p className='mt-1 text-muted-foreground'>
-                {formatFileSize(selectedFile.size)} · {selectedFile.type || "image/png"}
-              </p>
-            </div>
-          ) : (
-            <p className='text-[11px] text-muted-foreground'>
-              当前未选择文件。请上传透明底 PNG，避免导出 PDF 时出现白底。
-            </p>
-          )}
         </div>
+
+        <div className='grid gap-3 md:grid-cols-2'>
+          <PreviewCard
+            title="原图预览"
+            hint={selectedFile ? "展示你上传的原始 PNG" : "选择文件后显示"}
+            imageUrl={localPreviewUrl}
+            loading={false}
+          />
+          <PreviewCard
+            title="清洗后预览"
+            hint={
+              uploadedFile
+                ? "系统已自动清洗边缘与背景，后续预览和盖章都使用这一版"
+                : isUploadingPreview
+                  ? "正在生成清洗结果…"
+                  : "上传并处理后显示"
+            }
+            imageUrl={uploadedFile?.processedPreviewDataUrl ?? null}
+            loading={isUploadingPreview}
+          />
+        </div>
+
+        {selectedFile ? (
+          <div className='border border-border bg-card px-3 py-2 text-xs'>
+            <p className='font-medium text-foreground'>{selectedFile.name}</p>
+            <p className='mt-1 text-muted-foreground'>
+              {formatFileSize(selectedFile.size)} · {selectedFile.type || "image/png"}
+            </p>
+          </div>
+        ) : (
+          <p className='text-[11px] text-muted-foreground'>
+            当前未选择文件。请上传透明底 PNG，系统会自动生成更干净的可盖章版本。
+          </p>
+        )}
 
         <div className='flex items-stretch gap-2 pt-2'>
           <Button
             className='h-10 flex-1'
-            onClick={handleSubmit}
+            onClick={() => void handleSubmit()}
             disabled={!canSubmit}
           >
             {isSubmitting ? (
               <>
                 <i className='ri-loader-4-line mr-1.5 animate-spin' />
-                提交中…
+                注册中…
               </>
             ) : (
               <>
                 <i className='ri-upload-cloud-2-line mr-1.5' />
-                上传并注册
+                确认注册印章
               </>
             )}
           </Button>
@@ -171,12 +281,51 @@ export function CreateSealSheet({ open, onOpenChange }: CreateSealSheetProps) {
             variant='outline'
             className='h-10 shrink-0'
             disabled={isSubmitting}
-            onClick={() => handleOpenChange(false)}
+            onClick={() => {
+              void handleOpenChange(false)
+            }}
           >
             取消
           </Button>
         </div>
       </div>
     </ErpSheet>
+  )
+}
+
+function PreviewCard({
+  title,
+  hint,
+  imageUrl,
+  loading,
+}: {
+  title: string
+  hint: string
+  imageUrl: string | null
+  loading: boolean
+}) {
+  return (
+    <section className='border border-border bg-card'>
+      <div className='border-b border-border px-3 py-2'>
+        <p className='text-sm font-medium text-foreground'>{title}</p>
+        <p className='mt-1 text-[11px] text-muted-foreground'>{hint}</p>
+      </div>
+      <div className='flex min-h-[220px] items-center justify-center bg-muted/10 p-3'>
+        {loading ? (
+          <div className='text-sm text-muted-foreground'>
+            <i className='ri-loader-4-line mr-1.5 animate-spin' />
+            处理中…
+          </div>
+        ) : imageUrl ? (
+          <img
+            src={imageUrl}
+            alt={title}
+            className='max-h-[240px] w-full object-contain'
+          />
+        ) : (
+          <div className='text-xs text-muted-foreground'>暂无预览</div>
+        )}
+      </div>
+    </section>
   )
 }

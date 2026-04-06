@@ -9,3 +9,7 @@ import { resolveApiUrl } from "@/lib/utils/request"
 export function buildDocumentFileUrl(documentId: number): string {
   return resolveApiUrl(`/api/documents/${documentId}/file`)
 }
+
+export function buildBillingPreviewUrl(billingId: number): string {
+  return resolveApiUrl(`/api/documents/billing/${billingId}/preview`)
+}

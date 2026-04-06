@@ -8,10 +8,9 @@
  * - 切换桌面端 / 移动端视图
  */
 
-import { useMemo, useState } from "react"
+import { useMemo } from "react"
 import { useNavigate, useParams } from "@tanstack/react-router"
 import { PageContentWrapper } from "@/components/common/PageContentWrapper"
-import { ExecuteSealDialog } from "@/components/documents/ExecuteSealDialog"
 import { Button } from "@/components/ui/button"
 import { useUIStore } from "@/store/ui.store"
 import { useGetBillingDetail, useUpdateBillingStatus } from "@/hooks/api/useBilling"
@@ -34,8 +33,6 @@ export function BillingDetailPage() {
     isFetching,
   } = useGetBillingDetail(Number.isFinite(billingId) ? billingId : undefined)
   const updateStatus = useUpdateBillingStatus()
-
-  const [sealOpen, setSealOpen] = useState(false)
 
   const stats = useMemo(
     () => (billing ? buildBillingDetailStats(billing) : null),
@@ -150,10 +147,13 @@ export function BillingDetailPage() {
           className='h-8 px-2.5 text-xs'
           onClick={() => {
             clearActionError()
-            setSealOpen(true)
+            navigate({
+              to: "/billing/$id/seal",
+              params: { id: String(billing.id) },
+            })
           }}
         >
-          <i className='ri-seal-line mr-1.5' />
+          <i className='ri-award-line mr-1.5' />
           盖章归档
         </Button>
       )}
@@ -242,20 +242,11 @@ export function BillingDetailPage() {
           onDownloadPdf={() => latestDocument && void downloadPdf(latestDocument)}
           onOpenSeal={() => {
             clearActionError()
-            setSealOpen(true)
           }}
+          isSealDisabledOnMobile
           onMarkPaid={() => void handleMarkPaid()}
         />
       )}
-
-      <ExecuteSealDialog
-        open={sealOpen}
-        onOpenChange={setSealOpen}
-        targetType='BILLING'
-        targetId={billing.id}
-        targetLabel={`BIL-${String(billing.id).padStart(6, "0")}`}
-        description='盖章后对账单状态将自动流转为「已盖章」，并生成可下载的归档 PDF。'
-      />
     </div>
   )
 }

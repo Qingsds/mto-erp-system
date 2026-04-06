@@ -30,6 +30,25 @@ export class DocumentsController {
     return { code: 200, message: '单据电子签章并归档成功', data: result };
   }
 
+  @Get('billing/:id/preview')
+  @Roles('ADMIN')
+  async getBillingPreview(
+    @Param('id', ParseIntPipe) id: number,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const result = await this.documentsService.getBillingPreviewFile(id);
+    const encodedFileName = encodeURIComponent(result.fileName);
+
+    response.setHeader('Content-Type', 'application/pdf');
+    response.setHeader('Content-Length', String(result.content.byteLength));
+    response.setHeader(
+      'Content-Disposition',
+      `inline; filename*=UTF-8''${encodedFileName}`,
+    );
+
+    return new StreamableFile(Buffer.from(result.content));
+  }
+
   @Get(':id/file')
   @Roles('ADMIN')
   async getDocumentFile(

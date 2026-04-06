@@ -3,6 +3,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseIntPipe,
@@ -16,6 +17,7 @@ import {
 import { SealsService } from './seals.service';
 import {
   CreateSealRequest,
+  DiscardSealUploadRequest,
   ApiResponse,
   UpdateSealStatusRequest,
 } from '@erp/shared-types';
@@ -46,7 +48,15 @@ export class SealsController {
     }
 
     const result = await this.sealsService.uploadSealFile(file);
-    return { code: 200, message: '印章图片上传成功', data: result };
+    return { code: 200, message: '印章图片上传并清洗成功', data: result };
+  }
+
+  @Delete('upload-temp')
+  async discardUploadedSealFile(
+    @Body() requestBody: DiscardSealUploadRequest,
+  ): Promise<ApiResponse> {
+    const result = await this.sealsService.discardUploadedSealFile(requestBody);
+    return { code: 200, message: '临时印章文件已处理', data: result };
   }
 
   @Get()
@@ -86,5 +96,11 @@ export class SealsController {
   async findLogs(@Param('id', ParseIntPipe) id: number): Promise<ApiResponse> {
     const result = await this.sealsService.findLogs(id);
     return { code: 200, message: '查询成功', data: result };
+  }
+
+  @Post('reprocess-existing')
+  async reprocessExistingSeals(): Promise<ApiResponse> {
+    const result = await this.sealsService.reprocessExistingSeals();
+    return { code: 200, message: '历史印章补处理完成', data: result };
   }
 }

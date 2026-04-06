@@ -11,7 +11,10 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ExecuteSealRequest } from '@erp/shared-types';
 import * as crypto from 'crypto';
 import { StorageService } from '../storage/storage.service';
-import { createBillingPdfBuffer } from './billing-pdf';
+import {
+  applySealToBillingPdfBuffer,
+  createBillingPdfBuffer,
+} from './billing-pdf';
 import { Readable } from 'node:stream';
 import type { AuthenticatedRequest } from '../auth/auth-request';
 
@@ -77,6 +80,35 @@ export class DocumentsService {
       userId: request.user.id,
       ipAddress: this.resolveAuditIp(request),
     };
+  }
+
+  private async getBillingPdfSource(id: number) {
+    const billing = await this.prisma.client.billingStatement.findUnique({
+      where: { id },
+      include: {
+        items: {
+          orderBy: { id: 'asc' },
+          include: {
+            deliveryItem: {
+              include: {
+                deliveryNote: true,
+                orderItem: {
+                  include: {
+                    part: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!billing) {
+      throw new NotFoundException('目标对账单不存在');
+    }
+
+    return billing;
   }
 
   /**
@@ -167,39 +199,54 @@ export class DocumentsService {
       throw new BadRequestException('所选印章不存在或已被停用');
     }
 
-    const billing = await this.prisma.client.billingStatement.findUnique({
-      where: { id: payload.targetId },
-      include: {
-        items: {
-          orderBy: { id: 'asc' },
-          include: {
-            deliveryItem: {
-              include: {
-                deliveryNote: true,
-                orderItem: {
-                  include: {
-                    part: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
-    if (!billing) {
-      throw new NotFoundException('目标对账单不存在');
+    const billing = await this.getBillingPdfSource(payload.targetId);
+    if (billing.status !== 'DRAFT') {
+      throw new BadRequestException('当前对账单状态不允许重复盖章');
     }
 
     const now = new Date();
-    const originalPdf = await createBillingPdfBuffer({
-      billing,
-    });
-    const signedPdf = await createBillingPdfBuffer({
-      billing,
-      sealName: seal.name,
-      archivedAt: now,
-    });
+    let originalPdf: Uint8Array | null = null;
+    let finalSignedPdf: Uint8Array | null = null;
+
+    try {
+      const sealImageBytes = await this.storage.getObjectBuffer(seal.fileKey);
+      originalPdf = await createBillingPdfBuffer({ billing });
+      const archivedPdf = await createBillingPdfBuffer({
+        billing: {
+          ...billing,
+          status: 'SEALED',
+        },
+        archivedAt: now,
+      });
+      finalSignedPdf = await applySealToBillingPdfBuffer({
+        originalPdf: archivedPdf,
+        sealImageBytes,
+        placement: {
+          pageIndex: payload.pageIndex,
+          xRatio: payload.xRatio,
+          yRatio: payload.yRatio,
+          widthRatio: payload.widthRatio,
+        },
+      });
+    } catch (error) {
+      if (
+        error instanceof BadRequestException ||
+        error instanceof NotFoundException ||
+        error instanceof InternalServerErrorException
+      ) {
+        throw error;
+      }
+
+      if (error instanceof Error && error.message.trim()) {
+        throw new BadRequestException(error.message);
+      }
+
+      throw new InternalServerErrorException('对账单 PDF 盖章失败');
+    }
+
+    if (!originalPdf || !finalSignedPdf) {
+      throw new InternalServerErrorException('对账单 PDF 盖章失败');
+    }
 
     const targetPrefix = this.formatBillingNo(payload.targetId);
     const originalKey = `docs/${targetPrefix}/original-${now.getTime()}.pdf`;
@@ -207,7 +254,7 @@ export class DocumentsService {
     const fileName = `${targetPrefix}-${seal.name}已盖章版.pdf`;
     const fileHash = crypto
       .createHash('sha256')
-      .update(Buffer.from(signedPdf))
+      .update(Buffer.from(finalSignedPdf))
       .digest('hex');
 
     try {
@@ -219,8 +266,8 @@ export class DocumentsService {
       });
       await this.storage.uploadObject({
         key: signedKey,
-        body: Buffer.from(signedPdf),
-        size: signedPdf.byteLength,
+        body: Buffer.from(finalSignedPdf),
+        size: finalSignedPdf.byteLength,
         contentType: 'application/pdf',
       });
     } catch (error) {
@@ -252,6 +299,10 @@ export class DocumentsService {
             userId: auditContext.userId,
             documentId: document.id,
             ipAddress: auditContext.ipAddress,
+            pageIndex: payload.pageIndex,
+            xRatio: payload.xRatio,
+            yRatio: payload.yRatio,
+            widthRatio: payload.widthRatio,
           },
         });
 
@@ -279,6 +330,19 @@ export class DocumentsService {
       payload,
       auditContext,
     );
+  }
+
+  async getBillingPreviewFile(id: number): Promise<{
+    fileName: string;
+    content: Uint8Array;
+  }> {
+    const billing = await this.getBillingPdfSource(id);
+    const content = await createBillingPdfBuffer({ billing });
+
+    return {
+      fileName: `${this.formatBillingNo(id)}-preview.pdf`,
+      content,
+    };
   }
 
   async getSignedFile(id: number): Promise<{

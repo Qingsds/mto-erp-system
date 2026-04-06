@@ -216,8 +216,10 @@ model Seal {
   id       Int     @id @default(autoincrement())
   /// 公司印章名称 (如：财务专用章、合同专用章)
   name     String  @db.VarChar(50)
-  /// 印章透明底图文件在存储系统中的路径键值
+  /// 当前可用于预览与真实盖章的处理后印章图
   fileKey  String  @map("file_key") @db.VarChar(255)
+  /// 用户最初上传的原始 PNG，用于回溯和重跑清洗算法
+  originalFileKey String? @map("original_file_key") @db.VarChar(255)
   /// 印章启用状态，停用的印章无法被用于新的防篡改文件合成
   isActive Boolean @default(true) @map("is_active")
 
@@ -271,6 +273,14 @@ model SealUsageLog {
   actionTime DateTime @default(now()) @map("action_time")
   /// 发起盖章请求的操作端 IP 地址，用于事后溯源
   ipAddress  String?  @map("ip_address") @db.VarChar(50)
+  /// 这次盖章落在 PDF 的第几页（从 1 开始）
+  pageIndex  Int?     @map("page_index")
+  /// 盖章左上角相对页面宽度的 X 比例，用于重放与审计
+  xRatio     Decimal? @map("x_ratio") @db.Decimal(8, 6)
+  /// 盖章左上角相对页面高度的 Y 比例，用于重放与审计
+  yRatio     Decimal? @map("y_ratio") @db.Decimal(8, 6)
+  /// 盖章宽度相对页面宽度的比例，用于重放与审计
+  widthRatio Decimal? @map("width_ratio") @db.Decimal(8, 6)
 
   seal     Seal     @relation(fields: [sealId], references: [id])
   user     User     @relation(fields: [userId], references: [id])

@@ -14,6 +14,7 @@ import { useNavigate } from "@tanstack/react-router"
 import {
   type SealListItem,
   useGetSeals,
+  useReprocessExistingSeals,
   useUpdateSealStatus,
 } from "@/hooks/api/useSeals"
 
@@ -28,6 +29,7 @@ export function useSealsPageController() {
 
   const { data, isLoading, isFetching, error } = useGetSeals()
   const updateStatus = useUpdateSealStatus()
+  const reprocessExisting = useReprocessExistingSeals()
   const seals = data ?? []
   const activeCount = seals.filter(seal => seal.isActive).length
 
@@ -62,6 +64,17 @@ export function useSealsPageController() {
     })
   }
 
+  const handleReprocessExisting = async () => {
+    try {
+      setActionError(null)
+      await reprocessExisting.mutateAsync()
+    } catch (reprocessError) {
+      setActionError(
+        reprocessError instanceof Error ? reprocessError.message : "历史印章补处理失败",
+      )
+    }
+  }
+
   return {
     seals,
     isLoading,
@@ -74,8 +87,10 @@ export function useSealsPageController() {
     clearActionError: () => setActionError(null),
     handleToggleStatus,
     handleOpenLogs,
+    handleReprocessExisting,
     isUpdatingSeal: (sealId: number) =>
       updateStatus.isPending && updateStatus.variables?.id === sealId,
+    isReprocessingExisting: reprocessExisting.isPending,
     resolveQueryError: () => resolveErrorMessage(error),
   }
 }

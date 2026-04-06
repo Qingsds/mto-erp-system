@@ -74,7 +74,7 @@ export function SealsListContent({
         </section>
       ) : seals.length === 0 ? (
         <section className='flex flex-col items-center justify-center border border-dashed border-border bg-card px-5 py-14 text-center'>
-          <i className='ri-seal-line mb-3 text-3xl text-muted-foreground/40' />
+          <i className='ri-award-line mb-3 text-3xl text-muted-foreground/40' />
           <p className='text-sm font-medium text-foreground'>暂无印章资产</p>
           <p className='mt-1 text-xs text-muted-foreground'>
             先上传 PNG 透明底图并注册印章，后续才能用于订单、发货单和对账单盖章。

@@ -1,0 +1,2 @@
+ALTER TABLE "seal"
+ADD COLUMN IF NOT EXISTS "original_file_key" VARCHAR(255);

@@ -65,6 +65,10 @@ export interface BillingDocumentLog {
   id: number
   actionTime: string
   ipAddress?: string | null
+  pageIndex?: number | null
+  xRatio?: string | number | null
+  yRatio?: string | number | null
+  widthRatio?: string | number | null
   seal: {
     id: number
     name: string

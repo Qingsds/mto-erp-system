@@ -8,6 +8,16 @@ import {
 import { Client } from 'minio';
 import { Readable } from 'node:stream';
 
+async function readStreamToBuffer(stream: Readable): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+
+  for await (const chunk of stream) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+
+  return Buffer.concat(chunks);
+}
+
 function readRequiredEnv(name: string): string {
   const value = process.env[name]?.trim();
   if (!value) {
@@ -95,6 +105,11 @@ export class StorageService implements OnModuleInit {
       }
       throw new InternalServerErrorException('文件读取失败');
     }
+  }
+
+  async getObjectBuffer(key: string): Promise<Buffer> {
+    const stream = await this.getObjectStream(key);
+    return await readStreamToBuffer(stream);
   }
 
   async statObject(key: string) {

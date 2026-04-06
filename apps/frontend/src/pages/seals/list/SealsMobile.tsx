@@ -26,9 +26,11 @@ export function SealsMobile({ controller }: SealsMobileProps) {
     queryError,
     clearActionError,
     openCreate,
+    handleReprocessExisting,
     handleToggleStatus,
     handleOpenLogs,
     isUpdatingSeal,
+    isReprocessingExisting,
     resolveQueryError,
   } = controller
 
@@ -44,10 +46,27 @@ export function SealsMobile({ controller }: SealsMobileProps) {
               {subtitle}
             </p>
           </div>
-          <Button size='sm' className='h-8 shrink-0' onClick={openCreate}>
-            <i className='ri-add-line mr-1' />
-            注册
-          </Button>
+          <div className='flex shrink-0 items-center gap-2'>
+            <Button
+              size='sm'
+              variant='outline'
+              className='h-8 px-2'
+              onClick={() => {
+                void handleReprocessExisting()
+              }}
+              disabled={isReprocessingExisting || seals.length === 0}
+            >
+              {isReprocessingExisting ? (
+                <i className='ri-loader-4-line animate-spin' />
+              ) : (
+                <i className='ri-refresh-line' />
+              )}
+            </Button>
+            <Button size='sm' className='h-8 shrink-0' onClick={openCreate}>
+              <i className='ri-add-line mr-1' />
+              注册
+            </Button>
+          </div>
         </div>
       </div>
 

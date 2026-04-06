@@ -10,8 +10,7 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import type { SealListItem } from "@/hooks/api/useSeals"
-import { buildSealFileUrl } from "@/hooks/api/useSeals"
+import { useSealPreviewUrl, type SealListItem } from "@/hooks/api/useSeals"
 import { SealStatusBadge } from "./SealStatusBadge"
 
 interface SealCardProps {
@@ -28,19 +27,22 @@ export function SealCard({
   onOpenLogs,
 }: SealCardProps) {
   const [previewFailed, setPreviewFailed] = useState(false)
+  const { previewUrl } = useSealPreviewUrl(seal.id, seal.fileKey)
 
   return (
     <article className='border border-border bg-card p-4'>
       <div className='flex items-start gap-3'>
         <div className='flex h-20 w-20 shrink-0 items-center justify-center border border-border bg-muted/30 p-2'>
-          {previewFailed ? (
+          {previewFailed || !previewUrl ? (
             <div className='flex flex-col items-center gap-1 text-muted-foreground'>
               <i className='ri-image-line text-lg' />
-              <span className='text-[11px]'>预览失败</span>
+              <span className='text-[11px]'>
+                {previewFailed ? "预览失败" : "加载中"}
+              </span>
             </div>
           ) : (
             <img
-              src={buildSealFileUrl(seal.id)}
+              src={previewUrl}
               alt={seal.name}
               className='h-full w-full object-contain'
               loading='lazy'
@@ -61,7 +63,11 @@ export function SealCard({
           </div>
 
           <div className='mt-3 space-y-1.5 text-[11px] text-muted-foreground'>
-            <p className='line-clamp-2 break-all'>文件键：{seal.fileKey}</p>
+            <p>
+              {seal.originalFileKey
+                ? "已保留原图与处理图，当前预览和盖章均使用清洗后的印章图"
+                : "当前印章使用可预览的处理图，适合直接用于盖章归档"}
+            </p>
             <p>{seal.isActive ? "可用于新的盖章归档" : "已停用，不能继续盖章"}</p>
           </div>
         </div>

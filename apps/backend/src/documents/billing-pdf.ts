@@ -9,7 +9,7 @@
 
 import { access, readFile } from 'node:fs/promises';
 import { PDFDocument, rgb } from 'pdf-lib';
-import fontkit from '@pdf-lib/fontkit';
+import * as fontkit from '@pdf-lib/fontkit';
 
 type NumericLike = string | number | { toString(): string };
 
@@ -51,8 +51,14 @@ export interface BillingPdfData {
 
 interface CreateBillingPdfParams {
   billing: BillingPdfData;
-  sealName?: string;
   archivedAt?: Date;
+}
+
+export interface BillingSealPlacement {
+  pageIndex: number;
+  xRatio: number;
+  yRatio: number;
+  widthRatio: number;
 }
 
 const PDF_FONT_CANDIDATES = [
@@ -158,7 +164,7 @@ function buildItemLines(item: BillingPdfItem): string[] {
 export async function createBillingPdfBuffer(
   params: CreateBillingPdfParams,
 ): Promise<Uint8Array> {
-  const { billing, sealName, archivedAt } = params;
+  const { billing, archivedAt } = params;
   const pdfDoc = await PDFDocument.create();
   pdfDoc.registerFontkit(fontkit);
 
@@ -216,37 +222,6 @@ export async function createBillingPdfBuffer(
       color: rgb(0.08, 0.08, 0.08),
     });
 
-    if (sealName && archivedAt) {
-      const badgeWidth = 140;
-      const badgeHeight = 48;
-      const badgeX = pageSize.width - marginX - badgeWidth;
-      const badgeY = cursorY - 8;
-
-      page.drawRectangle({
-        x: badgeX,
-        y: badgeY - badgeHeight + 10,
-        width: badgeWidth,
-        height: badgeHeight,
-        borderWidth: 1.2,
-        borderColor: rgb(0.75, 0.12, 0.12),
-      });
-
-      page.drawText('已盖章归档', {
-        x: badgeX + 16,
-        y: badgeY - 8,
-        size: 12,
-        font,
-        color: rgb(0.75, 0.12, 0.12),
-      });
-      page.drawText(`印章：${sealName}`, {
-        x: badgeX + 16,
-        y: badgeY - 24,
-        size: 9,
-        font,
-        color: rgb(0.75, 0.12, 0.12),
-      });
-    }
-
     cursorY -= 30;
 
     const metaLines = [
@@ -255,9 +230,7 @@ export async function createBillingPdfBuffer(
       `当前状态：${billing.status}`,
       `创建时间：${formatDateTime(billing.createdAt)}`,
       `应收总额：${formatMoney(billing.totalAmount)}`,
-      sealName && archivedAt
-        ? `归档时间：${formatDateTime(archivedAt)}`
-        : '文件类型：原始对账单 PDF',
+      archivedAt ? `归档时间：${formatDateTime(archivedAt)}` : '文件类型：原始对账单 PDF',
     ];
 
     for (const line of metaLines) {
@@ -374,6 +347,81 @@ export async function createBillingPdfBuffer(
     size: 12,
     font,
     color: rgb(0.08, 0.08, 0.08),
+  });
+
+  return await pdfDoc.save();
+}
+
+function assertSealPlacement(
+  pageWidth: number,
+  pageHeight: number,
+  sealAspectRatio: number,
+  placement: BillingSealPlacement,
+) {
+  if (
+    placement.pageIndex < 1 ||
+    placement.xRatio < 0 ||
+    placement.xRatio > 1 ||
+    placement.yRatio < 0 ||
+    placement.yRatio > 1 ||
+    placement.widthRatio <= 0 ||
+    placement.widthRatio > 1
+  ) {
+    throw new Error('印章位置参数不合法');
+  }
+
+  const widthPoints = pageWidth * placement.widthRatio;
+  const heightPoints = widthPoints * sealAspectRatio;
+  const topOffset = pageHeight * placement.yRatio;
+  const heightRatio = heightPoints / pageHeight;
+
+  if (placement.xRatio + placement.widthRatio > 1) {
+    throw new Error('印章横向位置超出页面范围');
+  }
+  if (placement.yRatio + heightRatio > 1) {
+    throw new Error('印章纵向位置超出页面范围');
+  }
+  if (topOffset + heightPoints > pageHeight) {
+    throw new Error('印章纵向位置超出页面范围');
+  }
+}
+
+export async function applySealToBillingPdfBuffer(params: {
+  originalPdf: Uint8Array;
+  sealImageBytes: Uint8Array;
+  placement: BillingSealPlacement;
+}): Promise<Uint8Array> {
+  const { originalPdf, sealImageBytes, placement } = params;
+  const pdfDoc = await PDFDocument.load(originalPdf);
+  const pages = pdfDoc.getPages();
+  const targetPage = pages[placement.pageIndex - 1];
+
+  if (!targetPage) {
+    throw new Error('盖章页码不存在');
+  }
+
+  const sealImage = await pdfDoc.embedPng(sealImageBytes);
+  const pageSize = targetPage.getSize();
+  const sealAspectRatio = sealImage.height / sealImage.width;
+
+  assertSealPlacement(
+    pageSize.width,
+    pageSize.height,
+    sealAspectRatio,
+    placement,
+  );
+
+  const width = pageSize.width * placement.widthRatio;
+  const height = width * sealAspectRatio;
+  const x = pageSize.width * placement.xRatio;
+  const y = pageSize.height - pageSize.height * placement.yRatio - height;
+
+  targetPage.drawImage(sealImage, {
+    x,
+    y,
+    width,
+    height,
+    opacity: 0.96,
   });
 
   return await pdfDoc.save();

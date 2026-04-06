@@ -10,7 +10,7 @@
 import type { DocumentTargetType } from "@erp/shared-types"
 
 export const SEAL_FILE_ACCEPT = ".png,image/png"
-export const MAX_SEAL_FILE_SIZE_BYTES = 2 * 1024 * 1024
+export const MAX_SEAL_FILE_SIZE_BYTES = 10 * 1024 * 1024
 
 export function getSealStatusLabel(isActive: boolean) {
   return isActive ? "启用中" : "已停用"

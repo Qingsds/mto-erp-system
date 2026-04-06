@@ -5,6 +5,7 @@ import {
   IsNumber,
   IsBoolean,
   Min,
+  Max,
   IsOptional,
   IsArray,
   ValidateNested,
@@ -232,6 +233,20 @@ export class CreateSealRequest {
   @IsString()
   @IsNotEmpty()
   fileKey!: string
+
+  @IsString()
+  @IsNotEmpty()
+  originalFileKey!: string
+}
+
+export class DiscardSealUploadRequest {
+  @IsString()
+  @IsNotEmpty()
+  fileKey!: string
+
+  @IsString()
+  @IsNotEmpty()
+  originalFileKey!: string
 }
 
 export class UpdateSealStatusRequest {
@@ -271,4 +286,23 @@ export class ExecuteSealRequest {
   @IsInt()
   @Min(1)
   sealId!: number
+
+  @IsInt()
+  @Min(1)
+  pageIndex!: number
+
+  @IsNumber()
+  @Min(0)
+  @Max(1)
+  xRatio!: number
+
+  @IsNumber()
+  @Min(0)
+  @Max(1)
+  yRatio!: number
+
+  @IsNumber()
+  @Min(0.01)
+  @Max(1)
+  widthRatio!: number
 }

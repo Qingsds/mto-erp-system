@@ -57,8 +57,8 @@ const NAV = [
       {
         to: "/seals",
         label: "印章管理",
-        icon: "ri-seal-line",
-        iconActive: "ri-seal-fill",
+        icon: "ri-award-line",
+        iconActive: "ri-award-fill",
         adminOnly: true,
       },
       {

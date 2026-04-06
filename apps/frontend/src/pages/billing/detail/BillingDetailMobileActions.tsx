@@ -12,6 +12,7 @@ interface BillingDetailMobileActionsProps {
   status: "DRAFT" | "SEALED" | "PAID"
   stats: BillingDetailStats
   canDownloadPdf: boolean
+  isSealDisabledOnMobile?: boolean
   isExportingExcel: boolean
   isDownloadingPdf: boolean
   isSubmitting: boolean
@@ -25,6 +26,7 @@ export function BillingDetailMobileActions({
   status,
   stats,
   canDownloadPdf,
+  isSealDisabledOnMobile = false,
   isExportingExcel,
   isDownloadingPdf,
   isSubmitting,
@@ -131,10 +133,23 @@ export function BillingDetailMobileActions({
         </Button>
       )}
       {status === "DRAFT" ? (
-        <Button className='h-10 min-w-0 flex-1' onClick={onOpenSeal}>
-          <i className='ri-seal-line mr-1.5 shrink-0' />
-          <span className='truncate'>盖章归档</span>
-        </Button>
+        <div className='flex min-w-0 flex-1 flex-col gap-1'>
+          <Button
+            className='h-10 min-w-0 w-full'
+            onClick={onOpenSeal}
+            disabled={isSealDisabledOnMobile}
+          >
+            <i className='ri-award-line mr-1.5 shrink-0' />
+            <span className='truncate'>
+              {isSealDisabledOnMobile ? "仅桌面端支持盖章" : "盖章归档"}
+            </span>
+          </Button>
+          {isSealDisabledOnMobile && (
+            <p className='text-[11px] text-muted-foreground'>
+              请在桌面端进入盖章工作台完成 PDF 归档。
+            </p>
+          )}
+        </div>
       ) : (
         <Button
           className='h-10 min-w-0 flex-1'
