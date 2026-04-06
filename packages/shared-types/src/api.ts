@@ -23,6 +23,18 @@ export interface ApiResponse<T = any> {
   data?: T
 }
 
+export interface AuthUserInfo {
+  id: number
+  username: string
+  realName: string
+  isActive: boolean
+}
+
+export interface AuthLoginResponse {
+  accessToken: string
+  user: AuthUserInfo
+}
+
 export type OrderStatusType =
   | "PENDING"
   | "PARTIAL_SHIPPED"
@@ -184,6 +196,16 @@ export class CreateSealRequest {
 export class UpdateSealStatusRequest {
   @IsBoolean({ message: "印章状态必须是布尔值" })
   isActive!: boolean
+}
+
+export class LoginRequest {
+  @IsString({ message: "用户名必须是字符串" })
+  @IsNotEmpty({ message: "用户名不能为空" })
+  username!: string
+
+  @IsString({ message: "密码必须是字符串" })
+  @IsNotEmpty({ message: "密码不能为空" })
+  password!: string
 }
 
 export class ExecuteSealRequest {

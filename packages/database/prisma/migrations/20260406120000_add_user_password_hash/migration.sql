@@ -1,0 +1,9 @@
+ALTER TABLE "user"
+ADD COLUMN "password_hash" VARCHAR(255);
+
+UPDATE "user"
+SET "password_hash" = 'e61e29a62c0eb69e51eec0c517a721c3:c6bfa77d65675a956a8e7477a17eaf612bf6fa6b8a5d6f6c5286e7972407972ad5232697571d4f5fd66d1f3acb70316c3f4f4b59107fdff878230c94cd7605a2'
+WHERE "password_hash" IS NULL;
+
+ALTER TABLE "user"
+ALTER COLUMN "password_hash" SET NOT NULL;

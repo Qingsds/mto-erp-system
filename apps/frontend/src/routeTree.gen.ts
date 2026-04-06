@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SealsRouteImport } from './routes/seals'
 import { Route as PartsRouteImport } from './routes/parts'
 import { Route as OrdersRouteImport } from './routes/orders'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as DeliveriesRouteImport } from './routes/deliveries'
 import { Route as BillingRouteImport } from './routes/billing'
 import { Route as IndexRouteImport } from './routes/index'
@@ -36,6 +37,11 @@ const PartsRoute = PartsRouteImport.update({
 const OrdersRoute = OrdersRouteImport.update({
   id: '/orders',
   path: '/orders',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DeliveriesRoute = DeliveriesRouteImport.update({
@@ -93,6 +99,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/billing': typeof BillingRouteWithChildren
   '/deliveries': typeof DeliveriesRouteWithChildren
+  '/login': typeof LoginRoute
   '/orders': typeof OrdersRouteWithChildren
   '/parts': typeof PartsRouteWithChildren
   '/seals': typeof SealsRouteWithChildren
@@ -108,6 +115,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/billing': typeof BillingRouteWithChildren
   '/deliveries': typeof DeliveriesRouteWithChildren
+  '/login': typeof LoginRoute
   '/orders': typeof OrdersRouteWithChildren
   '/parts': typeof PartsRouteWithChildren
   '/seals': typeof SealsRouteWithChildren
@@ -124,6 +132,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/billing': typeof BillingRouteWithChildren
   '/deliveries': typeof DeliveriesRouteWithChildren
+  '/login': typeof LoginRoute
   '/orders': typeof OrdersRouteWithChildren
   '/parts': typeof PartsRouteWithChildren
   '/seals': typeof SealsRouteWithChildren
@@ -141,6 +150,7 @@ export interface FileRouteTypes {
     | '/'
     | '/billing'
     | '/deliveries'
+    | '/login'
     | '/orders'
     | '/parts'
     | '/seals'
@@ -156,6 +166,7 @@ export interface FileRouteTypes {
     | '/'
     | '/billing'
     | '/deliveries'
+    | '/login'
     | '/orders'
     | '/parts'
     | '/seals'
@@ -171,6 +182,7 @@ export interface FileRouteTypes {
     | '/'
     | '/billing'
     | '/deliveries'
+    | '/login'
     | '/orders'
     | '/parts'
     | '/seals'
@@ -187,6 +199,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   BillingRoute: typeof BillingRouteWithChildren
   DeliveriesRoute: typeof DeliveriesRouteWithChildren
+  LoginRoute: typeof LoginRoute
   OrdersRoute: typeof OrdersRouteWithChildren
   PartsRoute: typeof PartsRouteWithChildren
   SealsRoute: typeof SealsRouteWithChildren
@@ -213,6 +226,13 @@ declare module '@tanstack/react-router' {
       path: '/orders'
       fullPath: '/orders'
       preLoaderRoute: typeof OrdersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/deliveries': {
@@ -350,6 +370,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BillingRoute: BillingRouteWithChildren,
   DeliveriesRoute: DeliveriesRouteWithChildren,
+  LoginRoute: LoginRoute,
   OrdersRoute: OrdersRouteWithChildren,
   PartsRoute: PartsRouteWithChildren,
   SealsRoute: SealsRouteWithChildren,

@@ -13,7 +13,7 @@ import * as crypto from 'crypto';
 import { StorageService } from '../storage/storage.service';
 import { createBillingPdfBuffer } from './billing-pdf';
 import { Readable } from 'node:stream';
-import type { Request } from 'express';
+import type { AuthenticatedRequest } from '../auth/auth-request';
 
 interface SealAuditContext {
   userId: number;
@@ -31,34 +31,6 @@ export class DocumentsService {
     return `BIL-${String(id).padStart(6, '0')}`;
   }
 
-  /**
-   * 在未接入认证系统前，签章操作人由后端统一兜底到系统中的首个可用用户。
-   *
-   * 这样至少能避免由前端直接伪造 userId，后续接入 JWT / Session 后再替换为真实登录用户。
-   */
-  private async resolveAuditUserId(): Promise<number> {
-    const activeUser = await this.prisma.client.user.findFirst({
-      where: { isActive: true },
-      orderBy: { id: 'asc' },
-      select: { id: true },
-    });
-    if (activeUser) {
-      return activeUser.id;
-    }
-
-    const fallbackUser = await this.prisma.client.user.findFirst({
-      orderBy: { id: 'asc' },
-      select: { id: true },
-    });
-    if (fallbackUser) {
-      return fallbackUser.id;
-    }
-
-    throw new InternalServerErrorException(
-      '系统中不存在可用操作用户，无法写入盖章审计日志',
-    );
-  }
-
   private normalizeIp(rawIp?: string | null): string | null {
     const value = rawIp?.trim();
     if (!value) {
@@ -72,7 +44,7 @@ export class DocumentsService {
     return value;
   }
 
-  private resolveAuditIp(request: Request): string | null {
+  private resolveAuditIp(request: AuthenticatedRequest): string | null {
     const socketIp = this.normalizeIp(request.socket.remoteAddress);
     const requestIp = this.normalizeIp(request.ip);
     const forwardedFor = request.headers['x-forwarded-for'];
@@ -99,10 +71,10 @@ export class DocumentsService {
   }
 
   private async buildSealAuditContext(
-    request: Request,
+    request: AuthenticatedRequest,
   ): Promise<SealAuditContext> {
     return {
-      userId: await this.resolveAuditUserId(),
+      userId: request.user.id,
       ipAddress: this.resolveAuditIp(request),
     };
   }
@@ -295,7 +267,7 @@ export class DocumentsService {
     }
   }
 
-  async executeSeal(payload: ExecuteSealRequest, request: Request) {
+  async executeSeal(payload: ExecuteSealRequest, request: AuthenticatedRequest) {
     const auditContext = await this.buildSealAuditContext(request);
 
     if (payload.targetType === 'BILLING') {

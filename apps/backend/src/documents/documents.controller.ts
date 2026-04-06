@@ -12,7 +12,8 @@ import {
 } from '@nestjs/common';
 import { DocumentsService } from './documents.service';
 import { ExecuteSealRequest, ApiResponse } from '@erp/shared-types';
-import type { Request, Response } from 'express';
+import type { Response } from 'express';
+import type { AuthenticatedRequest } from '../auth/auth-request';
 
 @Controller('api/documents')
 export class DocumentsController {
@@ -21,7 +22,7 @@ export class DocumentsController {
   @Post('seal')
   async executeSeal(
     @Body() requestBody: ExecuteSealRequest,
-    @Req() request: Request,
+    @Req() request: AuthenticatedRequest,
   ): Promise<ApiResponse> {
     const result = await this.documentsService.executeSeal(requestBody, request);
     return { code: 200, message: '单据电子签章并归档成功', data: result };

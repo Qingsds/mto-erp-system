@@ -16,6 +16,8 @@ model User {
   id       Int     @id @default(autoincrement())
   /// 系统登录账号 (全局唯一)
   username String  @unique @db.VarChar(50)
+  /// 登录密码哈希值，服务端使用 scrypt 生成并校验
+  passwordHash String @map("password_hash") @db.VarChar(255)
   /// 操作人员真实姓名，用于日志和界面展示
   realName String  @map("real_name") @db.VarChar(50)
   /// 账号状态标识：true为正常，false为已禁用

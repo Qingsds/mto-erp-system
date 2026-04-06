@@ -1,5 +1,6 @@
 import { useNavigate, useRouterState } from "@tanstack/react-router"
 import { useUIStore } from "@/store/ui.store"
+import { useAuthStore } from "@/store/auth.store"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 
@@ -77,9 +78,16 @@ export function Header() {
   const pathname = useRouterState({
     select: state => state.location.pathname,
   })
+  const user = useAuthStore(state => state.user)
+  const clearSession = useAuthStore(state => state.clearSession)
   const breadcrumbs = getBreadcrumbItems(pathname)
   const mobileLabel =
     breadcrumbs[breadcrumbs.length - 1]?.label ?? "MTO ERP"
+
+  const handleLogout = () => {
+    clearSession()
+    navigate({ to: "/login" })
+  }
 
   return (
     <header
@@ -194,15 +202,29 @@ export function Header() {
           <span className='absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-destructive border-2 border-background' />
         </div>
 
-        {/* Avatar */}
+        {!isMobile && user && (
+          <div className='flex items-center gap-2 px-2 text-right'>
+            <div className='leading-tight'>
+              <p className='text-xs font-medium text-foreground'>
+                {user.realName}
+              </p>
+              <p className='text-[11px] text-muted-foreground'>
+                {user.username}
+              </p>
+            </div>
+            <div className='w-7 h-7 bg-primary/10 text-primary flex items-center justify-center text-xs font-medium'>
+              {user.realName.slice(0, 1)}
+            </div>
+          </div>
+        )}
+
         <Button
           variant='ghost'
           size='icon'
-          title='张三 · 管理员'
+          title='退出登录'
+          onClick={handleLogout}
         >
-          <div className='w-7 h-7 bg-primary/10 text-primary flex items-center justify-center text-xs font-medium'>
-            张
-          </div>
+          <i className='ri-logout-box-r-line text-base' />
         </Button>
       </div>
     </header>

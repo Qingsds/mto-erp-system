@@ -1,6 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router"
 import { cn } from "@/lib/utils"
 import { useUIStore } from "@/store/ui.store"
+import { useAuthStore } from "@/store/auth.store"
 
 // ─── Nav config ───────────────────────────────────────────
 const NAV = [
@@ -115,6 +116,8 @@ function NavItem({
 // ─── Sidebar ──────────────────────────────────────────────
 export function Sidebar() {
   const { collapsed, toggleCollapsed, toggleSettings } = useUIStore()
+  const user = useAuthStore(state => state.user)
+  const clearSession = useAuthStore(state => state.clearSession)
 
   return (
     <aside
@@ -187,7 +190,7 @@ export function Sidebar() {
         </button>
 
         <button
-          title={collapsed ? "张三 · 管理员" : undefined}
+          title={collapsed ? (user ? `${user.realName} · ${user.username}` : "当前用户") : undefined}
           className={cn(
             "flex items-center gap-2.5 w-full rounded-md px-2.5 py-2 text-sm",
             "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
@@ -196,8 +199,23 @@ export function Sidebar() {
         >
           <i className='ri-user-line text-base shrink-0' />
           {!collapsed && (
-            <span className='truncate'>张三 · 管理员</span>
+            <span className='truncate'>
+              {user ? `${user.realName} · ${user.username}` : "未登录"}
+            </span>
           )}
+        </button>
+
+        <button
+          title={collapsed ? "退出登录" : undefined}
+          onClick={clearSession}
+          className={cn(
+            "flex items-center gap-2.5 w-full rounded-md px-2.5 py-2 text-sm",
+            "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+            "bg-transparent border-none cursor-pointer transition-colors text-left whitespace-nowrap",
+          )}
+        >
+          <i className='ri-logout-box-r-line text-base shrink-0' />
+          {!collapsed && <span>退出登录</span>}
         </button>
       </div>
     </aside>

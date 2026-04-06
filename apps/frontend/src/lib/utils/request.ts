@@ -3,6 +3,7 @@ import axios from "axios"
 import type { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse } from "axios"
 import type { ApiResponse } from "@erp/shared-types"
 import { toast } from "@/lib/toast"
+import { useAuthStore } from "@/store/auth.store"
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim()
 
@@ -23,7 +24,16 @@ const request: AxiosInstance = axios.create({
 })
 
 request.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => config,
+  (config: InternalAxiosRequestConfig) => {
+    const token = useAuthStore.getState().token
+
+    if (token) {
+      config.headers = config.headers ?? {}
+      config.headers.Authorization = `Bearer ${token}`
+    }
+
+    return config
+  },
   error => Promise.reject(error),
 )
 
@@ -40,6 +50,20 @@ request.interceptors.response.use(
   error => {
     const { response } = error
     const errorMsg = response?.data?.message || error.message || "网络请求失败"
+    const requestUrl = String(response?.config?.url || "")
+
+    if (
+      response?.status === 401 &&
+      typeof window !== "undefined" &&
+      !requestUrl.includes("/api/auth/login")
+    ) {
+      useAuthStore.getState().clearSession()
+
+      if (window.location.pathname !== "/login") {
+        window.location.replace("/login")
+      }
+    }
+
     toast.error(errorMsg)
     return Promise.reject(error)
   },
