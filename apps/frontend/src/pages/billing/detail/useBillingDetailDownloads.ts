@@ -9,7 +9,7 @@
 
 import { useState } from "react"
 import type { BillingDetail, BillingDocument } from "@/hooks/api/useBilling"
-import { buildDocumentFileUrl } from "@/hooks/api/useBilling"
+import { buildDocumentFileUrl } from "@/hooks/api/useDocuments"
 import request from "@/lib/utils/request"
 import { toast } from "@/lib/toast"
 

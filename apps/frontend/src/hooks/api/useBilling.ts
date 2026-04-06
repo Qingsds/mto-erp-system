@@ -6,7 +6,7 @@ import type {
   DocumentStatusType,
   UpdateBillingStatusRequest,
 } from "@erp/shared-types"
-import request, { resolveApiUrl } from "@/lib/utils/request"
+import request from "@/lib/utils/request"
 import { toast } from "@/lib/toast"
 
 export interface BillingItem {
@@ -115,10 +115,6 @@ export const BILLING_KEYS = {
 
 export function formatBillingNo(id: number): string {
   return `BIL-${String(id).padStart(6, "0")}`
-}
-
-export function buildDocumentFileUrl(documentId: number): string {
-  return resolveApiUrl(`/api/documents/${documentId}/file`)
 }
 
 export function useGetBilling(params: BillingParams) {

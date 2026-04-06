@@ -3,6 +3,7 @@ import {
   IsString,
   IsInt,
   IsNumber,
+  IsBoolean,
   Min,
   IsOptional,
   IsArray,
@@ -178,6 +179,11 @@ export class CreateSealRequest {
   @IsString()
   @IsNotEmpty()
   fileKey!: string
+}
+
+export class UpdateSealStatusRequest {
+  @IsBoolean({ message: "印章状态必须是布尔值" })
+  isActive!: boolean
 }
 
 export class ExecuteSealRequest {

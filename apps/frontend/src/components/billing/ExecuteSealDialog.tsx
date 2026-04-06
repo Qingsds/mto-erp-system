@@ -27,6 +27,7 @@ export function ExecuteSealDialog({
 }: ExecuteSealDialogProps) {
   const [selectedSealId, setSelectedSealId] = useState<number | null>(null)
   const { data: seals = [] } = useGetSeals()
+  const activeSeals = seals.filter(seal => seal.isActive)
   const executeSeal = useExecuteSeal()
 
   const handleConfirm = async () => {
@@ -58,12 +59,12 @@ export function ExecuteSealDialog({
 
         <div className="flex flex-col gap-2 py-2">
           <p className="text-xs text-muted-foreground mb-1">选择印章</p>
-          {seals.length === 0 ? (
+          {activeSeals.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4">
               暂无可用印章，请先在印章管理中注册
             </p>
           ) : (
-            seals.map(seal => (
+            activeSeals.map(seal => (
               <button
                 key={seal.id}
                 onClick={() => setSelectedSealId(seal.id)}

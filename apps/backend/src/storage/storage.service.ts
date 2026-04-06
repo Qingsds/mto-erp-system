@@ -107,4 +107,16 @@ export class StorageService implements OnModuleInit {
       throw new InternalServerErrorException('文件读取失败');
     }
   }
+
+  async removeObject(key: string) {
+    try {
+      await this.client.removeObject(this.bucket, key);
+    } catch (error) {
+      if (isMinioNotFoundError(error)) {
+        return;
+      }
+      this.logger.error(`Failed to remove object: ${key}`, error as Error);
+      throw new InternalServerErrorException('文件清理失败');
+    }
+  }
 }

@@ -21,6 +21,7 @@ import { Route as OrdersIdRouteImport } from './routes/orders.$id'
 import { Route as DeliveriesIdRouteImport } from './routes/deliveries.$id'
 import { Route as BillingNewRouteImport } from './routes/billing.new'
 import { Route as BillingIdRouteImport } from './routes/billing.$id'
+import { Route as SealsIdLogsRouteImport } from './routes/seals.$id.logs'
 
 const SealsRoute = SealsRouteImport.update({
   id: '/seals',
@@ -82,6 +83,11 @@ const BillingIdRoute = BillingIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => BillingRoute,
 } as any)
+const SealsIdLogsRoute = SealsIdLogsRouteImport.update({
+  id: '/$id/logs',
+  path: '/$id/logs',
+  getParentRoute: () => SealsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -89,13 +95,14 @@ export interface FileRoutesByFullPath {
   '/deliveries': typeof DeliveriesRouteWithChildren
   '/orders': typeof OrdersRouteWithChildren
   '/parts': typeof PartsRouteWithChildren
-  '/seals': typeof SealsRoute
+  '/seals': typeof SealsRouteWithChildren
   '/billing/$id': typeof BillingIdRoute
   '/billing/new': typeof BillingNewRoute
   '/deliveries/$id': typeof DeliveriesIdRoute
   '/orders/$id': typeof OrdersIdRoute
   '/orders/new': typeof OrdersNewRoute
   '/parts/$id': typeof PartsIdRoute
+  '/seals/$id/logs': typeof SealsIdLogsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -103,13 +110,14 @@ export interface FileRoutesByTo {
   '/deliveries': typeof DeliveriesRouteWithChildren
   '/orders': typeof OrdersRouteWithChildren
   '/parts': typeof PartsRouteWithChildren
-  '/seals': typeof SealsRoute
+  '/seals': typeof SealsRouteWithChildren
   '/billing/$id': typeof BillingIdRoute
   '/billing/new': typeof BillingNewRoute
   '/deliveries/$id': typeof DeliveriesIdRoute
   '/orders/$id': typeof OrdersIdRoute
   '/orders/new': typeof OrdersNewRoute
   '/parts/$id': typeof PartsIdRoute
+  '/seals/$id/logs': typeof SealsIdLogsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -118,13 +126,14 @@ export interface FileRoutesById {
   '/deliveries': typeof DeliveriesRouteWithChildren
   '/orders': typeof OrdersRouteWithChildren
   '/parts': typeof PartsRouteWithChildren
-  '/seals': typeof SealsRoute
+  '/seals': typeof SealsRouteWithChildren
   '/billing/$id': typeof BillingIdRoute
   '/billing/new': typeof BillingNewRoute
   '/deliveries/$id': typeof DeliveriesIdRoute
   '/orders/$id': typeof OrdersIdRoute
   '/orders/new': typeof OrdersNewRoute
   '/parts/$id': typeof PartsIdRoute
+  '/seals/$id/logs': typeof SealsIdLogsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -141,6 +150,7 @@ export interface FileRouteTypes {
     | '/orders/$id'
     | '/orders/new'
     | '/parts/$id'
+    | '/seals/$id/logs'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -155,6 +165,7 @@ export interface FileRouteTypes {
     | '/orders/$id'
     | '/orders/new'
     | '/parts/$id'
+    | '/seals/$id/logs'
   id:
     | '__root__'
     | '/'
@@ -169,6 +180,7 @@ export interface FileRouteTypes {
     | '/orders/$id'
     | '/orders/new'
     | '/parts/$id'
+    | '/seals/$id/logs'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -177,7 +189,7 @@ export interface RootRouteChildren {
   DeliveriesRoute: typeof DeliveriesRouteWithChildren
   OrdersRoute: typeof OrdersRouteWithChildren
   PartsRoute: typeof PartsRouteWithChildren
-  SealsRoute: typeof SealsRoute
+  SealsRoute: typeof SealsRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -266,6 +278,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BillingIdRouteImport
       parentRoute: typeof BillingRoute
     }
+    '/seals/$id/logs': {
+      id: '/seals/$id/logs'
+      path: '/$id/logs'
+      fullPath: '/seals/$id/logs'
+      preLoaderRoute: typeof SealsIdLogsRouteImport
+      parentRoute: typeof SealsRoute
+    }
   }
 }
 
@@ -317,13 +336,23 @@ const PartsRouteChildren: PartsRouteChildren = {
 
 const PartsRouteWithChildren = PartsRoute._addFileChildren(PartsRouteChildren)
 
+interface SealsRouteChildren {
+  SealsIdLogsRoute: typeof SealsIdLogsRoute
+}
+
+const SealsRouteChildren: SealsRouteChildren = {
+  SealsIdLogsRoute: SealsIdLogsRoute,
+}
+
+const SealsRouteWithChildren = SealsRoute._addFileChildren(SealsRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BillingRoute: BillingRouteWithChildren,
   DeliveriesRoute: DeliveriesRouteWithChildren,
   OrdersRoute: OrdersRouteWithChildren,
   PartsRoute: PartsRouteWithChildren,
-  SealsRoute: SealsRoute,
+  SealsRoute: SealsRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
