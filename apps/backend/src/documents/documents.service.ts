@@ -13,6 +13,12 @@ import * as crypto from 'crypto';
 import { StorageService } from '../storage/storage.service';
 import { createBillingPdfBuffer } from './billing-pdf';
 import { Readable } from 'node:stream';
+import type { Request } from 'express';
+
+interface SealAuditContext {
+  userId: number;
+  ipAddress: string | null;
+}
 
 @Injectable()
 export class DocumentsService {
@@ -26,13 +32,94 @@ export class DocumentsService {
   }
 
   /**
+   * 在未接入认证系统前，签章操作人由后端统一兜底到系统中的首个可用用户。
+   *
+   * 这样至少能避免由前端直接伪造 userId，后续接入 JWT / Session 后再替换为真实登录用户。
+   */
+  private async resolveAuditUserId(): Promise<number> {
+    const activeUser = await this.prisma.client.user.findFirst({
+      where: { isActive: true },
+      orderBy: { id: 'asc' },
+      select: { id: true },
+    });
+    if (activeUser) {
+      return activeUser.id;
+    }
+
+    const fallbackUser = await this.prisma.client.user.findFirst({
+      orderBy: { id: 'asc' },
+      select: { id: true },
+    });
+    if (fallbackUser) {
+      return fallbackUser.id;
+    }
+
+    throw new InternalServerErrorException(
+      '系统中不存在可用操作用户，无法写入盖章审计日志',
+    );
+  }
+
+  private normalizeIp(rawIp?: string | null): string | null {
+    const value = rawIp?.trim();
+    if (!value) {
+      return null;
+    }
+
+    if (value.startsWith('::ffff:')) {
+      return value.slice(7);
+    }
+
+    return value;
+  }
+
+  private resolveAuditIp(request: Request): string | null {
+    const socketIp = this.normalizeIp(request.socket.remoteAddress);
+    const requestIp = this.normalizeIp(request.ip);
+    const forwardedFor = request.headers['x-forwarded-for'];
+    const realIp = request.headers['x-real-ip'];
+
+    const forwardedIp =
+      typeof forwardedFor === 'string'
+        ? this.normalizeIp(forwardedFor.split(',')[0] ?? null)
+        : null;
+    const realHeaderIp =
+      typeof realIp === 'string' ? this.normalizeIp(realIp) : null;
+
+    const isLocalProxy =
+      socketIp === '127.0.0.1' || socketIp === '::1' || socketIp === null;
+
+    if (isLocalProxy && forwardedIp) {
+      return forwardedIp;
+    }
+    if (isLocalProxy && realHeaderIp) {
+      return realHeaderIp;
+    }
+
+    return socketIp ?? requestIp ?? forwardedIp ?? realHeaderIp;
+  }
+
+  private async buildSealAuditContext(
+    request: Request,
+  ): Promise<SealAuditContext> {
+    return {
+      userId: await this.resolveAuditUserId(),
+      ipAddress: this.resolveAuditIp(request),
+    };
+  }
+
+  /**
    * 兼容旧目标类型的占位分支。
    *
    * 当前只有 BILLING 会生成真实 PDF 并上传 MinIO。
-   * ORDER / DELIVERY 仍沿用历史占位实现，仅供后端兼容保留，
-   * 前端本轮不会开放对应盖章入口，后续补齐真实归档能力后再替换。
+   * ORDER / DELIVERY 仍沿用历史占位实现，仅供兼容旧数据和旧调用保留，
+   * 不能视为可生产使用的真实归档能力，前端也不会开放对应入口。
+   *
+   * 后续若补齐订单 / 发货单 PDF 生成链路，应整体替换本分支，而不是继续扩展。
    */
-  private async createLegacyDocumentRecord(payload: ExecuteSealRequest) {
+  private async createLegacyPlaceholderDocumentRecord(
+    payload: ExecuteSealRequest,
+    auditContext: SealAuditContext,
+  ) {
     return await this.prisma.client.$transaction(async (tx) => {
       const seal = await tx.seal.findUnique({ where: { id: payload.sealId } });
       if (!seal || !seal.isActive) {
@@ -64,20 +151,20 @@ export class DocumentsService {
           throw new BadRequestException('未知的目标单据类型');
       }
 
-      const fakeOriginalKey = `docs/${targetPrefix}-${payload.targetId}/original.pdf`;
-      const fakeSignedKey = `docs/${targetPrefix}-${payload.targetId}/signed-${Date.now()}.pdf`;
-      const fakeFileHash = crypto
+      const legacyOriginalKey = `docs/${targetPrefix}-${payload.targetId}/original.pdf`;
+      const legacySignedKey = `docs/${targetPrefix}-${payload.targetId}/signed-${Date.now()}.pdf`;
+      const legacyFileHash = crypto
         .createHash('sha256')
-        .update(fakeSignedKey)
+        .update(legacySignedKey)
         .digest('hex');
       const fileName = `${targetPrefix}-${payload.targetId}-${seal.name}已盖章版.pdf`;
 
       const document = await tx.document.create({
         data: {
           fileName: fileName,
-          originalKey: fakeOriginalKey,
-          signedKey: fakeSignedKey,
-          fileHash: fakeFileHash,
+          originalKey: legacyOriginalKey,
+          signedKey: legacySignedKey,
+          fileHash: legacyFileHash,
           status: 'SIGNED',
           orderId: orderId,
           deliveryNoteId: deliveryNoteId,
@@ -87,9 +174,9 @@ export class DocumentsService {
       await tx.sealUsageLog.create({
         data: {
           sealId: payload.sealId,
-          userId: payload.userId,
+          userId: auditContext.userId,
           documentId: document.id,
-          ipAddress: '127.0.0.1',
+          ipAddress: auditContext.ipAddress,
         },
       });
 
@@ -97,7 +184,10 @@ export class DocumentsService {
     });
   }
 
-  private async createBillingDocumentRecord(payload: ExecuteSealRequest) {
+  private async createBillingDocumentRecord(
+    payload: ExecuteSealRequest,
+    auditContext: SealAuditContext,
+  ) {
     const seal = await this.prisma.client.seal.findUnique({
       where: { id: payload.sealId },
     });
@@ -187,9 +277,9 @@ export class DocumentsService {
         await tx.sealUsageLog.create({
           data: {
             sealId: payload.sealId,
-            userId: payload.userId,
+            userId: auditContext.userId,
             documentId: document.id,
-            ipAddress: '127.0.0.1',
+            ipAddress: auditContext.ipAddress,
           },
         });
 
@@ -205,13 +295,18 @@ export class DocumentsService {
     }
   }
 
-  async executeSeal(payload: ExecuteSealRequest) {
+  async executeSeal(payload: ExecuteSealRequest, request: Request) {
+    const auditContext = await this.buildSealAuditContext(request);
+
     if (payload.targetType === 'BILLING') {
-      return await this.createBillingDocumentRecord(payload);
+      return await this.createBillingDocumentRecord(payload, auditContext);
     }
 
-    // 非 BILLING 目标仍走兼容分支，本轮不对前端开放入口。
-    return await this.createLegacyDocumentRecord(payload);
+    // 非 BILLING 目标仍走兼容占位分支，本轮不对前端开放入口。
+    return await this.createLegacyPlaceholderDocumentRecord(
+      payload,
+      auditContext,
+    );
   }
 
   async getSignedFile(id: number): Promise<{

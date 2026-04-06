@@ -134,17 +134,11 @@ export function useExecuteSeal() {
   return useMutation({
     mutationFn: (payload: ExecuteSealRequest) =>
       request.post<unknown, ApiResponse<unknown>>("/api/documents/seal", payload),
-    onSuccess: (_, variables) => {
+    onSuccess: () => {
       toast.success("盖章成功，归档文件已生成")
-      if (variables.targetType === "BILLING") {
-        qc.invalidateQueries({ queryKey: ["billing"] })
-      }
-      if (variables.targetType === "ORDER") {
-        qc.invalidateQueries({ queryKey: ["orders"] })
-      }
-      if (variables.targetType === "DELIVERY") {
-        qc.invalidateQueries({ queryKey: ["deliveries"] })
-      }
+
+      // 本轮前端只开放对账单盖章，因此成功后只刷新对账上下文。
+      qc.invalidateQueries({ queryKey: ["billing"] })
       qc.invalidateQueries({ queryKey: SEALS_KEYS.list() })
     },
     onError: (e: Error) => toast.error(`盖章失败：${e.message}`),

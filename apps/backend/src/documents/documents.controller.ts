@@ -6,12 +6,13 @@ import {
   Param,
   ParseIntPipe,
   Post,
+  Req,
   Res,
   StreamableFile,
 } from '@nestjs/common';
 import { DocumentsService } from './documents.service';
 import { ExecuteSealRequest, ApiResponse } from '@erp/shared-types';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 
 @Controller('api/documents')
 export class DocumentsController {
@@ -20,8 +21,9 @@ export class DocumentsController {
   @Post('seal')
   async executeSeal(
     @Body() requestBody: ExecuteSealRequest,
+    @Req() request: Request,
   ): Promise<ApiResponse> {
-    const result = await this.documentsService.executeSeal(requestBody);
+    const result = await this.documentsService.executeSeal(requestBody, request);
     return { code: 200, message: '单据电子签章并归档成功', data: result };
   }
 

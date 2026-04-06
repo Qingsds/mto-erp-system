@@ -197,8 +197,4 @@ export class ExecuteSealRequest {
   @IsInt()
   @Min(1)
   sealId!: number
-
-  @IsInt()
-  @Min(1)
-  userId!: number
 }

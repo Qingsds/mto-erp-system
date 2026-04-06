@@ -45,24 +45,30 @@ export function ExecuteSealDialog({
   const { data: seals = [] } = useGetSeals()
   const activeSeals = seals.filter(seal => seal.isActive)
   const executeSeal = useExecuteSeal()
+  const submitError =
+    executeSeal.error instanceof Error ? executeSeal.error.message : null
 
   const handleConfirm = async () => {
     if (!selectedSealId) return
 
-    await executeSeal.mutateAsync({
-      targetType,
-      targetId,
-      sealId: selectedSealId,
-      userId: 1,
-    })
+    try {
+      await executeSeal.mutateAsync({
+        targetType,
+        targetId,
+        sealId: selectedSealId,
+      })
 
-    setSelectedSealId(null)
-    onOpenChange(false)
+      setSelectedSealId(null)
+      onOpenChange(false)
+    } catch {
+      // 错误由 mutation 状态和 toast 统一承载，这里避免事件链抛出未处理异常。
+    }
   }
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
       setSelectedSealId(null)
+      executeSeal.reset()
     }
     onOpenChange(nextOpen)
   }
@@ -76,6 +82,12 @@ export function ExecuteSealDialog({
         </DialogHeader>
 
         <div className='flex flex-col gap-2 py-2'>
+          {submitError && (
+            <div className='border border-destructive/20 bg-destructive/5 px-3 py-2 text-xs text-destructive'>
+              {submitError}
+            </div>
+          )}
+
           <p className='mb-1 text-xs text-muted-foreground'>选择印章</p>
           {activeSeals.length === 0 ? (
             <div className='border border-dashed border-border bg-muted/20 px-4 py-5 text-center'>
@@ -89,7 +101,10 @@ export function ExecuteSealDialog({
               <button
                 key={seal.id}
                 type='button'
-                onClick={() => setSelectedSealId(seal.id)}
+                onClick={() => {
+                  executeSeal.reset()
+                  setSelectedSealId(seal.id)
+                }}
                 className={cn(
                   "flex cursor-pointer items-center gap-3 border px-3 py-2.5 text-left transition-colors",
                   selectedSealId === seal.id
