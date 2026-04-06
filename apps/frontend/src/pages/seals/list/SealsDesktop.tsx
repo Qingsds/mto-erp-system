@@ -1,0 +1,69 @@
+/**
+ * 印章管理桌面端列表。
+ *
+ * 使用与其他列表页一致的：
+ * - 顶部标题区
+ * - 右侧主操作
+ * - 下方滚动卡片列表
+ */
+
+import { Button } from "@/components/ui/button"
+import type { useSealsPageController } from "./useSealsPageController"
+import { SealsListContent } from "./SealsListContent"
+
+type SealsPageController = ReturnType<typeof useSealsPageController>
+
+interface SealsDesktopProps {
+  controller: SealsPageController
+}
+
+export function SealsDesktop({ controller }: SealsDesktopProps) {
+  const {
+    seals,
+    isLoading,
+    subtitle,
+    actionError,
+    queryError,
+    clearActionError,
+    openCreate,
+    handleToggleStatus,
+    handleOpenLogs,
+    isUpdatingSeal,
+    resolveQueryError,
+  } = controller
+
+  return (
+    <div className='flex flex-1 flex-col overflow-hidden px-5 py-4'>
+      <div className='flex items-end justify-between gap-4 border-b border-border pb-4'>
+        <div className='min-w-0'>
+          <h1 className='text-lg font-semibold tracking-tight text-foreground'>
+            印章管理
+          </h1>
+          <p className='mt-1 text-xs text-muted-foreground'>
+            {subtitle}
+          </p>
+        </div>
+
+        <Button size='sm' onClick={openCreate}>
+          <i className='ri-add-line mr-1.5' />
+          注册印章
+        </Button>
+      </div>
+
+      <div className='flex-1 overflow-y-auto py-4'>
+        <SealsListContent
+          seals={seals}
+          isLoading={isLoading}
+          actionError={actionError}
+          queryError={queryError}
+          onClearActionError={clearActionError}
+          onOpenCreate={openCreate}
+          onToggleStatus={handleToggleStatus}
+          onOpenLogs={handleOpenLogs}
+          isUpdatingSeal={isUpdatingSeal}
+          resolveQueryError={resolveQueryError}
+        />
+      </div>
+    </div>
+  )
+}
