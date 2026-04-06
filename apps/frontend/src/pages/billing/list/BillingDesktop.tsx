@@ -5,7 +5,6 @@
  */
 
 import { Button } from "@/components/ui/button"
-import { ExecuteSealDialog } from "@/components/billing/ExecuteSealDialog"
 import { BillingCard } from "./BillingCard"
 import type { useBillingPageController } from "./useBillingPageController"
 
@@ -24,13 +23,10 @@ export function BillingDesktop({ controller }: BillingDesktopProps) {
     subtitle,
     statusFilter,
     statusTabs,
-    sealTarget,
     isLoading,
     handleStatusFilterChange,
     openCreate,
     openDetail,
-    closeSealDialog,
-    openSealDialog,
     markPaid,
     setPage,
     isBillingUpdating,
@@ -89,7 +85,7 @@ export function BillingDesktop({ controller }: BillingDesktopProps) {
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
               {total === 0
-                ? "从发货记录生成第一张对账单，后续可在此盖章和结清。"
+                ? "从发货记录生成第一张对账单，后续可进入详情页盖章和结清。"
                 : "可以切换状态筛选，或继续新建新的对账单。"}
             </p>
             <Button className="mt-4 h-9" onClick={openCreate}>
@@ -105,7 +101,6 @@ export function BillingDesktop({ controller }: BillingDesktopProps) {
                 bill={bill}
                 isUpdating={isBillingUpdating(bill.id)}
                 onOpenDetail={openDetail}
-                onOpenSeal={openSealDialog}
                 onMarkPaid={markPaid}
               />
             ))}
@@ -137,14 +132,6 @@ export function BillingDesktop({ controller }: BillingDesktopProps) {
         </div>
       )}
 
-      {sealTarget && (
-        <ExecuteSealDialog
-          open={!!sealTarget}
-          onOpenChange={open => !open && closeSealDialog()}
-          billingId={sealTarget.id}
-          billingNo={sealTarget.no}
-        />
-      )}
     </div>
   )
 }

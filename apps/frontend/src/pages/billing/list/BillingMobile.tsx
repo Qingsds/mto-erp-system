@@ -5,7 +5,6 @@
  */
 
 import { Button } from "@/components/ui/button"
-import { ExecuteSealDialog } from "@/components/billing/ExecuteSealDialog"
 import { BillingCard } from "./BillingCard"
 import type { useBillingPageController } from "./useBillingPageController"
 
@@ -24,13 +23,10 @@ export function BillingMobile({ controller }: BillingMobileProps) {
     subtitle,
     statusFilter,
     statusTabs,
-    sealTarget,
     isLoading,
     handleStatusFilterChange,
     openCreate,
     openDetail,
-    closeSealDialog,
-    openSealDialog,
     markPaid,
     setPage,
     isBillingUpdating,
@@ -89,7 +85,7 @@ export function BillingMobile({ controller }: BillingMobileProps) {
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
                 {total === 0
-                  ? "从新建对账单开始，后续可在此盖章和结清。"
+                  ? "从新建对账单开始，后续可进入详情页盖章和结清。"
                   : "切换状态或新建对账单后再查看。"}
               </p>
               <Button className="mt-4 h-10 w-full" onClick={openCreate}>
@@ -106,7 +102,6 @@ export function BillingMobile({ controller }: BillingMobileProps) {
                   compact
                   isUpdating={isBillingUpdating(bill.id)}
                   onOpenDetail={openDetail}
-                  onOpenSeal={openSealDialog}
                   onMarkPaid={markPaid}
                 />
               ))}
@@ -142,15 +137,6 @@ export function BillingMobile({ controller }: BillingMobileProps) {
           )}
         </div>
       </div>
-
-      {sealTarget && (
-        <ExecuteSealDialog
-          open={!!sealTarget}
-          onOpenChange={open => !open && closeSealDialog()}
-          billingId={sealTarget.id}
-          billingNo={sealTarget.no}
-        />
-      )}
     </div>
   )
 }

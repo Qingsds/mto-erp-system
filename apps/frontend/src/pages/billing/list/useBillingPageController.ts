@@ -18,7 +18,6 @@ import {
 import {
   BILLING_STATUS_LABEL,
   type BillingFilter,
-  formatBillingNo,
 } from "./shared"
 
 const PAGE_SIZE = 12
@@ -27,7 +26,6 @@ export function useBillingPageController() {
   const navigate = useNavigate()
   const [statusFilter, setStatusFilter] = useState<BillingFilter>("all")
   const [page, setPage] = useState(1)
-  const [sealTarget, setSealTarget] = useState<{ id: number; no: string } | null>(null)
   const [pendingBillingId, setPendingBillingId] = useState<number | null>(null)
 
   const updateStatus = useUpdateBillingStatus()
@@ -106,14 +104,6 @@ export function useBillingPageController() {
     setPage(1)
   }, [])
 
-  const openSealDialog = useCallback((id: number) => {
-    setSealTarget({ id, no: formatBillingNo(id) })
-  }, [])
-
-  const closeSealDialog = useCallback(() => {
-    setSealTarget(null)
-  }, [])
-
   const markPaid = useCallback(async (id: number) => {
     try {
       setPendingBillingId(id)
@@ -135,15 +125,12 @@ export function useBillingPageController() {
     subtitle,
     statusFilter,
     statusTabs,
-    sealTarget,
     isLoading: listQuery.isLoading,
     isFetching: listQuery.isFetching,
     setPage,
     openCreate,
     openDetail,
     handleStatusFilterChange,
-    openSealDialog,
-    closeSealDialog,
     markPaid,
     isBillingUpdating,
   }

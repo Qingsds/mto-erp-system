@@ -25,6 +25,13 @@ export class DocumentsService {
     return `BIL-${String(id).padStart(6, '0')}`;
   }
 
+  /**
+   * 兼容旧目标类型的占位分支。
+   *
+   * 当前只有 BILLING 会生成真实 PDF 并上传 MinIO。
+   * ORDER / DELIVERY 仍沿用历史占位实现，仅供后端兼容保留，
+   * 前端本轮不会开放对应盖章入口，后续补齐真实归档能力后再替换。
+   */
   private async createLegacyDocumentRecord(payload: ExecuteSealRequest) {
     return await this.prisma.client.$transaction(async (tx) => {
       const seal = await tx.seal.findUnique({ where: { id: payload.sealId } });
@@ -203,6 +210,7 @@ export class DocumentsService {
       return await this.createBillingDocumentRecord(payload);
     }
 
+    // 非 BILLING 目标仍走兼容分支，本轮不对前端开放入口。
     return await this.createLegacyDocumentRecord(payload);
   }
 

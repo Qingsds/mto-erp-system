@@ -11,10 +11,10 @@
 import { useMemo, useState } from "react"
 import { useNavigate, useParams } from "@tanstack/react-router"
 import { PageContentWrapper } from "@/components/common/PageContentWrapper"
+import { ExecuteSealDialog } from "@/components/documents/ExecuteSealDialog"
 import { Button } from "@/components/ui/button"
 import { useUIStore } from "@/store/ui.store"
 import { useGetBillingDetail, useUpdateBillingStatus } from "@/hooks/api/useBilling"
-import { ExecuteSealDialog } from "@/components/billing/ExecuteSealDialog"
 import { BillingDetailDesktop } from "./BillingDetailDesktop"
 import { BillingDetailMobile } from "./BillingDetailMobile"
 import { BillingDetailMobileActions } from "./BillingDetailMobileActions"
@@ -251,8 +251,10 @@ export function BillingDetailPage() {
       <ExecuteSealDialog
         open={sealOpen}
         onOpenChange={setSealOpen}
-        billingId={billing.id}
-        billingNo={`BIL-${String(billing.id).padStart(6, "0")}`}
+        targetType='BILLING'
+        targetId={billing.id}
+        targetLabel={`BIL-${String(billing.id).padStart(6, "0")}`}
+        description='盖章后对账单状态将自动流转为「已盖章」，并生成可下载的归档 PDF。'
       />
     </div>
   )

@@ -19,7 +19,6 @@ interface BillingCardProps {
   compact?: boolean
   isUpdating?: boolean
   onOpenDetail: (id: number) => void
-  onOpenSeal: (id: number) => void
   onMarkPaid: (id: number) => void
 }
 
@@ -34,7 +33,6 @@ export function BillingCard({
   compact = false,
   isUpdating = false,
   onOpenDetail,
-  onOpenSeal,
   onMarkPaid,
 }: BillingCardProps) {
   return (
@@ -98,18 +96,9 @@ export function BillingCard({
         )}
       >
         {bill.status === "DRAFT" && (
-          <Button
-            size="sm"
-            variant="outline"
-            className={cn("text-xs", compact ? "h-9 w-full" : "h-8")}
-            onClick={event => {
-              event.stopPropagation()
-              onOpenSeal(bill.id)
-            }}
-          >
-            <i className="ri-seal-line mr-1.5" />
-            盖章
-          </Button>
+          <p className='text-xs text-muted-foreground'>
+            请进入详情页执行盖章归档
+          </p>
         )}
 
         {bill.status === "SEALED" && (
