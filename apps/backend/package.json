@@ -21,6 +21,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
+    "@embedpdf/fonts-sc": "^1.0.0",
     "@erp/database": "workspace:*",
     "@erp/shared-types": "workspace:*",
     "@nestjs/common": "^11.0.1",

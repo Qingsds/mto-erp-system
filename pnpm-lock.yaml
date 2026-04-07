@@ -14,6 +14,9 @@ importers:
 
   apps/backend:
     dependencies:
+      '@embedpdf/fonts-sc':
+        specifier: ^1.0.0
+        version: 1.0.0
       '@erp/database':
         specifier: workspace:*
         version: link:../../packages/database
@@ -609,6 +612,9 @@ packages:
     engines: {bun: '>=1', deno: '>=2', node: '>=16'}
     peerDependencies:
       '@noble/ciphers': ^1.0.0
+
+  '@embedpdf/fonts-sc@1.0.0':
+    resolution: {integrity: sha512-ETXl7XCwaQLSSvMO3EUDwMNqtL64kX2LlFxarTRi/NsIGGOIxUurGfKtrkmtnKHrWy1jAJSt6oxK2uJhvdvQIw==}
 
   '@emnapi/runtime@1.9.2':
     resolution: {integrity: sha512-3U4+MIWHImeyu1wnmVygh5WlgfYDtyf0k8AbLhMFxOipihf6nrWC4syIm/SwEeec0mNSafiiNnMJwbza/Is6Lw==}
@@ -6853,6 +6859,8 @@ snapshots:
   '@ecies/ciphers@0.2.5(@noble/ciphers@1.3.0)':
     dependencies:
       '@noble/ciphers': 1.3.0
+
+  '@embedpdf/fonts-sc@1.0.0': {}
 
   '@emnapi/runtime@1.9.2':
     dependencies:

@@ -4,10 +4,12 @@
  * 约束：
  * - 仅服务对账单场景
  * - 生成“原始版”与“已盖章归档版”两种 PDF
- * - 优先尝试加载可用中文字体，避免中文字段在 PDF 中变成乱码
+ * - 优先尝试加载项目内置中文字体，避免不同操作系统缺字
  */
 
 import { access, readFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
 import { PDFDocument, rgb } from 'pdf-lib';
 import * as fontkit from '@pdf-lib/fontkit';
 
@@ -61,12 +63,30 @@ export interface BillingSealPlacement {
   widthRatio: number;
 }
 
+const localRequire = createRequire(__filename);
+
+function resolveEmbedPdfFontPath(fileName: string): string | null {
+  try {
+    const entryPath = localRequire.resolve('@embedpdf/fonts-sc');
+    return join(dirname(entryPath), '..', 'fonts', fileName);
+  } catch {
+    return null;
+  }
+}
+
 const PDF_FONT_CANDIDATES = [
   process.env.BILLING_PDF_FONT_PATH?.trim(),
   process.env.PDF_FONT_PATH?.trim(),
+  resolveEmbedPdfFontPath('NotoSansHans-Regular.otf'),
+  resolveEmbedPdfFontPath('NotoSansHans-Medium.otf'),
+  resolveEmbedPdfFontPath('NotoSansHans-Bold.otf'),
   '/System/Library/Fonts/Supplemental/Arial Unicode.ttf',
   '/System/Library/Fonts/Hiragino Sans GB.ttc',
   '/System/Library/Fonts/STHeiti Medium.ttc',
+  'C:/Windows/Fonts/msyh.ttc',
+  'C:/Windows/Fonts/msyh.ttf',
+  'C:/Windows/Fonts/simsun.ttc',
+  'C:/Windows/Fonts/simhei.ttf',
   '/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc',
   '/usr/share/fonts/opentype/noto/NotoSansCJKsc-Regular.otf',
   '/usr/share/fonts/truetype/arphic/ukai.ttc',
@@ -169,7 +189,9 @@ export async function createBillingPdfBuffer(
   pdfDoc.registerFontkit(fontkit);
 
   const fontBytes = await loadBillingPdfFontBytes();
-  const font = await pdfDoc.embedFont(fontBytes, { subset: true });
+  // 这组中文 OTF 在 pdf-lib 下启用 subset 会导致字形映射错乱，
+  // 生成出来的 PDF 在 macOS / Windows 预览里都会出现排版异常。
+  const font = await pdfDoc.embedFont(fontBytes, { subset: false });
 
   const pageSize = { width: 595.28, height: 841.89 };
   const marginX = 40;

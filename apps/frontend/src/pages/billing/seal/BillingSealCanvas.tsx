@@ -77,6 +77,7 @@ export function BillingSealCanvas({
   onPageCountChange,
 }: BillingSealCanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
+  const pageFrameRef = useRef<HTMLDivElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const renderTaskRef = useRef<RenderTask | null>(null)
   const pdfDocumentRef = useRef<PDFDocumentProxy | null>(null)
@@ -263,20 +264,18 @@ export function BillingSealCanvas({
 
     event.preventDefault()
 
-    const startX = event.clientX
-    const startY = event.clientY
-    const startPlacement = placement
-    const pageRect = containerRef.current?.getBoundingClientRect()
+    const pageRect = pageFrameRef.current?.getBoundingClientRect()
     if (!pageRect) return
+    const overlayRect = event.currentTarget.getBoundingClientRect()
+    const pointerOffsetX = event.clientX - overlayRect.left
+    const pointerOffsetY = event.clientY - overlayRect.top
 
     const onPointerMove = (moveEvent: PointerEvent) => {
-      const deltaX = (moveEvent.clientX - startX) / pageRect.width
-      const deltaY = (moveEvent.clientY - startY) / pageRect.height
       const nextPlacement = clampPlacement({
         placement: {
-          ...startPlacement,
-          xRatio: startPlacement.xRatio + deltaX,
-          yRatio: startPlacement.yRatio + deltaY,
+          ...placement,
+          xRatio: (moveEvent.clientX - pageRect.left - pointerOffsetX) / pageRect.width,
+          yRatio: (moveEvent.clientY - pageRect.top - pointerOffsetY) / pageRect.height,
         },
         sealAspectRatio,
         renderWidth: renderSize.width,
@@ -303,9 +302,11 @@ export function BillingSealCanvas({
 
     const startX = event.clientX
     const startPlacement = placement
+    const pageRect = pageFrameRef.current?.getBoundingClientRect()
+    const pageWidth = pageRect?.width ?? renderSize.width
 
     const onPointerMove = (moveEvent: PointerEvent) => {
-      const deltaWidth = (moveEvent.clientX - startX) / renderSize.width
+      const deltaWidth = (moveEvent.clientX - startX) / pageWidth
       const nextPlacement = clampPlacement({
         placement: {
           ...startPlacement,
@@ -357,6 +358,7 @@ export function BillingSealCanvas({
             </div>
           ) : (
             <div
+              ref={pageFrameRef}
               className='relative mx-auto border border-border bg-white shadow-sm'
               style={{
                 width: renderSize.width || "100%",

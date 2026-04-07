@@ -1,7 +1,12 @@
 import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import sharp = require('sharp');
 
-const OUTPUT_RED = { r: 188, g: 24, b: 24 };
+const MIN_RED_CHANNEL = 120;
+const MIN_RED_DOMINANCE = 26;
+const MIN_SATURATION = 24;
+const BACKGROUND_BRIGHTNESS_THRESHOLD = 228;
+const BACKGROUND_RED_DOMINANCE_THRESHOLD = 48;
+const ALPHA_MASK_CUTOFF = 0.52;
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
@@ -23,7 +28,6 @@ export class SealImageService {
     try {
       const { data, info } = await sharp(source)
         .ensureAlpha()
-        .median(1)
         .raw()
         .toBuffer({ resolveWithObject: true });
 
@@ -44,10 +48,13 @@ export class SealImageService {
 
         const keepAsSeal =
           alpha > 0.05 &&
-          r >= 96 &&
-          redDominance >= 16 &&
-          saturation >= 14 &&
-          !(brightness > 242 && redDominance < 28);
+          r >= MIN_RED_CHANNEL &&
+          redDominance >= MIN_RED_DOMINANCE &&
+          saturation >= MIN_SATURATION &&
+          !(
+            brightness > BACKGROUND_BRIGHTNESS_THRESHOLD &&
+            redDominance < BACKGROUND_RED_DOMINANCE_THRESHOLD
+          );
 
         if (!keepAsSeal) {
           output[index] = 0;
@@ -58,15 +65,33 @@ export class SealImageService {
         }
 
         const density =
-          redDominance / 160 +
-          saturation / 255 * 0.45 +
-          clamp((255 - brightness) / 255, 0, 0.35);
-        const normalizedAlpha = clamp(density * alpha, 0.25, 1);
+          redDominance / 150 +
+          (saturation / 255) * 0.55 +
+          clamp((245 - brightness) / 255, 0, 0.28);
+        const normalizedAlpha = clamp(density * alpha, 0, 1);
+        const alphaMask = clamp(
+          (normalizedAlpha - ALPHA_MASK_CUTOFF) /
+            (1 - ALPHA_MASK_CUTOFF),
+          0,
+          1,
+        );
 
-        output[index] = OUTPUT_RED.r;
-        output[index + 1] = OUTPUT_RED.g;
-        output[index + 2] = OUTPUT_RED.b;
-        output[index + 3] = Math.round(255 * normalizedAlpha);
+        // 直接裁掉低置信度边缘，优先保证透明背景干净。
+        if (alphaMask < 0.2) {
+          output[index] = 0;
+          output[index + 1] = 0;
+          output[index + 2] = 0;
+          output[index + 3] = 0;
+          continue;
+        }
+
+        // 历史原图多数已经被合成到白底/棋盘格底图里，不能复用原 alpha。
+        // 这里保留原始 RGB 纹理，但透明度完全由红章掩码重新生成，
+        // 这样既能保留字形细节，也能真正去掉背景。
+        output[index] = r;
+        output[index + 1] = g;
+        output[index + 2] = b;
+        output[index + 3] = Math.round(255 * Math.max(0.58, alphaMask));
       }
 
       return await sharp(output, {
