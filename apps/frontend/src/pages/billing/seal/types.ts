@@ -14,16 +14,23 @@ export interface BillingSealPlacement {
   widthRatio: number
 }
 
-export const DEFAULT_BILLING_SEAL_PLACEMENT: BillingSealPlacement = {
-  pageIndex: 1,
-  xRatio: 0.68,
-  yRatio: 0.7,
-  widthRatio: 0.2,
-}
-
 export const MIN_BILLING_SEAL_WIDTH_RATIO = 0.1
 export const MAX_BILLING_SEAL_WIDTH_RATIO = 0.38
 
 export function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max)
+}
+
+/**
+ * 默认把印章放在页面右下留白区域。
+ *
+ * 这里直接按页面比例给出默认值，避免首次进入工作台时盖章落到正文中间。
+ */
+export function createDefaultBillingSealPlacement(pageIndex: number = 1): BillingSealPlacement {
+  return {
+    pageIndex,
+    xRatio: 0.72,
+    yRatio: 0.8,
+    widthRatio: 0.18,
+  }
 }

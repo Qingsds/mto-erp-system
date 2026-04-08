@@ -28,6 +28,7 @@ interface BillingSealSidebarProps {
   isSubmitting: boolean
   isPreviewLoading: boolean
   onSelectSeal: (sealId: number) => void
+  onPageChange: (pageIndex: number) => void
   onPlacementChange: (placement: BillingSealPlacement) => void
   onSubmit: () => void
 }
@@ -42,6 +43,7 @@ export function BillingSealSidebar({
   isSubmitting,
   isPreviewLoading,
   onSelectSeal,
+  onPageChange,
   onPlacementChange,
   onSubmit,
 }: BillingSealSidebarProps) {
@@ -103,7 +105,7 @@ export function BillingSealSidebar({
           <div>
             <h3 className='text-xs font-medium text-foreground'>页码与大小</h3>
             <p className='mt-1 text-[11px] text-muted-foreground'>
-              先切页，再拖动印章定位；宽度可在这里微调。
+              每一页会分别记住位置；宽度可在这里微调。
             </p>
           </div>
 
@@ -112,12 +114,7 @@ export function BillingSealSidebar({
             <select
               className='h-10 border border-input bg-background px-3 text-sm'
               value={placement.pageIndex}
-              onChange={event =>
-                onPlacementChange({
-                  ...placement,
-                  pageIndex: Number(event.target.value),
-                })
-              }
+              onChange={event => onPageChange(Number(event.target.value))}
               disabled={pageCount <= 0 || isPreviewLoading}
             >
               {pageCount > 0 ? (

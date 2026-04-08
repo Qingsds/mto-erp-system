@@ -301,16 +301,28 @@ export function BillingSealCanvas({
     event.stopPropagation()
 
     const startX = event.clientX
+    const startY = event.clientY
     const startPlacement = placement
     const pageRect = pageFrameRef.current?.getBoundingClientRect()
     const pageWidth = pageRect?.width ?? renderSize.width
+    const pageHeight = pageRect?.height ?? renderSize.height
+    const overlayElement = event.currentTarget.parentElement
+    const overlayRect = overlayElement?.getBoundingClientRect()
+    if (!overlayRect) return
 
     const onPointerMove = (moveEvent: PointerEvent) => {
-      const deltaWidth = (moveEvent.clientX - startX) / pageWidth
+      const widthRatioByX = (moveEvent.clientX - overlayRect.left) / pageWidth
+      const widthRatioByY =
+        (moveEvent.clientY - overlayRect.top) /
+        pageHeight /
+        (sealAspectRatio * (renderSize.width / renderSize.height))
+      const prefersHorizontal =
+        Math.abs(moveEvent.clientX - startX) >= Math.abs(moveEvent.clientY - startY)
+      const nextWidthRatio = prefersHorizontal ? widthRatioByX : widthRatioByY
       const nextPlacement = clampPlacement({
         placement: {
           ...startPlacement,
-          widthRatio: startPlacement.widthRatio + deltaWidth,
+          widthRatio: nextWidthRatio,
         },
         sealAspectRatio,
         renderWidth: renderSize.width,
@@ -397,7 +409,7 @@ export function BillingSealCanvas({
 
                   <span
                     role='presentation'
-                    className='absolute -bottom-1 -right-1 h-3.5 w-3.5 cursor-nwse-resize border border-primary bg-background'
+                    className='absolute -bottom-1.5 -right-1.5 h-5 w-5 cursor-nwse-resize border border-primary bg-background shadow-sm'
                     onPointerDown={handleResizeStart}
                   />
                 </button>

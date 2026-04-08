@@ -7,7 +7,7 @@
  * - 选择印章、拖拽定位、提交归档
  */
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useNavigate, useParams } from "@tanstack/react-router"
 import { Button } from "@/components/ui/button"
 import { PageContentWrapper } from "@/components/common/PageContentWrapper"
@@ -19,7 +19,7 @@ import { useUIStore } from "@/store/ui.store"
 import { BillingSealCanvas } from "./BillingSealCanvas"
 import { BillingSealSidebar } from "./BillingSealSidebar"
 import {
-  DEFAULT_BILLING_SEAL_PLACEMENT,
+  createDefaultBillingSealPlacement,
   type BillingSealPlacement,
 } from "./types"
 import { useBillingSealPreview } from "./useBillingSealPreview"
@@ -31,9 +31,10 @@ export function BillingSealPage() {
   const billingId = Number(params.id)
   const [pageCount, setPageCount] = useState(0)
   const [manualSealId, setManualSealId] = useState<number | null>(null)
-  const [placement, setPlacement] = useState<BillingSealPlacement>(
-    DEFAULT_BILLING_SEAL_PLACEMENT,
-  )
+  const [currentPageIndex, setCurrentPageIndex] = useState(1)
+  const [placementsByPage, setPlacementsByPage] = useState<Record<number, BillingSealPlacement>>({
+    1: createDefaultBillingSealPlacement(1),
+  })
   const [actionError, setActionError] = useState<string | null>(null)
 
   const { data: billing, isLoading } = useGetBillingDetail(
@@ -54,14 +55,64 @@ export function BillingSealPage() {
     [activeSeals, manualSealId],
   )
   const selectedSealId = selectedSeal?.id ?? null
-  const effectivePlacement = useMemo(
-    () => ({
-      ...placement,
-      pageIndex:
-        pageCount > 0 ? Math.min(placement.pageIndex, pageCount) : placement.pageIndex,
-    }),
-    [pageCount, placement],
-  )
+
+  useEffect(() => {
+    if (pageCount <= 0) return
+
+    setCurrentPageIndex(previous => {
+      const nextPageIndex = Math.min(previous, pageCount)
+
+      setPlacementsByPage(currentPlacements => {
+        if (currentPlacements[nextPageIndex]) {
+          return currentPlacements
+        }
+
+        return {
+          ...currentPlacements,
+          [nextPageIndex]: createDefaultBillingSealPlacement(nextPageIndex),
+        }
+      })
+
+      return nextPageIndex
+    })
+  }, [pageCount])
+
+  const effectivePlacement = useMemo(() => {
+    const basePlacement =
+      placementsByPage[currentPageIndex] ??
+      createDefaultBillingSealPlacement(currentPageIndex)
+
+    return {
+      ...basePlacement,
+      pageIndex: currentPageIndex,
+    }
+  }, [currentPageIndex, placementsByPage])
+
+  const handlePlacementChange = (nextPlacement: BillingSealPlacement) => {
+    setActionError(null)
+    setPlacementsByPage(currentPlacements => ({
+      ...currentPlacements,
+      [currentPageIndex]: {
+        ...nextPlacement,
+        pageIndex: currentPageIndex,
+      },
+    }))
+  }
+
+  const handlePageChange = (pageIndex: number) => {
+    setActionError(null)
+    setCurrentPageIndex(pageIndex)
+    setPlacementsByPage(currentPlacements => {
+      if (currentPlacements[pageIndex]) {
+        return currentPlacements
+      }
+
+      return {
+        ...currentPlacements,
+        [pageIndex]: createDefaultBillingSealPlacement(pageIndex),
+      }
+    })
+  }
   const sealPreview = useSealPreviewUrl(selectedSealId ?? undefined, selectedSeal?.fileKey)
   const resolvedActionError = actionError ?? preview.error ?? sealPreview.previewError
 
@@ -202,10 +253,7 @@ export function BillingSealPage() {
             placement={effectivePlacement}
             sealPreviewUrl={sealPreview.previewUrl}
             sealName={selectedSeal?.name ?? null}
-            onPlacementChange={nextPlacement => {
-              setActionError(null)
-              setPlacement(nextPlacement)
-            }}
+            onPlacementChange={handlePlacementChange}
             onPageCountChange={setPageCount}
           />
 
@@ -222,10 +270,8 @@ export function BillingSealPage() {
               setActionError(null)
               setManualSealId(sealId)
             }}
-            onPlacementChange={nextPlacement => {
-              setActionError(null)
-              setPlacement(nextPlacement)
-            }}
+            onPageChange={handlePageChange}
+            onPlacementChange={handlePlacementChange}
             onSubmit={() => void handleSubmit()}
           />
         </div>
