@@ -45,15 +45,38 @@ function applyFont(fs: FontSize, lh: LineHeight) {
 
 function applyDensity(d: Density) {
   const map = {
-    compact: { cell: "6px 12px", card: "10px 14px", page: "16px 20px", gap: "8px" },
-    default: { cell: "10px 16px", card: "14px 18px", page: "24px 28px", gap: "12px" },
-    comfortable: { cell: "14px 20px", card: "18px 24px", page: "32px 36px", gap: "16px" },
+    compact: {
+      cell: "6px 12px",
+      card: "10px 14px",
+      page: "16px 16px",
+      pageY: "16px",
+      pageX: "16px",
+      gap: "8px",
+    },
+    default: {
+      cell: "10px 16px",
+      card: "14px 18px",
+      page: "24px 20px",
+      pageY: "24px",
+      pageX: "20px",
+      gap: "12px",
+    },
+    comfortable: {
+      cell: "14px 20px",
+      card: "18px 24px",
+      page: "32px 28px",
+      pageY: "32px",
+      pageX: "28px",
+      gap: "16px",
+    },
   }[d]
 
   R().setAttribute("data-density", d)
   R().style.setProperty("--erp-cell-pad", map.cell)
   R().style.setProperty("--erp-card-pad", map.card)
   R().style.setProperty("--erp-page-pad", map.page)
+  R().style.setProperty("--erp-page-py", map.pageY)
+  R().style.setProperty("--erp-page-px", map.pageX)
   R().style.setProperty("--erp-gap", map.gap)
 }
 

@@ -146,6 +146,8 @@
   --erp-bottom-nav-safe-h:   calc(var(--erp-bottom-nav-h) + env(safe-area-inset-bottom, 0px));
   --erp-sidebar-w:           220px;
   --erp-sidebar-w-collapsed: 52px;
+  --erp-shell-max-w:         80rem;
+  --erp-mobile-action-offset: 104px;
 
   /* Typography (overridden by ui.store) */
   --erp-fs: 14px;
@@ -154,13 +156,15 @@
   /* Density spacing (overridden by ui.store) */
   --erp-cell-pad: 10px 16px;
   --erp-card-pad: 14px 18px;
-  --erp-page-pad: 24px 28px;
+  --erp-page-pad: 24px 20px;
+  --erp-page-py: 24px;
+  --erp-page-px: 20px;
   --erp-gap:      12px;
 }
 
 /* ERP spacing utility classes */
 /* These use multi-value vars that Tailwind v4 cannot expand as arbitrary values */
-.erp-page { padding: var(--erp-page-pad); }
+.erp-page { padding: var(--erp-page-py) var(--erp-page-px); }
 .erp-card { padding: var(--erp-card-pad); }
 .erp-cell { padding: var(--erp-cell-pad); }
 .erp-gap  { gap:     var(--erp-gap);      }

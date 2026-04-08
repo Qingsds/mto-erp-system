@@ -38,7 +38,7 @@ export function BottomNav({ onFabClick }: BottomNavProps) {
                   onClick={onFabClick}
                   aria-label="快速添加"
                   className={cn(
-                    "relative -top-4 size-13 rounded-full",
+                    "relative -top-4 size-13",
                     "bg-primary text-primary-foreground",
                     "flex items-center justify-center",
                     "border-4 border-background",

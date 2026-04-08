@@ -17,6 +17,7 @@ import {
 } from "@tanstack/react-table"
 import { Button } from "@/components/ui/button"
 import { DataTable } from "@/components/common/DataTable"
+import { TopLevelPageWrapper } from "@/components/common/TopLevelPageWrapper"
 import { StatusFilterBar } from "@/components/common/TableToolbar"
 import type { DeliveryListItem } from "@/hooks/api/useDeliveries"
 import { getDeliveriesColumns } from "../deliveries.columns"
@@ -84,77 +85,81 @@ export function DeliveriesDesktop({ search }: DeliveriesDesktopProps) {
   })
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden">
-      <div className="px-5 py-3 border-b border-border bg-background shrink-0 flex items-center gap-3">
-        <div>
-          <h1 className="text-lg font-semibold tracking-tight leading-none">发货管理</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {isFetching && !isLoading
-              ? "加载中…"
-              : `系统总 ${totalCount} 张 · 当前页 ${visibleDeliveries.length} 张`}
-          </p>
+    <TopLevelPageWrapper fillHeight inset='flush'>
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <div className="shrink-0 border-b border-border bg-background">
+          <div className="flex items-center gap-3 px-5 py-3">
+            <div>
+              <h1 className="text-lg font-semibold tracking-tight leading-none">发货管理</h1>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {isFetching && !isLoading
+                  ? "加载中…"
+                  : `系统总 ${totalCount} 张 · 当前页 ${visibleDeliveries.length} 张`}
+              </p>
+            </div>
+
+            <div className="ml-auto flex items-center gap-2">
+              <Button size="sm" variant="outline" onClick={openOrders}>
+                <i className="ri-external-link-line mr-1.5" />前往订单发货
+              </Button>
+            </div>
+          </div>
         </div>
 
-        <div className="ml-auto flex items-center gap-2">
-          <Button size="sm" variant="outline" onClick={openOrders}>
-            <i className="ri-external-link-line mr-1.5" />前往订单发货
-          </Button>
-        </div>
+        <DeliveriesDesktopFilters
+          filters={draftFilters}
+          hasActiveFilters={hasActiveFilters}
+          onChange={setDraftFilters}
+          onApply={() => applyFilters(draftFilters)}
+          onReset={() => {
+            resetFilters()
+            setDraftFilters(DEFAULT_DELIVERY_FILTERS)
+          }}
+        />
+
+        <DataTable<DeliveryListItem>
+          table={table}
+          columns={columns}
+          isLoading={isLoading}
+          emptyIcon="ri-truck-line"
+          emptyText={hasActiveFilters ? "当前筛选条件下暂无发货单" : "暂无发货单数据"}
+          globalFilter={filters.keyword}
+          onRowClick={delivery => openDetail(delivery.id)}
+          filterBar={
+            <StatusFilterBar
+              tabs={statusTabs}
+              value={filters.status}
+              onChange={value => {
+                setDraftFilters(prev => ({ ...prev, status: value }))
+                setStatusFilter(value)
+              }}
+              footer={
+                totalPages > 1 ? (
+                  <div className="ml-auto flex items-center gap-2 border-l border-border px-2 text-xs text-muted-foreground">
+                    <button
+                      onClick={() => setPage(page - 1)}
+                      disabled={page <= 1}
+                      className="cursor-pointer rounded border-none bg-transparent px-1.5 py-0.5 hover:bg-muted disabled:opacity-30"
+                    >
+                      <i className="ri-arrow-left-s-line" />
+                    </button>
+                    <span>
+                      {page} / {totalPages}
+                    </span>
+                    <button
+                      onClick={() => setPage(page + 1)}
+                      disabled={page >= totalPages}
+                      className="cursor-pointer rounded border-none bg-transparent px-1.5 py-0.5 hover:bg-muted disabled:opacity-30"
+                    >
+                      <i className="ri-arrow-right-s-line" />
+                    </button>
+                  </div>
+                ) : undefined
+              }
+            />
+          }
+        />
       </div>
-
-      <DeliveriesDesktopFilters
-        filters={draftFilters}
-        hasActiveFilters={hasActiveFilters}
-        onChange={setDraftFilters}
-        onApply={() => applyFilters(draftFilters)}
-        onReset={() => {
-          resetFilters()
-          setDraftFilters(DEFAULT_DELIVERY_FILTERS)
-        }}
-      />
-
-      <DataTable<DeliveryListItem>
-        table={table}
-        columns={columns}
-        isLoading={isLoading}
-        emptyIcon="ri-truck-line"
-        emptyText={hasActiveFilters ? "当前筛选条件下暂无发货单" : "暂无发货单数据"}
-        globalFilter={filters.keyword}
-        onRowClick={delivery => openDetail(delivery.id)}
-        filterBar={
-          <StatusFilterBar
-            tabs={statusTabs}
-            value={filters.status}
-            onChange={value => {
-              setDraftFilters(prev => ({ ...prev, status: value }))
-              setStatusFilter(value)
-            }}
-            footer={
-              totalPages > 1 ? (
-                <div className="flex items-center gap-2 px-2 text-xs text-muted-foreground border-l border-border ml-auto">
-                  <button
-                    onClick={() => setPage(page - 1)}
-                    disabled={page <= 1}
-                    className="px-1.5 py-0.5 rounded hover:bg-muted disabled:opacity-30 bg-transparent border-none cursor-pointer"
-                  >
-                    <i className="ri-arrow-left-s-line" />
-                  </button>
-                  <span>
-                    {page} / {totalPages}
-                  </span>
-                  <button
-                    onClick={() => setPage(page + 1)}
-                    disabled={page >= totalPages}
-                    className="px-1.5 py-0.5 rounded hover:bg-muted disabled:opacity-30 bg-transparent border-none cursor-pointer"
-                  >
-                    <i className="ri-arrow-right-s-line" />
-                  </button>
-                </div>
-              ) : undefined
-            }
-          />
-        }
-      />
-    </div>
+    </TopLevelPageWrapper>
   )
 }

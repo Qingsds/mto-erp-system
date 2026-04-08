@@ -1,8 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router"
 import { cn } from "@/lib/utils"
 import { useUIStore } from "@/store/ui.store"
-import { useAuthStore } from "@/store/auth.store"
-import { useLogout } from "@/hooks/api/useAuth"
 import { useIsAdmin } from "@/lib/permissions"
 
 // ─── Nav config ───────────────────────────────────────────
@@ -126,10 +124,8 @@ function NavItem({
 
 // ─── Sidebar ──────────────────────────────────────────────
 export function Sidebar() {
-  const { collapsed, toggleCollapsed, toggleSettings } = useUIStore()
-  const user = useAuthStore(state => state.user)
+  const { collapsed, toggleCollapsed } = useUIStore()
   const isAdmin = useIsAdmin()
-  const logout = useLogout()
 
   const navSections = NAV.map(section => ({
     ...section,
@@ -143,7 +139,11 @@ export function Sidebar() {
         "bg-sidebar border-r border-sidebar-border",
         "transition-[width] duration-200",
       )}
-      style={{ width: collapsed ? "52px" : "220px" }}
+      style={{
+        width: collapsed
+          ? "var(--erp-sidebar-w-collapsed)"
+          : "var(--erp-sidebar-w)",
+      }}
     >
       {/* Logo */}
       <button
@@ -190,57 +190,6 @@ export function Sidebar() {
           </div>
         ))}
       </nav>
-
-      {/* Footer */}
-      <div className='px-2 pb-2 pt-1 border-t border-sidebar-border flex flex-col gap-0.5'>
-        <button
-          onClick={toggleSettings}
-          title={collapsed ? "外观设置" : undefined}
-          className={cn(
-            "flex items-center gap-2.5 w-full rounded-md px-2.5 py-2 text-sm",
-            "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-            "bg-transparent border-none cursor-pointer transition-colors text-left whitespace-nowrap",
-          )}
-        >
-          <i className='ri-equalizer-2-line text-base shrink-0' />
-          {!collapsed && <span>外观设置</span>}
-        </button>
-
-        <button
-          title={
-            collapsed
-              ? user
-                ? `${user.realName} · ${user.username}`
-                : "当前用户"
-              : undefined
-          }
-          className={cn(
-            "flex items-center gap-2.5 w-full rounded-md px-2.5 py-2 text-sm",
-            "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-            "bg-transparent border-none cursor-pointer transition-colors text-left whitespace-nowrap",
-          )}
-        >
-          <i className='ri-user-line text-base shrink-0' />
-          {!collapsed && (
-            <span className='truncate'>
-              {user ? `${user.realName}` : "未登录"}
-            </span>
-          )}
-        </button>
-
-        <button
-          title={collapsed ? "退出登录" : undefined}
-          onClick={logout}
-          className={cn(
-            "flex items-center gap-2.5 w-full rounded-md px-2.5 py-2 text-sm",
-            "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-            "bg-transparent border-none cursor-pointer transition-colors text-left whitespace-nowrap",
-          )}
-        >
-          <i className='ri-logout-box-r-line text-base shrink-0' />
-          {!collapsed && <span>退出登录</span>}
-        </button>
-      </div>
     </aside>
   )
 }

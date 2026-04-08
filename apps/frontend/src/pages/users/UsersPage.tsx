@@ -8,7 +8,7 @@
  */
 
 import { useMemo, useState } from "react"
-import { PageContentWrapper } from "@/components/common/PageContentWrapper"
+import { TopLevelPageWrapper } from "@/components/common/TopLevelPageWrapper"
 import { Button } from "@/components/ui/button"
 import { useUIStore } from "@/store/ui.store"
 import {
@@ -87,7 +87,7 @@ export function UsersPage() {
 
   return (
     <>
-      <PageContentWrapper>
+      <TopLevelPageWrapper>
         <section className='border border-border bg-card px-4 py-4 sm:px-5'>
           <div className='flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between'>
             <div>
@@ -256,7 +256,7 @@ export function UsersPage() {
             </div>
           )}
         </section>
-      </PageContentWrapper>
+      </TopLevelPageWrapper>
 
       <UserFormSheet
         key={`${editingUser ? `edit-${editingUser.id}` : "create"}-${sheetOpen ? "open" : "closed"}`}

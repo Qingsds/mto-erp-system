@@ -27,6 +27,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { TopLevelPageWrapper } from "@/components/common/TopLevelPageWrapper"
 import {
   decimalToNum as billingDecimalToNum,
   useGetBilling,
@@ -324,7 +325,7 @@ function DesktopDashboard({
   canViewMoney: boolean
 }) {
   return (
-    <div className='flex-1 overflow-y-auto p-6 flex flex-col gap-6'>
+    <TopLevelPageWrapper className='gap-6'>
       <div className='flex items-start justify-between'>
         <div>
           <h1 className='text-2xl font-semibold tracking-tight'>
@@ -532,7 +533,7 @@ function DesktopDashboard({
           </Card>
         </div>
       </div>
-    </div>
+    </TopLevelPageWrapper>
   )
 }
 

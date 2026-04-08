@@ -8,6 +8,7 @@
  */
 
 import { Button } from "@/components/ui/button"
+import { TopLevelPageWrapper } from "@/components/common/TopLevelPageWrapper"
 import type { useSealsPageController } from "./useSealsPageController"
 import { SealsListContent } from "./SealsListContent"
 
@@ -35,59 +36,61 @@ export function SealsDesktop({ controller }: SealsDesktopProps) {
   } = controller
 
   return (
-    <div className='flex flex-1 flex-col overflow-hidden px-5 py-4'>
-      <div className='flex items-end justify-between gap-4 border-b border-border pb-4'>
-        <div className='min-w-0'>
-          <h1 className='text-lg font-semibold tracking-tight text-foreground'>
-            印章管理
-          </h1>
-          <p className='mt-1 text-xs text-muted-foreground'>
-            {subtitle}
-          </p>
+    <TopLevelPageWrapper fillHeight>
+      <div className='flex flex-1 flex-col overflow-hidden'>
+        <div className='flex items-end justify-between gap-4 border-b border-border pb-4'>
+          <div className='min-w-0'>
+            <h1 className='text-lg font-semibold tracking-tight text-foreground'>
+              印章管理
+            </h1>
+            <p className='mt-1 text-xs text-muted-foreground'>
+              {subtitle}
+            </p>
+          </div>
+
+          <div className='flex items-center gap-2'>
+            <Button
+              size='sm'
+              variant='outline'
+              onClick={() => {
+                void handleReprocessExisting()
+              }}
+              disabled={isReprocessingExisting || seals.length === 0}
+            >
+              {isReprocessingExisting ? (
+                <>
+                  <i className='ri-loader-4-line mr-1.5 animate-spin' />
+                  补处理中…
+                </>
+              ) : (
+                <>
+                  <i className='ri-refresh-line mr-1.5' />
+                  补处理历史印章
+                </>
+              )}
+            </Button>
+            <Button size='sm' onClick={openCreate}>
+              <i className='ri-add-line mr-1.5' />
+              注册印章
+            </Button>
+          </div>
         </div>
 
-        <div className='flex items-center gap-2'>
-          <Button
-            size='sm'
-            variant='outline'
-            onClick={() => {
-              void handleReprocessExisting()
-            }}
-            disabled={isReprocessingExisting || seals.length === 0}
-          >
-            {isReprocessingExisting ? (
-              <>
-                <i className='ri-loader-4-line mr-1.5 animate-spin' />
-                补处理中…
-              </>
-            ) : (
-              <>
-                <i className='ri-refresh-line mr-1.5' />
-                补处理历史印章
-              </>
-            )}
-          </Button>
-          <Button size='sm' onClick={openCreate}>
-            <i className='ri-add-line mr-1.5' />
-            注册印章
-          </Button>
+        <div className='flex-1 overflow-y-auto py-4'>
+          <SealsListContent
+            seals={seals}
+            isLoading={isLoading}
+            actionError={actionError}
+            queryError={queryError}
+            onClearActionError={clearActionError}
+            onOpenCreate={openCreate}
+            onToggleStatus={handleToggleStatus}
+            onOpenLogs={handleOpenLogs}
+            isUpdatingSeal={isUpdatingSeal}
+            resolveQueryError={resolveQueryError}
+          />
         </div>
       </div>
-
-      <div className='flex-1 overflow-y-auto py-4'>
-        <SealsListContent
-          seals={seals}
-          isLoading={isLoading}
-          actionError={actionError}
-          queryError={queryError}
-          onClearActionError={clearActionError}
-          onOpenCreate={openCreate}
-          onToggleStatus={handleToggleStatus}
-          onOpenLogs={handleOpenLogs}
-          isUpdatingSeal={isUpdatingSeal}
-          resolveQueryError={resolveQueryError}
-        />
-      </div>
-    </div>
+    </TopLevelPageWrapper>
   )
 }

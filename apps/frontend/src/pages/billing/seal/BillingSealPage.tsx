@@ -7,7 +7,7 @@
  * - 选择印章、拖拽定位、提交归档
  */
 
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import { useNavigate, useParams } from "@tanstack/react-router"
 import { Button } from "@/components/ui/button"
 import { PageContentWrapper } from "@/components/common/PageContentWrapper"
@@ -56,45 +56,29 @@ export function BillingSealPage() {
   )
   const selectedSealId = selectedSeal?.id ?? null
 
-  useEffect(() => {
-    if (pageCount <= 0) return
-
-    setCurrentPageIndex(previous => {
-      const nextPageIndex = Math.min(previous, pageCount)
-
-      setPlacementsByPage(currentPlacements => {
-        if (currentPlacements[nextPageIndex]) {
-          return currentPlacements
-        }
-
-        return {
-          ...currentPlacements,
-          [nextPageIndex]: createDefaultBillingSealPlacement(nextPageIndex),
-        }
-      })
-
-      return nextPageIndex
-    })
-  }, [pageCount])
+  const resolvedPageIndex =
+    pageCount > 0
+      ? Math.min(currentPageIndex, pageCount)
+      : currentPageIndex
 
   const effectivePlacement = useMemo(() => {
     const basePlacement =
-      placementsByPage[currentPageIndex] ??
-      createDefaultBillingSealPlacement(currentPageIndex)
+      placementsByPage[resolvedPageIndex] ??
+      createDefaultBillingSealPlacement(resolvedPageIndex)
 
     return {
       ...basePlacement,
-      pageIndex: currentPageIndex,
+      pageIndex: resolvedPageIndex,
     }
-  }, [currentPageIndex, placementsByPage])
+  }, [placementsByPage, resolvedPageIndex])
 
   const handlePlacementChange = (nextPlacement: BillingSealPlacement) => {
     setActionError(null)
     setPlacementsByPage(currentPlacements => ({
       ...currentPlacements,
-      [currentPageIndex]: {
+      [resolvedPageIndex]: {
         ...nextPlacement,
-        pageIndex: currentPageIndex,
+        pageIndex: resolvedPageIndex,
       },
     }))
   }
@@ -113,6 +97,28 @@ export function BillingSealPage() {
       }
     })
   }
+
+  const handlePageCountChange = (nextPageCount: number) => {
+    setPageCount(nextPageCount)
+
+    if (nextPageCount <= 0) {
+      return
+    }
+
+    const nextPageIndex = Math.min(currentPageIndex, nextPageCount)
+
+    setPlacementsByPage(currentPlacements => {
+      if (currentPlacements[nextPageIndex]) {
+        return currentPlacements
+      }
+
+      return {
+        ...currentPlacements,
+        [nextPageIndex]: createDefaultBillingSealPlacement(nextPageIndex),
+      }
+    })
+  }
+
   const sealPreview = useSealPreviewUrl(selectedSealId ?? undefined, selectedSeal?.fileKey)
   const resolvedActionError = actionError ?? preview.error ?? sealPreview.previewError
 
@@ -254,7 +260,7 @@ export function BillingSealPage() {
             sealPreviewUrl={sealPreview.previewUrl}
             sealName={selectedSeal?.name ?? null}
             onPlacementChange={handlePlacementChange}
-            onPageCountChange={setPageCount}
+            onPageCountChange={handlePageCountChange}
           />
 
           <BillingSealSidebar

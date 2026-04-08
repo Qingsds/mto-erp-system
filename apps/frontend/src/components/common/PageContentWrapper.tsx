@@ -25,11 +25,12 @@ export function PageContentWrapper({
   withMobileBottomInset = false,
 }: PageContentWrapperProps) {
   return (
-    <div className={cn("flex-1 overflow-auto", scrollClassName)}>
+    <div className={cn("flex-1 min-h-0 overflow-auto", scrollClassName)}>
       <div
         className={cn(
-          "mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-4 sm:gap-5 sm:px-6 sm:py-6 lg:px-8",
-          withMobileBottomInset && "pb-[calc(var(--erp-bottom-nav-safe-h)+104px)] sm:pb-6",
+          "erp-page erp-gap mx-auto flex w-full max-w-[var(--erp-shell-max-w)] flex-col",
+          withMobileBottomInset &&
+            "pb-[calc(var(--erp-bottom-nav-safe-h)+var(--erp-mobile-action-offset))] sm:pb-[var(--erp-page-py)]",
           className,
         )}
       >

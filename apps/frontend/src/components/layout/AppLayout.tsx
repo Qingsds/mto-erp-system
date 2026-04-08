@@ -26,12 +26,12 @@ export function AppLayout() {
 
   return (
     <TooltipProvider>
-      <div className="flex min-h-dvh h-dvh flex-col overflow-hidden bg-background text-foreground">
-        <div className="flex flex-1 overflow-hidden relative">
+      <div className="flex h-dvh min-h-dvh flex-col overflow-hidden bg-background text-foreground">
+        <div className="relative flex flex-1 overflow-hidden">
           {!isMobile && <Sidebar />}
-          <div className="flex flex-col flex-1 overflow-hidden min-w-0">
+          <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-background">
             <Header />
-            <main className="flex-1 overflow-hidden flex flex-col bg-muted/30">
+            <main className="flex min-h-0 flex-1 flex-col overflow-hidden bg-muted/20">
               <Outlet />
             </main>
             {isMobile && (

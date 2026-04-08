@@ -1,9 +1,8 @@
 import { useNavigate, useRouterState } from "@tanstack/react-router"
 import { useUIStore } from "@/store/ui.store"
-import { useAuthStore } from "@/store/auth.store"
-import { useLogout } from "@/hooks/api/useAuth"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { HeaderAccountMenu } from "./HeaderAccountMenu"
 
 type RoutePath =
   | "/"
@@ -82,149 +81,126 @@ export function Header() {
   const pathname = useRouterState({
     select: state => state.location.pathname,
   })
-  const user = useAuthStore(state => state.user)
-  const logout = useLogout()
   const breadcrumbs = getBreadcrumbItems(pathname)
   const mobileLabel =
     breadcrumbs[breadcrumbs.length - 1]?.label ?? "MTO ERP"
 
   return (
     <header
-      className='flex items-center gap-2 px-4 bg-background border-b border-border shrink-0'
+      className='shrink-0 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/90'
       style={{ height: "var(--erp-header-h, 56px)" }}
     >
-      {/* Collapse toggle — desktop only */}
-      {!isMobile && (
-        <Button
-          variant='ghost'
-          size='icon'
-          onClick={toggleCollapsed}
-          className='shrink-0'
-          title='折叠侧边栏'
-        >
-          <i className='ri-menu-line text-base' />
-        </Button>
-      )}
-
-      {/* Mobile: logo mark */}
-      {isMobile && (
-        <div className='flex items-center justify-center w-6 h-6 bg-primary shrink-0'>
-          <i className='ri-grid-fill text-primary-foreground text-xs' />
-        </div>
-      )}
-
-      {/* Breadcrumb / page title */}
-      <div className='flex items-center gap-1.5 text-sm flex-1 min-w-0'>
-        {isMobile ? (
-          <span className='font-medium text-foreground truncate'>
-            {mobileLabel}
-          </span>
-        ) : (
-          <>
-            <span className='text-muted-foreground shrink-0'>
-              瑞海隆鑫ERP
-            </span>
-            <span className='text-muted-foreground/40 shrink-0'>
-              /
-            </span>
-            {breadcrumbs.map((item, index) => (
-              <div
-                key={`${item.label}-${index}`}
-                className='flex items-center gap-1.5 min-w-0'
-              >
-                <button
-                  type='button'
-                  disabled={!item.to}
-                  onClick={() => item.to && navigate({ to: item.to })}
-                  className={cn(
-                    "truncate bg-transparent border-none p-0",
-                    item.to
-                      ? "cursor-pointer hover:text-foreground transition-colors"
-                      : "cursor-default",
-                    index === breadcrumbs.length - 1
-                      ? "font-medium text-foreground"
-                      : "text-muted-foreground",
-                  )}
-                >
-                  {item.label}
-                </button>
-                {index < breadcrumbs.length - 1 && (
-                  <span className='text-muted-foreground/40 shrink-0'>
-                    /
-                  </span>
-                )}
-              </div>
-            ))}
-          </>
-        )}
-      </div>
-
-      {/* Search — desktop only */}
-      {!isMobile && (
-        <button
-          className={cn(
-            "flex items-center gap-2 h-8 px-3 min-w-[160px]",
-            "rounded-md border border-input bg-background",
-            "text-sm text-muted-foreground",
-            "hover:border-ring transition-colors cursor-text",
-          )}
-        >
-          <i className='ri-search-line text-sm' />
-          <span className='flex-1 text-left'>搜索...</span>
-          <kbd className='text-[10px] font-mono bg-muted border border-border px-1'>
-            ⌘K
-          </kbd>
-        </button>
-      )}
-
-      {/* Right actions */}
-      <div className='flex items-center gap-1'>
-        {/* Settings */}
-        <Button
-          variant={showSettings ? "secondary" : "ghost"}
-          size='icon'
-          onClick={toggleSettings}
-          title='外观设置'
-        >
-          <i className='ri-equalizer-2-line text-base' />
-        </Button>
-
-        {/* Notification */}
-        <div className='relative'>
+      <div className='mx-auto flex h-full w-full max-w-[var(--erp-shell-max-w)] items-center gap-2 px-4 sm:px-[var(--erp-page-px)]'>
+        {/* Collapse toggle — desktop only */}
+        {!isMobile && (
           <Button
             variant='ghost'
             size='icon'
-            title='通知'
+            onClick={toggleCollapsed}
+            className='h-8 w-8 shrink-0'
+            title='折叠侧边栏'
           >
-            <i className='ri-notification-3-line text-base' />
+            <i className='ri-menu-line text-base' />
           </Button>
-          <span className='absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-destructive border-2 border-background' />
-        </div>
+        )}
 
-        {!isMobile && user && (
-          <div className='flex items-center gap-2 px-2 text-right'>
-            <div className='leading-tight'>
-              <p className='text-xs font-medium text-foreground'>
-                {user.realName}
-              </p>
-              <p className='text-[11px] text-muted-foreground'>
-                {user.username}
-              </p>
-            </div>
-            <div className='w-7 h-7 bg-primary/10 text-primary flex items-center justify-center text-xs font-medium'>
-              {user.realName.slice(0, 1)}
-            </div>
+        {/* Mobile: logo mark */}
+        {isMobile && (
+          <div className='flex h-6 w-6 shrink-0 items-center justify-center border border-primary bg-primary text-primary-foreground'>
+            <i className='ri-grid-fill text-primary-foreground text-xs' />
           </div>
         )}
 
-        <Button
-          variant='ghost'
-          size='icon'
-          title='退出登录'
-          onClick={logout}
-        >
-          <i className='ri-logout-box-r-line text-base' />
-        </Button>
+        {/* Breadcrumb / page title */}
+        <div className='flex min-w-0 flex-1 items-center gap-1.5 text-sm'>
+          {isMobile ? (
+            <span className='truncate font-medium text-foreground'>
+              {mobileLabel}
+            </span>
+          ) : (
+            <>
+              <span className='shrink-0 text-muted-foreground'>
+                瑞海隆鑫ERP
+              </span>
+              <span className='shrink-0 text-muted-foreground/40'>
+                /
+              </span>
+              {breadcrumbs.map((item, index) => (
+                <div
+                  key={`${item.label}-${index}`}
+                  className='flex min-w-0 items-center gap-1.5'
+                >
+                  <button
+                    type='button'
+                    disabled={!item.to}
+                    onClick={() => item.to && navigate({ to: item.to })}
+                    className={cn(
+                      "truncate border-none bg-transparent p-0",
+                      item.to
+                        ? "cursor-pointer transition-colors hover:text-foreground"
+                        : "cursor-default",
+                      index === breadcrumbs.length - 1
+                        ? "font-medium text-foreground"
+                        : "text-muted-foreground",
+                    )}
+                  >
+                    {item.label}
+                  </button>
+                  {index < breadcrumbs.length - 1 && (
+                    <span className='shrink-0 text-muted-foreground/40'>
+                      /
+                    </span>
+                  )}
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+
+        {/* Search — desktop only */}
+        {!isMobile && (
+          <button
+            className={cn(
+              "flex h-8 min-w-[180px] items-center gap-2 border border-input bg-background px-3",
+              "cursor-text text-sm text-muted-foreground transition-colors hover:border-ring",
+            )}
+          >
+            <i className='ri-search-line text-sm' />
+            <span className='flex-1 text-left'>搜索...</span>
+            <kbd className='border border-border bg-muted px-1 text-[10px] font-mono'>
+              ⌘K
+            </kbd>
+          </button>
+        )}
+
+        {/* Right actions */}
+        <div className='flex items-center gap-1'>
+          {/* Settings */}
+          <Button
+            variant={showSettings ? "secondary" : "ghost"}
+            size='icon'
+            onClick={toggleSettings}
+            title='外观设置'
+            className='h-8 w-8'
+          >
+            <i className='ri-equalizer-2-line text-base' />
+          </Button>
+
+          {/* Notification */}
+          <div className='relative'>
+            <Button
+              variant='ghost'
+              size='icon'
+              title='通知'
+              className='h-8 w-8'
+            >
+              <i className='ri-notification-3-line text-base' />
+            </Button>
+            <span className='absolute right-1.5 top-1.5 h-1.5 w-1.5 border-2 border-background bg-destructive' />
+          </div>
+
+          <HeaderAccountMenu compact={isMobile} />
+        </div>
       </div>
     </header>
   )

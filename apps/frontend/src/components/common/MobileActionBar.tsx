@@ -35,7 +35,7 @@ export function MobileActionBar({
       )}
       style={{ bottom: "var(--erp-bottom-nav-safe-h)" }}
     >
-      <div className='mx-auto w-full max-w-7xl px-4 py-3 sm:px-6 lg:px-8'>
+      <div className='mx-auto w-full max-w-[var(--erp-shell-max-w)] px-4 py-3 sm:px-[var(--erp-page-px)]'>
         {summary && (
           <div className={cn("mb-2", summaryClassName)}>
             {summary}
