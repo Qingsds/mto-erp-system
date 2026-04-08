@@ -17,6 +17,8 @@
  *   />
  */
 
+import { TopLevelPageHeaderWrapper } from "@/components/common/TopLevelPageHeaderWrapper"
+import { TopLevelPageTitle } from "@/components/common/TopLevelPageTitle"
 import { cn }        from "@/lib/utils"
 import type { ReactNode } from "react"
 
@@ -43,15 +45,20 @@ export function TableToolbar({
   actions,
 }: TableToolbarProps) {
   return (
-    <>
+    <TopLevelPageHeaderWrapper
+      bordered={false}
+      bodyClassName="flex-wrap items-center gap-3 gap-y-2"
+      padding="none"
+    >
       {/* Title + count */}
-      <div>
-        <h1 className="text-lg font-semibold tracking-tight leading-none">{title}</h1>
-        <p className="text-xs text-muted-foreground mt-0.5">{count}</p>
-      </div>
+      <TopLevelPageTitle
+        title={title}
+        subtitle={count}
+        titleClassName="text-lg"
+      />
 
       {/* Search input */}
-      <div className="flex items-center gap-2 h-8 px-2.5 border border-input rounded-md bg-background ml-4 flex-1 max-w-72">
+      <div className="ml-0 flex h-8 max-w-72 min-w-[220px] flex-1 items-center gap-2 border border-input bg-background px-2.5 sm:ml-4">
         <i className="ri-search-line text-sm text-muted-foreground shrink-0" />
         <input
           value={globalFilter}
@@ -74,7 +81,7 @@ export function TableToolbar({
 
       {/* Actions */}
       {actions && <div className={cn("flex gap-2", !extra && "ml-auto")}>{actions}</div>}
-    </>
+    </TopLevelPageHeaderWrapper>
   )
 }
 
@@ -115,7 +122,12 @@ export function StatusFilterBar<T extends string>({
   footer,
 }: StatusFilterBarProps<T>) {
   return (
-    <div className={cn("flex items-center gap-1 px-5 py-2 overflow-x-auto", className)}>
+    <div
+      className={cn(
+        "flex items-center gap-1 overflow-x-auto px-4 py-2 sm:px-[var(--erp-page-px)]",
+        className,
+      )}
+    >
       {tabs.map(tab => (
         <button
           key={tab.value}

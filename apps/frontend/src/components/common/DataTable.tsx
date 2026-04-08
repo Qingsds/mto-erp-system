@@ -104,7 +104,7 @@ export function DataTable<TData>({
     <div className="flex flex-col flex-1 overflow-hidden">
       {/* Toolbar slot */}
       {toolbar && (
-        <div className="shrink-0 px-5 py-3.5 border-b border-border bg-background flex items-center gap-3 flex-wrap gap-y-2">
+        <div className="shrink-0 border-b border-border bg-background px-4 py-3.5 sm:px-[var(--erp-page-px)] flex items-center gap-3 flex-wrap gap-y-2">
           {toolbar}
         </div>
       )}

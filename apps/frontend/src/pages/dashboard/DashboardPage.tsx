@@ -27,6 +27,8 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { TopLevelPageHeaderWrapper } from "@/components/common/TopLevelPageHeaderWrapper"
+import { TopLevelPageTitle } from "@/components/common/TopLevelPageTitle"
 import { TopLevelPageWrapper } from "@/components/common/TopLevelPageWrapper"
 import {
   decimalToNum as billingDecimalToNum,
@@ -228,14 +230,17 @@ function MobileDashboard({
 }) {
   return (
     <div className='flex-1 overflow-y-auto p-4 flex flex-col gap-4'>
-      <div>
-        <h1 className='text-xl font-semibold tracking-tight'>
-          你好，张三 👋
-        </h1>
-        <p className='text-sm text-muted-foreground mt-0.5'>
-          今日 · 数据实时更新
-        </p>
-      </div>
+      <TopLevelPageHeaderWrapper
+        bordered={false}
+        bodyClassName='items-end justify-between'
+      >
+        <TopLevelPageTitle
+          title='你好，张三 👋'
+          subtitle='今日 · 数据实时更新'
+          titleClassName='text-xl'
+          subtitleClassName='mt-0.5 text-sm text-muted-foreground'
+        />
+      </TopLevelPageHeaderWrapper>
 
       <div className='grid grid-cols-2 gap-3'>
         {isLoading
@@ -326,15 +331,16 @@ function DesktopDashboard({
 }) {
   return (
     <TopLevelPageWrapper className='gap-6'>
-      <div className='flex items-start justify-between'>
-        <div>
-          <h1 className='text-2xl font-semibold tracking-tight'>
-            仪表盘
-          </h1>
-          <p className='text-sm text-muted-foreground mt-1'>
-            欢迎回来，张三。这是今日的业务概览。
-          </p>
-        </div>
+      <TopLevelPageHeaderWrapper
+        bordered={false}
+        bodyClassName='items-start justify-between'
+      >
+        <TopLevelPageTitle
+          title='仪表盘'
+          subtitle='欢迎回来，张三。这是今日的业务概览。'
+          titleClassName='text-2xl'
+          subtitleClassName='mt-1 text-sm text-muted-foreground'
+        />
         <div className='flex gap-2'>
           <Button
             variant='outline'
@@ -348,7 +354,7 @@ function DesktopDashboard({
             新建订单
           </Button>
         </div>
-      </div>
+      </TopLevelPageHeaderWrapper>
 
       <div className='grid grid-cols-4 gap-4'>
         {isLoading

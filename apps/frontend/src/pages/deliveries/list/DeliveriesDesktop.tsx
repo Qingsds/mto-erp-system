@@ -17,7 +17,9 @@ import {
 } from "@tanstack/react-table"
 import { Button } from "@/components/ui/button"
 import { DataTable } from "@/components/common/DataTable"
+import { TopLevelPageHeaderWrapper } from "@/components/common/TopLevelPageHeaderWrapper"
 import { TopLevelPageWrapper } from "@/components/common/TopLevelPageWrapper"
+import { TopLevelPageTitle } from "@/components/common/TopLevelPageTitle"
 import { StatusFilterBar } from "@/components/common/TableToolbar"
 import type { DeliveryListItem } from "@/hooks/api/useDeliveries"
 import { getDeliveriesColumns } from "../deliveries.columns"
@@ -87,24 +89,26 @@ export function DeliveriesDesktop({ search }: DeliveriesDesktopProps) {
   return (
     <TopLevelPageWrapper fillHeight inset='flush'>
       <div className="flex flex-1 flex-col overflow-hidden">
-        <div className="shrink-0 border-b border-border bg-background">
-          <div className="flex items-center gap-3 px-5 py-3">
-            <div>
-              <h1 className="text-lg font-semibold tracking-tight leading-none">发货管理</h1>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                {isFetching && !isLoading
-                  ? "加载中…"
-                  : `系统总 ${totalCount} 张 · 当前页 ${visibleDeliveries.length} 张`}
-              </p>
-            </div>
+        <TopLevelPageHeaderWrapper
+          inset='page'
+          bodyClassName="items-center justify-between"
+          padding='desktop'
+        >
+          <TopLevelPageTitle
+            title="发货管理"
+            subtitle={
+              isFetching && !isLoading
+                ? "加载中…"
+                : `系统总 ${totalCount} 张 · 当前页 ${visibleDeliveries.length} 张`
+            }
+          />
 
-            <div className="ml-auto flex items-center gap-2">
-              <Button size="sm" variant="outline" onClick={openOrders}>
-                <i className="ri-external-link-line mr-1.5" />前往订单发货
-              </Button>
-            </div>
+          <div className="ml-auto flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={openOrders}>
+              <i className="ri-external-link-line mr-1.5" />前往订单发货
+            </Button>
           </div>
-        </div>
+        </TopLevelPageHeaderWrapper>
 
         <DeliveriesDesktopFilters
           filters={draftFilters}

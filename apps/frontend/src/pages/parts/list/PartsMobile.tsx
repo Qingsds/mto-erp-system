@@ -9,6 +9,8 @@
  */
 
 import { useNavigate } from "@tanstack/react-router"
+import { TopLevelPageHeaderWrapper } from "@/components/common/TopLevelPageHeaderWrapper"
+import { TopLevelPageTitle } from "@/components/common/TopLevelPageTitle"
 import { Button } from "@/components/ui/button"
 import { useDebouncedValue } from "@/hooks/useDebouncedValue"
 import { useIsAdmin } from "@/lib/permissions"
@@ -52,29 +54,30 @@ export function PartsMobile({ quickAction }: PartsPageProps) {
 
   return (
     <div className='flex h-full flex-col'>
-      <div className='shrink-0 border-b border-border bg-background px-4 pb-3 pt-4'>
-        <div className='flex items-end justify-between gap-3'>
-          <div className='min-w-0'>
-            <h1 className='text-base font-semibold leading-none text-foreground'>
-              零件库
-            </h1>
-            <p className='mt-1 text-xs text-muted-foreground'>
-              {isFetching && !isLoading ? "加载中…" : `共 ${totalCount} 个零件`}
-            </p>
-          </div>
+      <TopLevelPageHeaderWrapper
+        inset='page'
+        bodyClassName='items-end justify-between'
+        padding='mobile'
+      >
+        <TopLevelPageTitle
+          title='零件库'
+          subtitle={isFetching && !isLoading ? "加载中…" : `共 ${totalCount} 个零件`}
+          titleClassName='text-base'
+        />
 
-          {search && (
-            <Button
-              variant='ghost'
-              size='sm'
-              className='h-8 px-2 text-xs'
-              onClick={resetSearch}
-            >
-              重置
-            </Button>
-          )}
-        </div>
+        {search && (
+          <Button
+            variant='ghost'
+            size='sm'
+            className='h-8 px-2 text-xs'
+            onClick={resetSearch}
+          >
+            重置
+          </Button>
+        )}
+      </TopLevelPageHeaderWrapper>
 
+      <div className='shrink-0 border-b border-border bg-background px-4 pb-3'>
         <div className='mt-3 flex h-10 items-center gap-2 border border-input bg-muted px-3'>
           <i className='ri-search-line shrink-0 text-sm text-muted-foreground' />
           <input

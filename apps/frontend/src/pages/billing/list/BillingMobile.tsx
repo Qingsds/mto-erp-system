@@ -5,6 +5,8 @@
  */
 
 import { Button } from "@/components/ui/button"
+import { TopLevelPageHeaderWrapper } from "@/components/common/TopLevelPageHeaderWrapper"
+import { TopLevelPageTitle } from "@/components/common/TopLevelPageTitle"
 import { BillingCard } from "./BillingCard"
 import type { useBillingPageController } from "./useBillingPageController"
 
@@ -34,22 +36,23 @@ export function BillingMobile({ controller }: BillingMobileProps) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="shrink-0 border-b border-border bg-background px-4 pb-3 pt-4">
-        <div className="flex items-end justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="text-base font-semibold leading-none text-foreground">
-              财务对账
-            </h1>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {subtitle}
-            </p>
-          </div>
-          <Button size="sm" className="h-8 shrink-0" onClick={openCreate}>
-            <i className="ri-add-line mr-1" />
-            新建
-          </Button>
-        </div>
+      <TopLevelPageHeaderWrapper
+        inset="page"
+        bodyClassName="items-end justify-between"
+        padding="mobile"
+      >
+        <TopLevelPageTitle
+          title="财务对账"
+          subtitle={subtitle}
+          titleClassName="text-base"
+        />
+        <Button size="sm" className="h-8 shrink-0" onClick={openCreate}>
+          <i className="ri-add-line mr-1" />
+          新建
+        </Button>
+      </TopLevelPageHeaderWrapper>
 
+      <div className="shrink-0 border-b border-border bg-background px-4 pb-3">
         <div className="mt-3 flex gap-1 overflow-x-auto">
           {statusTabs.map(tab => (
             <button

@@ -156,9 +156,9 @@
   /* Density spacing (overridden by ui.store) */
   --erp-cell-pad: 10px 16px;
   --erp-card-pad: 14px 18px;
-  --erp-page-pad: 24px 20px;
+  --erp-page-pad: 24px 18px;
   --erp-page-py: 24px;
-  --erp-page-px: 20px;
+  --erp-page-px: 18px;
   --erp-gap:      12px;
 }
 

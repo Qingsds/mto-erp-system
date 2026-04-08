@@ -8,6 +8,8 @@
  */
 
 import { Button } from "@/components/ui/button"
+import { TopLevelPageHeaderWrapper } from "@/components/common/TopLevelPageHeaderWrapper"
+import { TopLevelPageTitle } from "@/components/common/TopLevelPageTitle"
 import { TopLevelPageWrapper } from "@/components/common/TopLevelPageWrapper"
 import type { useSealsPageController } from "./useSealsPageController"
 import { SealsListContent } from "./SealsListContent"
@@ -38,15 +40,14 @@ export function SealsDesktop({ controller }: SealsDesktopProps) {
   return (
     <TopLevelPageWrapper fillHeight>
       <div className='flex flex-1 flex-col overflow-hidden'>
-        <div className='flex items-end justify-between gap-4 border-b border-border pb-4'>
-          <div className='min-w-0'>
-            <h1 className='text-lg font-semibold tracking-tight text-foreground'>
-              印章管理
-            </h1>
-            <p className='mt-1 text-xs text-muted-foreground'>
-              {subtitle}
-            </p>
-          </div>
+        <TopLevelPageHeaderWrapper
+          bodyClassName='items-end justify-between'
+          padding='desktop'
+        >
+          <TopLevelPageTitle
+            title='印章管理'
+            subtitle={subtitle}
+          />
 
           <div className='flex items-center gap-2'>
             <Button
@@ -69,12 +70,15 @@ export function SealsDesktop({ controller }: SealsDesktopProps) {
                 </>
               )}
             </Button>
-            <Button size='sm' onClick={openCreate}>
+            <Button
+              size='sm'
+              onClick={openCreate}
+            >
               <i className='ri-add-line mr-1.5' />
               注册印章
             </Button>
           </div>
-        </div>
+        </TopLevelPageHeaderWrapper>
 
         <div className='flex-1 overflow-y-auto py-4'>
           <SealsListContent

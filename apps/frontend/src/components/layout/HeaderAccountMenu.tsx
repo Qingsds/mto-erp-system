@@ -56,7 +56,7 @@ export function HeaderAccountMenu({
                   {user.realName}
                 </p>
                 <p className='truncate text-[11px] text-muted-foreground'>
-                  {user.username}
+                  {getRoleLabel(user.role)}
                 </p>
               </div>
             )}
@@ -74,12 +74,13 @@ export function HeaderAccountMenu({
 
         <DropdownMenuContent
           align='end'
-          className='w-64 rounded-none border border-border bg-background p-0 shadow-none'
+          className='w-56 rounded-none border border-border bg-background p-0 shadow-none'
         >
           <div className='border-b border-border px-3 py-3'>
             <p className='text-sm font-medium text-foreground'>{user.realName}</p>
-            <p className='mt-1 text-xs text-muted-foreground'>
-              {user.username} · {getRoleLabel(user.role)}
+            <p className='mt-1 text-xs text-muted-foreground'>{user.username}</p>
+            <p className='mt-1 text-[11px] text-muted-foreground'>
+              当前角色：{getRoleLabel(user.role)}
             </p>
           </div>
 

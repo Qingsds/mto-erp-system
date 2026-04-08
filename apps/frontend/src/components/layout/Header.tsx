@@ -44,6 +44,33 @@ function getDetailLabel(section: string) {
   return "详情"
 }
 
+/**
+ * 顶部搜索入口。
+ *
+ * 只提供一致的视觉入口，不在这一轮接真实搜索逻辑。
+ * 为了减少 Header 横向压力：
+ * - 常规桌面显示紧凑入口
+ * - 超宽屏再显示快捷键提示
+ */
+function HeaderSearchTrigger() {
+  return (
+    <button
+      className={cn(
+        "flex h-8 min-w-0 items-center gap-2 border border-input bg-background px-3",
+        "cursor-text text-sm text-muted-foreground transition-colors hover:border-ring",
+        "w-[148px] lg:w-[172px] xl:w-[208px]",
+      )}
+      title='搜索'
+    >
+      <i className='ri-search-line text-sm' />
+      <span className='min-w-0 flex-1 truncate text-left'>搜索</span>
+      <kbd className='hidden border border-border bg-muted px-1 text-[10px] font-mono xl:inline-flex'>
+        ⌘K
+      </kbd>
+    </button>
+  )
+}
+
 function getBreadcrumbItems(pathname: string): BreadcrumbItem[] {
   const segments = pathname.split("/").filter(Boolean)
 
@@ -158,20 +185,7 @@ export function Header() {
         </div>
 
         {/* Search — desktop only */}
-        {!isMobile && (
-          <button
-            className={cn(
-              "flex h-8 min-w-[180px] items-center gap-2 border border-input bg-background px-3",
-              "cursor-text text-sm text-muted-foreground transition-colors hover:border-ring",
-            )}
-          >
-            <i className='ri-search-line text-sm' />
-            <span className='flex-1 text-left'>搜索...</span>
-            <kbd className='border border-border bg-muted px-1 text-[10px] font-mono'>
-              ⌘K
-            </kbd>
-          </button>
-        )}
+        {!isMobile && <HeaderSearchTrigger />}
 
         {/* Right actions */}
         <div className='flex items-center gap-1'>
@@ -192,7 +206,7 @@ export function Header() {
               variant='ghost'
               size='icon'
               title='通知'
-              className='h-8 w-8'
+              className='h-8 w-8 lg:h-9 lg:w-9'
             >
               <i className='ri-notification-3-line text-base' />
             </Button>

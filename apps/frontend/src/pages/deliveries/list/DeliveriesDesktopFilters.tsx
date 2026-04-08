@@ -38,7 +38,7 @@ export function DeliveriesDesktopFilters({
   const showAdvanced = manualAdvancedOpen || hasAdvancedFilters
 
   return (
-    <div className="border-b border-border bg-background/70 px-5 py-3">
+    <div className="border-b border-border bg-background/70 px-4 py-3 sm:px-[var(--erp-page-px)]">
       <div className="grid gap-2 lg:grid-cols-[minmax(0,1.6fr)_168px_168px_auto_auto_auto]">
         <Input
           value={filters.keyword}

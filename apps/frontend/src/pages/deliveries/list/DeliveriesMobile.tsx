@@ -8,6 +8,8 @@
  */
 
 import { useEffect, useState } from "react"
+import { TopLevelPageHeaderWrapper } from "@/components/common/TopLevelPageHeaderWrapper"
+import { TopLevelPageTitle } from "@/components/common/TopLevelPageTitle"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
@@ -60,18 +62,19 @@ export function DeliveriesMobile({ search }: DeliveriesMobileProps) {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="border-b border-border bg-background px-4 pb-3 pt-3 shrink-0">
-        <div className="flex items-end justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="text-base font-semibold leading-none text-foreground">
-              发货管理
-            </h1>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {isFetching && !isLoading ? "加载中…" : `共 ${totalCount} 张发货单`}
-            </p>
-          </div>
-        </div>
+      <TopLevelPageHeaderWrapper
+        inset="page"
+        bodyClassName="items-end justify-between"
+        padding="mobile"
+      >
+        <TopLevelPageTitle
+          title="发货管理"
+          subtitle={isFetching && !isLoading ? "加载中…" : `共 ${totalCount} 张发货单`}
+          titleClassName="text-base"
+        />
+      </TopLevelPageHeaderWrapper>
 
+      <div className="shrink-0 border-b border-border bg-background px-4 pb-3">
         <div className="mt-2 flex items-center gap-2 h-9 px-3 bg-muted border border-input">
           <i className="ri-search-line text-sm text-muted-foreground shrink-0" />
           <input

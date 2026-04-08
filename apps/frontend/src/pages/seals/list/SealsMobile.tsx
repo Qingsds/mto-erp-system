@@ -8,6 +8,8 @@
  */
 
 import { Button } from "@/components/ui/button"
+import { TopLevelPageHeaderWrapper } from "@/components/common/TopLevelPageHeaderWrapper"
+import { TopLevelPageTitle } from "@/components/common/TopLevelPageTitle"
 import type { useSealsPageController } from "./useSealsPageController"
 import { SealsListContent } from "./SealsListContent"
 
@@ -36,39 +38,38 @@ export function SealsMobile({ controller }: SealsMobileProps) {
 
   return (
     <div className='flex h-full flex-col'>
-      <div className='shrink-0 border-b border-border bg-background px-4 pb-3 pt-4'>
-        <div className='flex items-end justify-between gap-3'>
-          <div className='min-w-0'>
-            <h1 className='text-base font-semibold leading-none text-foreground'>
-              印章管理
-            </h1>
-            <p className='mt-1 text-xs text-muted-foreground'>
-              {subtitle}
-            </p>
-          </div>
-          <div className='flex shrink-0 items-center gap-2'>
-            <Button
-              size='sm'
-              variant='outline'
-              className='h-8 px-2'
-              onClick={() => {
-                void handleReprocessExisting()
-              }}
-              disabled={isReprocessingExisting || seals.length === 0}
-            >
-              {isReprocessingExisting ? (
-                <i className='ri-loader-4-line animate-spin' />
-              ) : (
-                <i className='ri-refresh-line' />
-              )}
-            </Button>
-            <Button size='sm' className='h-8 shrink-0' onClick={openCreate}>
-              <i className='ri-add-line mr-1' />
-              注册
-            </Button>
-          </div>
+      <TopLevelPageHeaderWrapper
+        inset='page'
+        bodyClassName='items-end justify-between'
+        padding='mobile'
+      >
+        <TopLevelPageTitle
+          title='印章管理'
+          subtitle={subtitle}
+          titleClassName='text-base'
+        />
+        <div className='flex shrink-0 items-center gap-2'>
+          <Button
+            size='sm'
+            variant='outline'
+            className='h-8 px-2'
+            onClick={() => {
+              void handleReprocessExisting()
+            }}
+            disabled={isReprocessingExisting || seals.length === 0}
+          >
+            {isReprocessingExisting ? (
+              <i className='ri-loader-4-line animate-spin' />
+            ) : (
+              <i className='ri-refresh-line' />
+            )}
+          </Button>
+          <Button size='sm' className='h-8 shrink-0' onClick={openCreate}>
+            <i className='ri-add-line mr-1' />
+            注册
+          </Button>
         </div>
-      </div>
+      </TopLevelPageHeaderWrapper>
 
       <div className='flex-1 overflow-y-auto px-4 py-3'>
         <SealsListContent
