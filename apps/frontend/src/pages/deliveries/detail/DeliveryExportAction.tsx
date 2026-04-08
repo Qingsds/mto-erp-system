@@ -1,26 +1,22 @@
 /**
- * 订单导出动作。
+ * 发货单导出动作。
  *
- * 复用共享 Excel 导出控制器，避免订单与发货再次各自维护一套导出状态。
+ * 独立管理导出预览弹层与导出行为，避免详情页容器继续内联文档动作状态。
  */
 
 import { DocumentExportActionButton } from "@/components/documents/DocumentExportActionButton"
 import { ExportPreviewDialog } from "@/components/export/ExportPreviewDialog"
-import {
-  getOrderExportPreview,
-} from "@/lib/documentExportData"
-import type { OrderDetail } from "@/hooks/api/useOrders"
+import { getDeliveryExportPreview } from "@/lib/documentExportData"
+import type { DeliveryDetail } from "@/hooks/api/useDeliveries"
 import { useExportPreviewController } from "@/hooks/common/useExportPreviewController"
-import { useCanViewMoney } from "@/lib/permissions"
 
-interface OrderExportActionProps {
-  order: OrderDetail
+interface DeliveryExportActionProps {
+  delivery: DeliveryDetail
 }
 
-export function OrderExportAction({
-  order,
-}: OrderExportActionProps) {
-  const canViewMoney = useCanViewMoney()
+export function DeliveryExportAction({
+  delivery,
+}: DeliveryExportActionProps) {
   const {
     open,
     setOpen,
@@ -32,21 +28,17 @@ export function OrderExportAction({
     error,
     handleConfirm,
   } = useExportPreviewController({
-    buildPreview: config => getOrderExportPreview(order, config),
+    buildPreview: config => getDeliveryExportPreview(delivery, config),
     exportFile: async config => {
-      const { exportOrderPriceSheet } = await import("@/lib/documentExport")
-      return exportOrderPriceSheet(order, config)
+      const { exportDeliveryNote } = await import("@/lib/documentExport")
+      return exportDeliveryNote(delivery, config)
     },
   })
-
-  if (!canViewMoney) {
-    return null
-  }
 
   return (
     <>
       <DocumentExportActionButton
-        label='导出价格清单'
+        label='导出发货单'
         onClick={() => setOpen(true)}
       />
 

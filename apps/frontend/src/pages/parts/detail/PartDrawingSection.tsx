@@ -12,7 +12,8 @@ interface PartDrawingSectionProps {
   isMobile: boolean
   canUpload: boolean
   onUploadClick: () => void
-  onImagePreview: (src: string, title: string) => void
+  onLocalImagePreview: (src: string, title: string) => void
+  onPreviewDrawing: (drawing: PartDrawing) => void
 }
 
 export function PartDrawingSection({
@@ -24,7 +25,8 @@ export function PartDrawingSection({
   isMobile,
   canUpload,
   onUploadClick,
-  onImagePreview,
+  onLocalImagePreview,
+  onPreviewDrawing,
 }: PartDrawingSectionProps) {
   return (
     <div className='flex w-full shrink-0 flex-col gap-3 lg:w-80 xl:w-96 lg:gap-4'>
@@ -69,12 +71,17 @@ export function PartDrawingSection({
             onUploadClick={onUploadClick}
             isUploading={isUploading}
             errorMessage={uploadError}
-            onImagePreview={onImagePreview}
+            onLocalImagePreview={onLocalImagePreview}
+            onPreviewDrawing={onPreviewDrawing}
             canUpload={canUpload}
           />
         </div>
       </section>
-      <PartDrawingHistory drawings={drawings} isMobile={isMobile} />
+      <PartDrawingHistory
+        drawings={drawings}
+        isMobile={isMobile}
+        onPreviewDrawing={onPreviewDrawing}
+      />
     </div>
   )
 }

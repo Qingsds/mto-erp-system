@@ -14,7 +14,8 @@ interface PartDrawingPreviewProps {
   onUploadClick: () => void
   isUploading: boolean
   errorMessage: string | null
-  onImagePreview: (src: string, title: string) => void
+  onLocalImagePreview: (src: string, title: string) => void
+  onPreviewDrawing: (drawing: PartDrawing) => void
   canUpload: boolean
 }
 
@@ -24,7 +25,8 @@ export function PartDrawingPreview({
   onUploadClick,
   isUploading,
   errorMessage,
-  onImagePreview,
+  onLocalImagePreview,
+  onPreviewDrawing,
   canUpload,
 }: PartDrawingPreviewProps) {
   const {
@@ -39,7 +41,9 @@ export function PartDrawingPreview({
         <div className='relative w-full aspect-[4/3] overflow-hidden rounded-xl border border-border bg-muted sm:aspect-square'>
           <button
             type='button'
-            onClick={() => onImagePreview(localPreviewUrl, "本地预览")}
+            onClick={() =>
+              onLocalImagePreview(localPreviewUrl, "本地预览")
+            }
             className='h-full w-full cursor-zoom-in bg-transparent p-0'
           >
             <img
@@ -63,7 +67,7 @@ export function PartDrawingPreview({
     return (
       <PreviewShell errorMessage={resolvedError}>
         <div className='relative w-full aspect-[4/3] overflow-hidden rounded-xl border border-border bg-muted/30 sm:aspect-square'>
-          {isLoadingPreview ? (
+          {isImage && isLoadingPreview ? (
             <div className='flex h-full w-full items-center justify-center bg-muted/30 text-sm text-muted-foreground'>
               <i className='ri-loader-4-line mr-2 animate-spin' />
               图纸加载中…
@@ -71,10 +75,7 @@ export function PartDrawingPreview({
           ) : isImage ? (
             <button
               type='button'
-              onClick={() => {
-                if (!previewUrl) return
-                onImagePreview(previewUrl, drawing.fileName)
-              }}
+              onClick={() => onPreviewDrawing(drawing)}
               className='h-full w-full cursor-zoom-in bg-transparent p-0 text-left'
               disabled={!previewUrl}
             >
@@ -85,46 +86,66 @@ export function PartDrawingPreview({
               />
             </button>
           ) : (
-            <iframe
-              src={previewUrl ?? ""}
-              title={drawing.fileName}
-              className='h-full w-full bg-white'
-            />
+            <div className='flex h-full w-full flex-col items-center justify-center gap-3 bg-white px-4 text-center'>
+              <div className='flex h-14 w-14 items-center justify-center border border-border bg-muted/20 text-muted-foreground'>
+                <i className='ri-file-pdf-2-line text-2xl' />
+              </div>
+              <div>
+                <p className='text-sm font-medium text-foreground'>
+                  PDF 图纸
+                </p>
+                <p className='mt-1 text-xs text-muted-foreground'>
+                  点击下方按钮在统一预览器中查看和下载。
+                </p>
+              </div>
+            </div>
           )}
 
           {isImage ? (
-            <div className='absolute inset-x-0 bottom-0 flex items-center justify-between bg-background/90 px-3 py-2 text-xs text-muted-foreground backdrop-blur'>
+            <div className='absolute inset-x-0 bottom-0 flex items-center justify-between gap-3 bg-background/90 px-3 py-2 text-xs text-muted-foreground backdrop-blur'>
               <span className='truncate'>点击图片放大查看</span>
-              {canUpload && (
-                <div className='ml-3 shrink-0'>
+              <div className='flex shrink-0 items-center gap-2'>
+                <Button
+                  size='sm'
+                  variant='secondary'
+                  className='h-7 px-2.5 text-xs shadow-sm'
+                  onClick={event => {
+                    event.stopPropagation()
+                    void downloadPartDrawingFile(drawing)
+                  }}
+                >
+                  <i className='ri-download-line mr-1' />
+                  下载
+                </Button>
+                {canUpload && (
                   <ReuploadButton onClick={onUploadClick} loading={isUploading} />
-                </div>
-              )}
+                )}
+              </div>
             </div>
           ) : (
             <div className='absolute bottom-3 right-3 flex items-center gap-2'>
-              <button
+              <Button
                 type='button'
-                className='inline-flex h-8 items-center justify-center rounded-md border border-border bg-background/95 px-3 text-xs text-foreground shadow-sm backdrop-blur transition-colors hover:bg-background'
-                onClick={() => {
-                  if (!previewUrl) return
-                  window.open(previewUrl, "_blank", "noopener,noreferrer")
-                }}
-                disabled={!previewUrl}
+                size='sm'
+                variant='secondary'
+                className='h-8 px-3 text-xs shadow-sm'
+                onClick={() => onPreviewDrawing(drawing)}
               >
                 <i className='ri-external-link-line mr-1.5' />
-                查看
-              </button>
-              <button
+                预览 PDF
+              </Button>
+              <Button
                 type='button'
-                className='inline-flex h-8 items-center justify-center rounded-md border border-border bg-background/95 px-3 text-xs text-foreground shadow-sm backdrop-blur transition-colors hover:bg-background'
+                size='sm'
+                variant='secondary'
+                className='h-8 px-3 text-xs shadow-sm'
                 onClick={() => {
                   void downloadPartDrawingFile(drawing)
                 }}
               >
                 <i className='ri-download-line mr-1.5' />
                 下载
-              </button>
+              </Button>
               {canUpload && (
                 <ReuploadButton onClick={onUploadClick} loading={isUploading} />
               )}

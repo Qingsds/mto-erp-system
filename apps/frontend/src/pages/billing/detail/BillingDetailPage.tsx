@@ -10,6 +10,7 @@
 
 import { useMemo } from "react"
 import { useNavigate, useParams } from "@tanstack/react-router"
+import { FilePreviewDialog } from "@/components/common/FilePreviewDialog"
 import { PageContentWrapper } from "@/components/common/PageContentWrapper"
 import { Button } from "@/components/ui/button"
 import { useUIStore } from "@/store/ui.store"
@@ -43,8 +44,11 @@ export function BillingDetailPage() {
     actionError,
     isExportingExcel,
     downloadingDocumentId,
+    previewingDocumentId,
     exportExcel,
     downloadPdf,
+    previewPdf,
+    previewDialog,
     clearActionError,
   } = useBillingDetailDownloads(billing)
 
@@ -215,6 +219,8 @@ export function BillingDetailPage() {
             stats={stats}
             isFetching={isFetching}
             downloadingDocumentId={downloadingDocumentId}
+            previewingDocumentId={previewingDocumentId}
+            onPreviewPdf={document => void previewPdf(document)}
             onDownloadPdf={document => void downloadPdf(document)}
             onOpenDelivery={handleOpenDelivery}
           />
@@ -224,6 +230,8 @@ export function BillingDetailPage() {
             stats={stats}
             isFetching={isFetching}
             downloadingDocumentId={downloadingDocumentId}
+            previewingDocumentId={previewingDocumentId}
+            onPreviewPdf={document => void previewPdf(document)}
             onDownloadPdf={document => void downloadPdf(document)}
             onOpenDelivery={handleOpenDelivery}
           />
@@ -247,6 +255,17 @@ export function BillingDetailPage() {
           onMarkPaid={() => void handleMarkPaid()}
         />
       )}
+
+      <FilePreviewDialog
+        open={previewDialog.open}
+        onOpenChange={previewDialog.onOpenChange}
+        title={previewDialog.title}
+        fileKind={previewDialog.fileKind}
+        previewUrl={previewDialog.previewUrl}
+        isLoading={previewDialog.isLoading}
+        error={previewDialog.error}
+        onDownload={previewDialog.onDownload}
+      />
     </div>
   )
 }

@@ -12,6 +12,8 @@ import { BILLING_DOCUMENT_STATUS_LABEL, formatDateLabel } from "../list/shared"
 interface BillingDetailDocumentsSectionProps {
   billing: BillingDetail
   downloadingDocumentId?: number | null
+  previewingDocumentId?: number | null
+  onPreviewPdf: (document: BillingDocument) => void
   onDownloadPdf: (document: BillingDocument) => void
 }
 
@@ -24,6 +26,8 @@ function formatHash(hash?: string | null) {
 export function BillingDetailDocumentsSection({
   billing,
   downloadingDocumentId = null,
+  previewingDocumentId = null,
+  onPreviewPdf,
   onDownloadPdf,
 }: BillingDetailDocumentsSectionProps) {
   return (
@@ -31,7 +35,7 @@ export function BillingDetailDocumentsSection({
       <div className='border-b border-border px-3 py-3 sm:px-5 sm:py-4'>
         <h2 className='text-sm font-semibold text-foreground'>归档记录</h2>
         <p className='mt-1 text-xs text-muted-foreground'>
-          盖章后会生成归档文件与审计日志，可在此下载归档 PDF。
+          盖章后会生成归档文件与审计日志，可在此预览或下载归档 PDF。
         </p>
       </div>
 
@@ -40,7 +44,7 @@ export function BillingDetailDocumentsSection({
           <i className='ri-folder-open-line text-3xl opacity-40' />
           <p className='mt-3 text-sm font-medium text-foreground'>还没有归档记录</p>
           <p className='mt-1 text-xs'>
-            对账单盖章后，这里会出现归档文件、盖章审计信息和 PDF 下载入口。
+            对账单盖章后，这里会出现归档文件、盖章审计信息和 PDF 预览入口。
           </p>
         </div>
       ) : (
@@ -85,7 +89,27 @@ export function BillingDetailDocumentsSection({
                   )}
                 </div>
 
-                <div className='mt-3 flex justify-end'>
+                <div className='mt-3 flex flex-wrap justify-end gap-2'>
+                  <Button
+                    type='button'
+                    size='sm'
+                    variant='outline'
+                    className='h-8 text-xs'
+                    onClick={() => onPreviewPdf(document)}
+                    disabled={previewingDocumentId === document.id}
+                  >
+                    {previewingDocumentId === document.id ? (
+                      <>
+                        <i className='ri-loader-4-line mr-1.5 animate-spin' />
+                        预览中…
+                      </>
+                    ) : (
+                      <>
+                        <i className='ri-eye-line mr-1.5' />
+                        预览 PDF
+                      </>
+                    )}
+                  </Button>
                   <Button
                     type='button'
                     size='sm'

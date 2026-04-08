@@ -4,34 +4,21 @@
  * 职责：
  * - 发货单详情容器页，负责数据拉取、聚合与端类型切换
  * - 提供单据状态与异常状态展示
+ * - 文档导出动作交给独立组件维护，避免页面容器继续变胖
  */
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useMemo } from "react"
 import { useNavigate, useParams } from "@tanstack/react-router"
 import { PageContentWrapper } from "@/components/common/PageContentWrapper"
 import { Button } from "@/components/ui/button"
-import { ExportPreviewDialog } from "@/components/export/ExportPreviewDialog"
 import { useUIStore } from "@/store/ui.store"
-import { toast } from "@/lib/toast"
-import {
-  DEFAULT_EXPORT_OPTIONS,
-  type ExportPreviewData,
-  getDeliveryExportPreview,
-  type ExportSheetOptions,
-} from "@/lib/documentExportData"
-import {
-  type DeliveryDetail,
-  useGetDelivery,
-} from "@/hooks/api/useDeliveries"
+import { useGetDelivery } from "@/hooks/api/useDeliveries"
 import { DeliveryDetailDesktop } from "./detail/DeliveryDetailDesktop"
+import { DeliveryExportAction } from "./detail/DeliveryExportAction"
 import { DeliveryDetailMobile } from "./detail/DeliveryDetailMobile"
 import { DeliveryDetailMobileActions } from "./detail/DeliveryDetailMobileActions"
 import { DeliveryDetailToolbar } from "./detail/DeliveryDetailToolbar"
 import type { DeliveryStatsVM } from "./detail/types"
-
-type ExportConfig = Required<ExportSheetOptions>
-
-const DEFAULT_EXPORT_CONFIG: ExportConfig = DEFAULT_EXPORT_OPTIONS
 
 /**
  * 发货单详情页面。
@@ -144,89 +131,5 @@ export function DeliveryDetailPage() {
         />
       )}
     </div>
-  )
-}
-
-function DeliveryExportAction({ delivery }: { delivery: DeliveryDetail }) {
-  const [exportOpen, setExportOpen] = useState(false)
-  const [isPreparingExport, setIsPreparingExport] = useState(false)
-  const [isExporting, setIsExporting] = useState(false)
-  const [exportPreview, setExportPreview] = useState<ExportPreviewData | null>(null)
-  const [exportConfig, setExportConfig] = useState<ExportConfig>(DEFAULT_EXPORT_CONFIG)
-  // 仅首次打开展示加载态；后续切换配置保持旧预览，避免弹窗闪烁。
-  const hasPreparedPreviewRef = useRef(false)
-
-  useEffect(() => {
-    if (!exportOpen) {
-      hasPreparedPreviewRef.current = false
-      return
-    }
-    const isFirstPrepare = !hasPreparedPreviewRef.current
-    if (isFirstPrepare) {
-      setIsPreparingExport(true)
-    }
-
-    let cancelled = false
-    let rafId1 = 0
-    let rafId2 = 0
-
-    // 双 RAF：优先保证弹窗开启动画/首帧绘制，再异步计算预览。
-    rafId1 = requestAnimationFrame(() => {
-      rafId2 = requestAnimationFrame(() => {
-        if (cancelled) return
-        const preview = getDeliveryExportPreview(delivery, exportConfig)
-        if (!cancelled) {
-          setExportPreview(preview)
-          hasPreparedPreviewRef.current = true
-          setIsPreparingExport(false)
-        }
-      })
-    })
-
-    return () => {
-      cancelled = true
-      if (rafId1) cancelAnimationFrame(rafId1)
-      if (rafId2) cancelAnimationFrame(rafId2)
-    }
-  }, [delivery, exportConfig, exportOpen])
-
-  const handleConfirmExportDelivery = async () => {
-    try {
-      setIsExporting(true)
-      const { exportDeliveryNote } = await import("@/lib/documentExport")
-      const filename = exportDeliveryNote(delivery, exportConfig)
-      toast.success(`导出成功：${filename}`)
-      setExportOpen(false)
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "未知错误"
-      toast.error(`导出失败：${message}`)
-    } finally {
-      setIsExporting(false)
-    }
-  }
-
-  return (
-    <>
-      <Button
-        size='sm'
-        variant='outline'
-        className='h-8 px-2.5 text-xs'
-        onClick={() => setExportOpen(true)}
-      >
-        <i className='ri-download-2-line mr-1.5' />
-        导出发货单
-      </Button>
-
-      <ExportPreviewDialog
-        open={exportOpen}
-        onOpenChange={setExportOpen}
-        config={exportConfig}
-        onChangeConfig={setExportConfig}
-        preview={exportPreview}
-        isPreparing={isPreparingExport}
-        isExporting={isExporting}
-        onConfirm={handleConfirmExportDelivery}
-      />
-    </>
   )
 }

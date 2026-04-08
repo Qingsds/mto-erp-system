@@ -16,6 +16,8 @@ interface BillingDetailMobileProps {
   stats: BillingDetailStats
   isFetching: boolean
   downloadingDocumentId?: number | null
+  previewingDocumentId?: number | null
+  onPreviewPdf: (document: BillingDocument) => void
   onDownloadPdf: (document: BillingDocument) => void
   onOpenDelivery: (deliveryId: number) => void
 }
@@ -25,6 +27,8 @@ export function BillingDetailMobile({
   stats,
   isFetching,
   downloadingDocumentId,
+  previewingDocumentId,
+  onPreviewPdf,
   onDownloadPdf,
   onOpenDelivery,
 }: BillingDetailMobileProps) {
@@ -46,6 +50,8 @@ export function BillingDetailMobile({
       <BillingDetailDocumentsSection
         billing={billing}
         downloadingDocumentId={downloadingDocumentId}
+        previewingDocumentId={previewingDocumentId}
+        onPreviewPdf={onPreviewPdf}
         onDownloadPdf={onDownloadPdf}
       />
     </div>

@@ -13,22 +13,27 @@ import {
   useState,
 } from "react"
 import { useParams, useNavigate } from "@tanstack/react-router"
+import { FilePreviewDialog } from "@/components/common/FilePreviewDialog"
 import { Button } from "@/components/ui/button"
 import { useUIStore } from "@/store/ui.store"
 import {
   PART_DRAWING_ACCEPT,
+  FileType,
   useGetPart,
   useUploadDrawing,
   useUpdatePart,
   apiPricesToForm,
+  downloadPartDrawingFile,
+  fetchPartDrawingFileBlob,
   formPricesToApi,
+  type PartDrawing,
   validatePartDrawingFile,
 } from "@/hooks/api/useParts"
+import { useFilePreviewDialog } from "@/hooks/common/useFilePreviewDialog"
 import { PageContentWrapper } from "@/components/common/PageContentWrapper"
 import { useCanViewMoney, useIsAdmin } from "@/lib/permissions"
 import { PartDetailEditForm } from "./PartDetailEditForm"
 import { PartDrawingSection } from "./PartDrawingSection"
-import { PartImagePreviewDialog } from "./PartImagePreviewDialog"
 import { PartDetailLoadingState } from "./PartDetailLoadingState"
 import { PartDetailMobileActions } from "./PartDetailMobileActions"
 import { PartReadonlyInfoSection } from "./PartDetailReadonlySection"
@@ -56,11 +61,8 @@ export function PartDetailPage() {
   >(null)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
-  const [previewImage, setPreviewImage] = useState<{
-    src: string
-    title: string
-  } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const filePreview = useFilePreviewDialog()
 
   const latest = part?.drawings?.find(d => d.isLatest)
   const prices = apiPricesToForm(part?.commonPrices)
@@ -170,6 +172,33 @@ export function PartDetailPage() {
     handleEnterEditMode()
   }, [handleEnterEditMode, handleExitEditMode, isEditing])
 
+  const handlePreviewLocalImage = useCallback(
+    (src: string, title: string) => {
+      void filePreview.openPreview({
+        title,
+        fileKind: "image",
+        loadPreview: async () => {
+          const response = await fetch(src)
+          return response.blob()
+        },
+      })
+    },
+    [filePreview],
+  )
+
+  const handlePreviewDrawing = useCallback(
+    (drawing: PartDrawing) => {
+      void filePreview.openPreview({
+        title: drawing.fileName,
+        fileKind:
+          drawing.fileType === FileType.PDF ? "pdf" : "image",
+        loadPreview: () => fetchPartDrawingFileBlob(drawing),
+        onDownload: () => downloadPartDrawingFile(drawing),
+      })
+    },
+    [filePreview],
+  )
+
   // ── Loading ──
   if (isLoading) {
     return <PartDetailLoadingState />
@@ -216,9 +245,8 @@ export function PartDetailPage() {
             isMobile={isMobile}
             canUpload={canManage}
             onUploadClick={() => fileInputRef.current?.click()}
-            onImagePreview={(src, title) =>
-              setPreviewImage({ src, title })
-            }
+            onLocalImagePreview={handlePreviewLocalImage}
+            onPreviewDrawing={handlePreviewDrawing}
           />
 
           <div className='w-full min-w-0 flex-1'>
@@ -272,12 +300,15 @@ export function PartDetailPage() {
         onChange={handleFileChange}
       />
 
-      <PartImagePreviewDialog
-        previewImage={previewImage}
-        onOpenChange={open => {
-          if (!open) setPreviewImage(null)
-        }}
-        onClose={() => setPreviewImage(null)}
+      <FilePreviewDialog
+        open={filePreview.open}
+        onOpenChange={filePreview.onOpenChange}
+        title={filePreview.title}
+        fileKind={filePreview.fileKind}
+        previewUrl={filePreview.previewUrl}
+        isLoading={filePreview.isLoading}
+        error={filePreview.error}
+        onDownload={filePreview.onDownload}
       />
     </div>
   )

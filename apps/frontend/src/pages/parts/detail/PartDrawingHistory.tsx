@@ -1,6 +1,6 @@
-import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
 import {
-  buildPartDrawingFileUrl,
+  downloadPartDrawingFile,
   FileType,
   type PartDrawing,
 } from "@/hooks/api/useParts"
@@ -8,11 +8,13 @@ import {
 interface PartDrawingHistoryProps {
   drawings: PartDrawing[]
   isMobile: boolean
+  onPreviewDrawing: (drawing: PartDrawing) => void
 }
 
 export function PartDrawingHistory({
   drawings,
   isMobile,
+  onPreviewDrawing,
 }: PartDrawingHistoryProps) {
   const history = drawings.filter(drawing => !drawing.isLatest)
   if (history.length === 0) return null
@@ -28,26 +30,19 @@ export function PartDrawingHistory({
             key={drawing.id}
             className='flex items-center gap-2.5 rounded-lg border border-border bg-muted/20 p-2.5 transition-colors hover:bg-muted/35'
           >
-            <a
-              href={buildPartDrawingFileUrl(drawing.partId, drawing.id)}
-              target='_blank'
-              rel='noreferrer'
-              className='flex w-7 shrink-0 items-center justify-center rounded-md bg-muted'
-            >
+            <div className='flex w-7 shrink-0 items-center justify-center rounded-md bg-muted'>
               <i
-                className={cn(
-                  "text-xs text-muted-foreground",
+                className={
                   drawing.fileType === FileType.IMAGE
-                    ? "ri-image-line"
-                    : "ri-file-pdf-line",
-                )}
+                    ? "ri-image-line text-xs text-muted-foreground"
+                    : "ri-file-pdf-line text-xs text-muted-foreground"
+                }
               />
-            </a>
-            <a
-              href={buildPartDrawingFileUrl(drawing.partId, drawing.id)}
-              target='_blank'
-              rel='noreferrer'
-              className='min-w-0 flex-1'
+            </div>
+            <button
+              type='button'
+              className='min-w-0 flex-1 text-left'
+              onClick={() => onPreviewDrawing(drawing)}
             >
               <p className='truncate text-xs text-muted-foreground'>
                 {drawing.fileName}
@@ -55,15 +50,28 @@ export function PartDrawingHistory({
               <p className='text-[11px] text-muted-foreground/50'>
                 {new Date(drawing.uploadedAt).toLocaleDateString("zh-CN")}
               </p>
-            </a>
-            <div className='flex items-center gap-1 text-muted-foreground'>
-              <i className='ri-external-link-line text-xs' />
-              <a
-                href={buildPartDrawingFileUrl(drawing.partId, drawing.id, { download: true })}
-                className='inline-flex h-7 items-center justify-center rounded-md border border-border px-2 text-[11px] transition-colors hover:bg-background hover:text-foreground'
+            </button>
+            <div className='flex items-center gap-1'>
+              <Button
+                type='button'
+                size='sm'
+                variant='outline'
+                className='h-7 px-2 text-[11px]'
+                onClick={() => onPreviewDrawing(drawing)}
+              >
+                预览
+              </Button>
+              <Button
+                type='button'
+                size='sm'
+                variant='outline'
+                className='h-7 px-2 text-[11px]'
+                onClick={() => {
+                  void downloadPartDrawingFile(drawing)
+                }}
               >
                 下载
-              </a>
+              </Button>
             </div>
           </div>
         ))}

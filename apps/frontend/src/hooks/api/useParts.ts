@@ -136,7 +136,7 @@ export function buildPartDrawingFileUrl(
   return resolveApiUrl(path)
 }
 
-async function fetchPartDrawingBlob(drawing: PartDrawing) {
+export async function fetchPartDrawingFileBlob(drawing: PartDrawing) {
   return request.get<Blob, Blob>(
     buildPartDrawingFileUrl(drawing.partId, drawing.id),
     { responseType: "blob" },
@@ -169,7 +169,7 @@ export function usePartDrawingPreviewUrl(drawing?: PartDrawing) {
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
-    if (!drawing) {
+    if (!drawing || drawing.fileType !== FileType.IMAGE) {
       setPreviewUrl(null)
       setPreviewError(null)
       setIsLoading(false)
@@ -183,7 +183,7 @@ export function usePartDrawingPreviewUrl(drawing?: PartDrawing) {
       try {
         setIsLoading(true)
         setPreviewError(null)
-        const blob = await fetchPartDrawingBlob(drawing)
+        const blob = await fetchPartDrawingFileBlob(drawing)
         if (cancelled) return
         currentUrl = window.URL.createObjectURL(blob)
         setPreviewUrl(currentUrl)
@@ -218,7 +218,7 @@ export function usePartDrawingPreviewUrl(drawing?: PartDrawing) {
 }
 
 export async function downloadPartDrawingFile(drawing: PartDrawing) {
-  const blob = await fetchPartDrawingBlob(drawing)
+  const blob = await fetchPartDrawingFileBlob(drawing)
   triggerPartDrawingDownload(blob, drawing.fileName)
 }
 
