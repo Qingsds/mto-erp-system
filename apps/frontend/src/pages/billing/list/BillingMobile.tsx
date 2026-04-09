@@ -5,6 +5,7 @@
  */
 
 import { Button } from "@/components/ui/button"
+import { StatusFilterBar } from "@/components/common/TableToolbar"
 import { TopLevelPageHeaderWrapper } from "@/components/common/TopLevelPageHeaderWrapper"
 import { TopLevelPageTitle } from "@/components/common/TopLevelPageTitle"
 import { BillingCard } from "./BillingCard"
@@ -53,22 +54,12 @@ export function BillingMobile({ controller }: BillingMobileProps) {
       </TopLevelPageHeaderWrapper>
 
       <div className="shrink-0 border-b border-border bg-background px-4 pb-3">
-        <div className="mt-3 flex gap-1 overflow-x-auto">
-          {statusTabs.map(tab => (
-            <button
-              key={tab.value}
-              type="button"
-              onClick={() => handleStatusFilterChange(tab.value)}
-              className={
-                statusFilter === tab.value
-                  ? "shrink-0 border border-primary bg-primary px-2.5 py-1 text-xs text-primary-foreground"
-                  : "shrink-0 border border-input bg-transparent px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent"
-              }
-            >
-              {tab.label} {tab.count}
-            </button>
-          ))}
-        </div>
+        <StatusFilterBar
+          className='mt-3 px-0 py-0'
+          tabs={statusTabs}
+          value={statusFilter}
+          onChange={handleStatusFilterChange}
+        />
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-3">

@@ -10,7 +10,14 @@
  */
 
 import { useMemo, useRef, useState } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { EmptyStateBlock } from "@/components/common/EmptyStateBlock"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import {
   apiPricesToForm,
   type PartListItem,
@@ -78,9 +85,12 @@ export function PartPickerDialog({
         }}
       >
         <DialogHeader className='px-4 pb-0 pt-4'>
-          <DialogTitle className='text-sm font-medium text-muted-foreground'>
+          <DialogTitle className='text-sm font-medium text-foreground'>
             选择零件
           </DialogTitle>
+          <DialogDescription className='text-xs'>
+            先按名称、编号或材质搜索，再从结果中点按选中零件。
+          </DialogDescription>
         </DialogHeader>
 
         <div className='border-b border-border px-4 py-3'>
@@ -129,12 +139,13 @@ export function PartPickerDialog({
           style={{ maxHeight: 420 }}
         >
           {filteredParts.length === 0 ? (
-            <div className='flex flex-col items-center justify-center py-12 text-muted-foreground'>
-              <i className='ri-search-line mb-2 text-2xl opacity-30' />
-              <p className='text-sm'>
-                没有匹配「{query}」的零件
-              </p>
-            </div>
+            <EmptyStateBlock
+              icon='ri-search-line'
+              title={`没有匹配「${query}」的零件`}
+              description='请尝试缩短关键词，或改用零件编号、材质进行搜索。'
+              className='border-0 shadow-none'
+              contentClassName='py-12'
+            />
           ) : (
             <div className='divide-y divide-border'>
               {filteredParts.map(part => {

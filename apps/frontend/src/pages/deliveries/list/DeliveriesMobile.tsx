@@ -8,11 +8,11 @@
  */
 
 import { useEffect, useState } from "react"
+import { StatusFilterBar } from "@/components/common/TableToolbar"
 import { TopLevelPageHeaderWrapper } from "@/components/common/TopLevelPageHeaderWrapper"
 import { TopLevelPageTitle } from "@/components/common/TopLevelPageTitle"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { cn } from "@/lib/utils"
 import {
   DEFAULT_DELIVERY_FILTERS,
   type DeliveryFilters,
@@ -95,25 +95,15 @@ export function DeliveriesMobile({ search }: DeliveriesMobileProps) {
           )}
         </div>
 
-        <div className="mt-2 flex gap-1 overflow-x-auto">
-          {statusTabs.map(tab => (
-            <button
-              key={tab.value}
-              onClick={() => {
-                setDraftFilters(prev => ({ ...prev, status: tab.value }))
-                setStatusFilter(tab.value)
-              }}
-              className={cn(
-                "shrink-0 border border-transparent bg-transparent px-2.5 py-1 text-xs transition-colors",
-                filters.status === tab.value
-                  ? "border-border bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground",
-              )}
-            >
-              {tab.label} {tab.count}
-            </button>
-          ))}
-        </div>
+        <StatusFilterBar
+          className='mt-2 px-0 py-0'
+          tabs={statusTabs}
+          value={filters.status}
+          onChange={value => {
+            setDraftFilters(prev => ({ ...prev, status: value }))
+            setStatusFilter(value)
+          }}
+        />
 
         <div className="mt-2 flex items-center gap-2">
           <Button

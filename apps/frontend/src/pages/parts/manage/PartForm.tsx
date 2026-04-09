@@ -8,8 +8,16 @@
 import { useEffect } from "react"
 import { useFieldArray, useForm } from "react-hook-form"
 import { Button } from "@/components/ui/button"
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field"
+import { Form } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
 import { zodResolverCompat } from "@/lib/zodResolverCompat"
@@ -89,157 +97,178 @@ export function PartForm({
   }, [editingPart, reset])
 
   return (
-    <form
-      onSubmit={handleSubmit(onSubmit)}
-      className='flex flex-col gap-5'
-    >
-      <div className='flex flex-col gap-1.5'>
-        <Label htmlFor='name'>
-          零件名称 <span className='text-destructive'>*</span>
-        </Label>
-        <Input
-          id='name'
-          placeholder='如：六角螺栓 M8×30'
-          {...register("name")}
-          className={errors.name ? "border-destructive" : ""}
-        />
-        {errors.name && (
-          <p className='text-xs text-destructive'>
-            {errors.name.message}
-          </p>
+    <Form {...form}>
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        className='flex flex-col gap-5'
+      >
+        <FieldGroup className='gap-5'>
+          <Field data-invalid={!!errors.name}>
+            <FieldLabel htmlFor='name'>
+              零件名称 <span className='text-destructive'>*</span>
+            </FieldLabel>
+            <FieldContent>
+              <Input
+                id='name'
+                placeholder='如：六角螺栓 M8×30'
+                aria-invalid={!!errors.name}
+                {...register("name")}
+              />
+              <FieldDescription>
+                该名称会同步用于订单、发货和图纸识别场景。
+              </FieldDescription>
+              <FieldError>{errors.name?.message}</FieldError>
+            </FieldContent>
+          </Field>
+
+          <div className='grid grid-cols-2 gap-3'>
+            <Field data-invalid={!!errors.material}>
+              <FieldLabel htmlFor='material'>
+                材质 <span className='text-destructive'>*</span>
+              </FieldLabel>
+              <FieldContent>
+                <Input
+                  id='material'
+                  placeholder='如：304 不锈钢'
+                  aria-invalid={!!errors.material}
+                  {...register("material")}
+                />
+                <FieldError>{errors.material?.message}</FieldError>
+              </FieldContent>
+            </Field>
+
+            <Field>
+              <FieldLabel htmlFor='spec'>规格型号</FieldLabel>
+              <FieldContent>
+                <Input
+                  id='spec'
+                  placeholder='如：GB/T 5782'
+                  {...register("spec")}
+                />
+                <FieldDescription>
+                  规格为空时，可后续在详情页补充。
+                </FieldDescription>
+              </FieldContent>
+            </Field>
+          </div>
+
+          <Field data-invalid={!!errors.prices?.root}>
+            <div className='flex items-center justify-between gap-3'>
+              <FieldLabel>
+                价格字典 <span className='text-destructive'>*</span>
+              </FieldLabel>
+              <Button
+                type='button'
+                variant='ghost'
+                size='sm'
+                className='h-7 px-2 text-xs'
+                onClick={() => append({ label: "", value: 0 })}
+              >
+                <i className='ri-add-line mr-1' />
+                添加价格
+              </Button>
+            </div>
+
+            <FieldContent>
+              <FieldDescription>
+                标准价优先展示，没有标准价时再回退到其他业务价格。
+              </FieldDescription>
+              <FieldError>{errors.prices?.root?.message}</FieldError>
+
+              <div className='flex flex-col gap-2'>
+                {fields.map((field, index) => (
+                  <div
+                    key={field.id}
+                    className='flex items-start gap-2'
+                  >
+                    <div className='flex-1'>
+                      <Input
+                        placeholder='价格名称（如：标准价）'
+                        aria-invalid={!!errors.prices?.[index]?.label}
+                        {...register(`prices.${index}.label`)}
+                        className={cn(
+                          "h-10",
+                          errors.prices?.[index]?.label && "border-destructive",
+                        )}
+                      />
+                      {errors.prices?.[index]?.label?.message && (
+                        <p className='mt-1 text-xs text-destructive'>
+                          {errors.prices[index]?.label?.message}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className='w-28'>
+                      <Input
+                        type='number'
+                        min={0}
+                        step={0.01}
+                        placeholder='0.00'
+                        aria-invalid={!!errors.prices?.[index]?.value}
+                        {...register(`prices.${index}.value`)}
+                        className={cn(
+                          "h-10 font-mono text-right",
+                          errors.prices?.[index]?.value && "border-destructive",
+                        )}
+                      />
+                      {errors.prices?.[index]?.value?.message && (
+                        <p className='mt-1 text-xs text-destructive'>
+                          {errors.prices[index]?.value?.message}
+                        </p>
+                      )}
+                    </div>
+
+                    <button
+                      type='button'
+                      onClick={() => remove(index)}
+                      disabled={fields.length === 1}
+                      className={cn(
+                        "mt-2 cursor-pointer border-none bg-transparent p-0 text-muted-foreground transition-colors hover:text-destructive",
+                        fields.length === 1 && "cursor-not-allowed opacity-30",
+                      )}
+                    >
+                      <i className='ri-close-line text-sm' />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </FieldContent>
+          </Field>
+        </FieldGroup>
+
+        {editingPart && (
+          <>
+            <Separator />
+            <PartDrawingUploadSection partId={editingPart.id} />
+          </>
         )}
-      </div>
 
-      <div className='grid grid-cols-2 gap-3'>
-        <div className='flex flex-col gap-1.5'>
-          <Label htmlFor='material'>
-            材质 <span className='text-destructive'>*</span>
-          </Label>
-          <Input
-            id='material'
-            placeholder='如：304 不锈钢'
-            {...register("material")}
-            className={errors.material ? "border-destructive" : ""}
-          />
-          {errors.material && (
-            <p className='text-xs text-destructive'>
-              {errors.material.message}
-            </p>
-          )}
-        </div>
-
-        <div className='flex flex-col gap-1.5'>
-          <Label htmlFor='spec'>规格型号</Label>
-          <Input
-            id='spec'
-            placeholder='如：GB/T 5782'
-            {...register("spec")}
-          />
-        </div>
-      </div>
-
-      <div className='flex flex-col gap-2'>
-        <div className='flex items-center justify-between'>
-          <Label>
-            价格字典 <span className='text-destructive'>*</span>
-          </Label>
+        <div className='flex justify-end gap-2 pt-2'>
           <Button
             type='button'
-            variant='ghost'
-            size='sm'
-            className='h-7 px-2 text-xs'
-            onClick={() => append({ label: "", value: 0 })}
+            variant='outline'
+            onClick={onCancel}
           >
-            <i className='ri-add-line mr-1' />
-            添加价格
+            取消
+          </Button>
+          <Button
+            type='submit'
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <>
+                <i className='ri-loader-4-line mr-1.5 animate-spin' />
+                提交中…
+              </>
+            ) : (
+              <>
+                <i className='ri-check-line mr-1.5' />
+                {editingPart ? "保存修改" : "创建零件"}
+              </>
+            )}
           </Button>
         </div>
-
-        {errors.prices?.root && (
-          <p className='text-xs text-destructive'>
-            {errors.prices.root.message}
-          </p>
-        )}
-
-        <div className='flex flex-col gap-2'>
-          {fields.map((field, index) => (
-            <div
-              key={field.id}
-              className='flex items-start gap-2'
-            >
-              <div className='flex-1'>
-                <Input
-                  placeholder='价格名称（如：标准价）'
-                  {...register(`prices.${index}.label`)}
-                  className={cn(
-                    "h-10",
-                    errors.prices?.[index]?.label && "border-destructive",
-                  )}
-                />
-              </div>
-
-              <div className='w-28'>
-                <Input
-                  type='number'
-                  min={0}
-                  step={0.01}
-                  placeholder='0.00'
-                  {...register(`prices.${index}.value`)}
-                  className={cn(
-                    "h-10 font-mono text-right",
-                    errors.prices?.[index]?.value && "border-destructive",
-                  )}
-                />
-              </div>
-
-              <button
-                type='button'
-                onClick={() => remove(index)}
-                disabled={fields.length === 1}
-                className={cn(
-                  "mt-2 cursor-pointer border-none bg-transparent p-0 text-muted-foreground transition-colors hover:text-destructive",
-                  fields.length === 1 && "cursor-not-allowed opacity-30",
-                )}
-              >
-                <i className='ri-close-line text-sm' />
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {editingPart && (
-        <>
-          <Separator />
-          <PartDrawingUploadSection partId={editingPart.id} />
-        </>
-      )}
-
-      <div className='flex justify-end gap-2 pt-2'>
-        <Button
-          type='button'
-          variant='outline'
-          onClick={onCancel}
-        >
-          取消
-        </Button>
-        <Button
-          type='submit'
-          disabled={isSubmitting}
-        >
-          {isSubmitting ? (
-            <>
-              <i className='ri-loader-4-line mr-1.5 animate-spin' />
-              提交中…
-            </>
-          ) : (
-            <>
-              <i className='ri-check-line mr-1.5' />
-              {editingPart ? "保存修改" : "创建零件"}
-            </>
-          )}
-        </Button>
-      </div>
-    </form>
+      </form>
+    </Form>
   )
 }

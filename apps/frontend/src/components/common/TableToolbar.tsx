@@ -19,6 +19,7 @@
 
 import { TopLevelPageHeaderWrapper } from "@/components/common/TopLevelPageHeaderWrapper"
 import { TopLevelPageTitle } from "@/components/common/TopLevelPageTitle"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { cn }        from "@/lib/utils"
 import type { ReactNode } from "react"
 
@@ -110,6 +111,7 @@ interface StatusFilterBarProps<T extends string> {
   value:     T
   onChange:  (v: T) => void
   className?: string
+  groupClassName?: string
   /** 右侧附加内容（如分页控件） */
   footer?:   ReactNode
 }
@@ -119,39 +121,43 @@ export function StatusFilterBar<T extends string>({
   value,
   onChange,
   className,
+  groupClassName,
   footer,
 }: StatusFilterBarProps<T>) {
   return (
     <div
       className={cn(
-        "flex items-center gap-1 overflow-x-auto px-4 py-2 sm:px-[var(--erp-page-px)]",
+        "flex items-center gap-2 overflow-x-auto px-4 py-2 sm:px-[var(--erp-page-px)]",
         className,
       )}
     >
-      {tabs.map(tab => (
-        <button
-          key={tab.value}
-          onClick={() => onChange(tab.value)}
-          className={cn(
-            "text-xs px-2.5 py-1 rounded whitespace-nowrap bg-transparent border-none cursor-pointer transition-colors",
-            value === tab.value
-              ? "bg-primary/10 text-primary font-medium"
-              : "text-muted-foreground hover:text-foreground hover:bg-muted",
-          )}
-        >
-          {tab.label}
-          {tab.count !== undefined && (
-            <span
-              className={cn(
-                "ml-1 font-mono",
-                value === tab.value ? "text-primary" : "text-muted-foreground/60",
-              )}
-            >
-              {tab.count}
-            </span>
-          )}
-        </button>
-      ))}
+      <ToggleGroup
+        type='single'
+        value={value}
+        onValueChange={nextValue => {
+          if (nextValue) {
+            onChange(nextValue as T)
+          }
+        }}
+        variant='outline'
+        size='sm'
+        className={cn("min-w-max", groupClassName)}
+      >
+        {tabs.map(tab => (
+          <ToggleGroupItem
+            key={tab.value}
+            value={tab.value}
+            className='text-xs data-[state=on]:border-transparent data-[state=on]:bg-primary/12 data-[state=on]:text-primary'
+          >
+            {tab.label}
+            {tab.count !== undefined && (
+              <span className='ml-1 font-mono text-current/70'>
+                {tab.count}
+              </span>
+            )}
+          </ToggleGroupItem>
+        ))}
+      </ToggleGroup>
       {footer}
     </div>
   )

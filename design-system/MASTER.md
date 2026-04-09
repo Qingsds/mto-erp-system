@@ -209,6 +209,7 @@
 
 ## 12. 组件复用原则
 
+- 前端实现边界与组件分层细则，见 `design-system/frontend-implementation.md`
 - 优先复用现有 `shadcn/ui`、项目布局壳、表格、Toolbar、Sheet
 - 新组件先服务明确业务模式，再考虑抽象
 - 所有优化建议必须能映射到真实项目文件结构，不输出 demo 式组件树

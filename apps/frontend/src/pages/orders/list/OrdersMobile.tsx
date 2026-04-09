@@ -8,9 +8,9 @@
  */
 
 import { Button } from "@/components/ui/button"
+import { StatusFilterBar } from "@/components/common/TableToolbar"
 import { TopLevelPageHeaderWrapper } from "@/components/common/TopLevelPageHeaderWrapper"
 import { TopLevelPageTitle } from "@/components/common/TopLevelPageTitle"
-import { cn } from "@/lib/utils"
 import type { OrdersPageSearch } from "./search"
 import { OrdersMobileCard } from "./OrdersMobileCard"
 import { useOrdersPageController } from "./useOrdersPageController"
@@ -88,23 +88,12 @@ export function OrdersMobile({ search }: OrdersMobileProps) {
           )}
         </div>
 
-        <div className='mt-2 flex gap-1 overflow-x-auto'>
-          {statusTabs.map(tab => (
-            <button
-              key={tab.value}
-              type='button'
-              onClick={() => setStatusFilter(tab.value)}
-              className={cn(
-                "shrink-0 cursor-pointer border border-transparent bg-transparent px-2.5 py-1 text-xs transition-colors",
-                statusFilter === tab.value
-                  ? "border-border bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground",
-              )}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+        <StatusFilterBar
+          className='mt-2 px-0 py-0'
+          tabs={statusTabs}
+          value={statusFilter}
+          onChange={setStatusFilter}
+        />
       </div>
 
       <div className='flex-1 overflow-y-auto px-4 py-3'>
