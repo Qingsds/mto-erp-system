@@ -8,6 +8,7 @@
  */
 
 import { useMemo } from "react"
+import { useNavigate } from "@tanstack/react-router"
 import type { OrderStatusType } from "@erp/shared-types"
 import {
   Card,
@@ -42,6 +43,7 @@ import {
 } from "@/hooks/api/useOrders"
 import { useGetParts } from "@/hooks/api/useParts"
 import { useCanViewMoney } from "@/lib/permissions"
+import { useAuthStore } from "@/store/auth.store"
 import { useUIStore } from "@/store/ui.store"
 
 // ─── Types ────────────────────────────────────────────────
@@ -69,6 +71,7 @@ interface DashboardOrderItem {
 interface TodoItem {
   text: string
   type: "warn" | "success" | "danger"
+  onClick?: () => void
 }
 
 // ─── Status config ────────────────────────────────────────
@@ -91,7 +94,9 @@ function OrderBadge({ status }: { status: DashboardOrderStatus }) {
 }
 
 /** 将后端状态映射为看板状态，避免 UI 直接依赖后端枚举命名。 */
-function mapOrderStatus(status: OrderStatusType): DashboardOrderStatus {
+function mapOrderStatus(
+  status: OrderStatusType,
+): DashboardOrderStatus {
   if (status === "PENDING") return "active"
   if (status === "PARTIAL_SHIPPED") return "shipping"
   if (status === "CLOSED_SHORT") return "closed"
@@ -116,10 +121,17 @@ function formatYuan(value: number): string {
  * - 已发完或短交结案视为 100%
  * - 其余按 shipped/ordered 计算，并做 [0,100] 边界保护
  */
-function calcOrderProgress(ordered: number, shipped: number, status: OrderStatusType): number {
+function calcOrderProgress(
+  ordered: number,
+  shipped: number,
+  status: OrderStatusType,
+): number {
   if (status === "SHIPPED" || status === "CLOSED_SHORT") return 100
   if (ordered <= 0) return 0
-  return Math.max(0, Math.min(100, Math.round((shipped / ordered) * 100)))
+  return Math.max(
+    0,
+    Math.min(100, Math.round((shipped / ordered) * 100)),
+  )
 }
 
 // ─── Skeleton ─────────────────────────────────────────────
@@ -158,7 +170,7 @@ function MobileCardSkeleton() {
       <CardContent className='p-4'>
         <div className='flex items-start justify-between mb-2'>
           <Skeleton className='h-3 w-32' />
-          <Skeleton className='h-5 w-14 rounded-full' />
+          <Skeleton className='h-5 w-14 rounded-none' />
         </div>
         <Skeleton className='h-4 w-40 mb-3' />
         <div className='flex justify-between'>
@@ -178,8 +190,15 @@ function MobileOrderCard({
   order: DashboardOrderItem
   canViewMoney: boolean
 }) {
+  const navigate = useNavigate()
+
   return (
-    <Card className='cursor-pointer active:bg-muted/50 transition-colors'>
+    <Card
+      className='cursor-pointer active:bg-muted/50 transition-colors'
+      onClick={() =>
+        navigate({ to: "/orders/$id", params: { id: order.id } })
+      }
+    >
       <CardContent className='p-4'>
         <div className='flex items-start justify-between mb-1.5'>
           <span className='font-mono text-xs text-muted-foreground'>
@@ -190,13 +209,13 @@ function MobileOrderCard({
         <p className='text-sm font-medium mb-2.5'>{order.customer}</p>
 
         <div className='flex items-center gap-2 mb-2'>
-          <div className='flex-1 h-1.5 rounded-full bg-muted overflow-hidden'>
+          <div className='flex-1 h-1.5 rounded-none bg-muted overflow-hidden'>
             <div
-              className='h-full rounded-full bg-primary transition-all'
+              className='h-full rounded-none bg-primary transition-all'
               style={{ width: `${order.progress}%` }}
             />
           </div>
-          <span className='text-[10px] font-mono text-muted-foreground shrink-0'>
+          <span className='text-xs font-mono text-muted-foreground shrink-0'>
             {order.progress}%
           </span>
         </div>
@@ -221,26 +240,65 @@ function MobileDashboard({
   isLoading,
   stats,
   orders,
+  todos,
   canViewMoney,
+  userDisplayName,
 }: {
   isLoading: boolean
   stats: StatItem[]
   orders: DashboardOrderItem[]
+  todos: TodoItem[]
   canViewMoney: boolean
+  userDisplayName: string
 }) {
+  const navigate = useNavigate()
+
   return (
     <div className='flex-1 overflow-y-auto p-4 flex flex-col gap-4'>
       <TopLevelPageHeaderWrapper
         bordered={false}
+        padding='mobile'
         bodyClassName='items-end justify-between'
       >
         <TopLevelPageTitle
-          title='你好，张三 👋'
+          title={`你好，${userDisplayName} 👋`}
           subtitle='今日 · 数据实时更新'
-          titleClassName='text-xl'
-          subtitleClassName='mt-0.5 text-sm text-muted-foreground'
+          titleClassName='text-lg'
+          subtitleClassName='mt-0.5 text-xs text-muted-foreground'
         />
       </TopLevelPageHeaderWrapper>
+
+      <div className={`grid gap-2 ${canViewMoney ? "grid-cols-3" : "grid-cols-2"}`}>
+        <Button
+          variant='outline'
+          size='sm'
+          className='h-9'
+          onClick={() => navigate({ to: "/orders/new" })}
+        >
+          <i className='ri-file-add-line mr-1' />
+          新建订单
+        </Button>
+        <Button
+          variant='outline'
+          size='sm'
+          className='h-9'
+          onClick={() => navigate({ to: "/deliveries" })}
+        >
+          <i className='ri-truck-line mr-1' />
+          发货记录
+        </Button>
+        {canViewMoney && (
+          <Button
+            variant='outline'
+            size='sm'
+            className='h-9'
+            onClick={() => navigate({ to: "/billing/new" })}
+          >
+            <i className='ri-bank-card-line mr-1' />
+            新建对账
+          </Button>
+        )}
+      </div>
 
       <div className='grid grid-cols-2 gap-3'>
         {isLoading
@@ -287,12 +345,44 @@ function MobileDashboard({
       </div>
 
       <div>
-        <div className='flex items-center justify-between mb-2.5'>
+        <h2 className='text-sm font-semibold mb-2.5'>待办事项</h2>
+        <Card>
+          <CardContent className='p-0'>
+            {todos.map((item, i) => (
+              <div
+                key={i}
+                onClick={item.onClick}
+                className={`flex items-start gap-2.5 px-4 py-3 border-b last:border-0 border-border ${item.onClick ? "cursor-pointer active:bg-muted/50" : ""}`}
+              >
+                <div
+                  className={`mt-1 w-1.5 h-1.5 rounded-none shrink-0 ${
+                    item.type === "warn"
+                      ? "bg-amber-500"
+                      : item.type === "success"
+                        ? "bg-primary"
+                        : "bg-destructive"
+                  }`}
+                />
+                <span className='text-xs text-foreground leading-relaxed flex-1'>
+                  {item.text}
+                </span>
+                {item.onClick && (
+                  <i className='ri-arrow-right-s-line text-muted-foreground' />
+                )}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div>
+        <div className='flex items-center justify-between mb-2.5 mt-2'>
           <h2 className='text-sm font-semibold'>最近订单</h2>
           <Button
             variant='ghost'
             size='sm'
             className='h-7 text-xs px-2 text-muted-foreground'
+            onClick={() => navigate({ to: "/orders" })}
           >
             查看全部 <i className='ri-arrow-right-s-line ml-0.5' />
           </Button>
@@ -322,22 +412,27 @@ function DesktopDashboard({
   orders,
   todos,
   canViewMoney,
+  userDisplayName,
 }: {
   isLoading: boolean
   stats: StatItem[]
   orders: DashboardOrderItem[]
   todos: TodoItem[]
   canViewMoney: boolean
+  userDisplayName: string
 }) {
+  const navigate = useNavigate()
+
   return (
     <TopLevelPageWrapper className='gap-6'>
       <TopLevelPageHeaderWrapper
         bordered={false}
-        bodyClassName='items-start justify-between'
+        padding='desktop'
+        bodyClassName='items-center justify-between'
       >
         <TopLevelPageTitle
           title='仪表盘'
-          subtitle='欢迎回来，张三。这是今日的业务概览。'
+          subtitle={`欢迎回来，${userDisplayName}。这是今日的业务概览。`}
           titleClassName='text-2xl'
           subtitleClassName='mt-1 text-sm text-muted-foreground'
         />
@@ -349,7 +444,10 @@ function DesktopDashboard({
             <i className='ri-download-line mr-1.5' />
             导出报告
           </Button>
-          <Button size='sm'>
+          <Button
+            size='sm'
+            onClick={() => navigate({ to: "/orders/new" })}
+          >
             <i className='ri-add-line mr-1.5' />
             新建订单
           </Button>
@@ -365,7 +463,7 @@ function DesktopDashboard({
               <Card key={s.label}>
                 <CardHeader className='pb-2 flex flex-row items-center justify-between space-y-0'>
                   <CardDescription>{s.label}</CardDescription>
-                  <div className='w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center'>
+                  <div className='w-8 h-8 rounded-none bg-primary/10 flex items-center justify-center'>
                     <i className={`${s.icon} text-primary text-sm`} />
                   </div>
                 </CardHeader>
@@ -412,11 +510,15 @@ function DesktopDashboard({
                 <Button
                   variant='outline'
                   size='sm'
+                  onClick={() => navigate({ to: "/orders" })}
                 >
                   <i className='ri-filter-3-line mr-1' />
                   筛选
                 </Button>
-                <Button size='sm'>
+                <Button
+                  size='sm'
+                  onClick={() => navigate({ to: "/orders/new" })}
+                >
                   <i className='ri-add-line mr-1' />
                   新建
                 </Button>
@@ -444,6 +546,12 @@ function DesktopDashboard({
                       <TableRow
                         key={row.id}
                         className='cursor-pointer'
+                        onClick={() =>
+                          navigate({
+                            to: "/orders/$id",
+                            params: { id: row.id },
+                          })
+                        }
                       >
                         <TableCell className='font-mono text-xs text-muted-foreground'>
                           {row.no}
@@ -473,7 +581,7 @@ function DesktopDashboard({
         </Card>
 
         <div className='flex flex-col gap-4'>
-          <Card>
+          <Card className='flex-1'>
             <CardHeader className='pb-3'>
               <CardTitle className='text-base'>待办事项</CardTitle>
             </CardHeader>
@@ -481,10 +589,11 @@ function DesktopDashboard({
               {todos.map((item, i) => (
                 <div
                   key={i}
-                  className='flex items-start gap-2.5 px-6 py-2.5 border-b last:border-0 border-border'
+                  onClick={item.onClick}
+                  className={`flex items-start gap-2.5 px-6 py-3 border-b last:border-0 border-border ${item.onClick ? "cursor-pointer hover:bg-muted/50 transition-colors" : ""}`}
                 >
                   <div
-                    className={`mt-0.5 w-1.5 h-1.5 rounded-full shrink-0 ${
+                    className={`mt-1 w-1.5 h-1.5 rounded-none shrink-0 ${
                       item.type === "warn"
                         ? "bg-amber-500"
                         : item.type === "success"
@@ -492,49 +601,14 @@ function DesktopDashboard({
                           : "bg-destructive"
                     }`}
                   />
-                  <span className='text-xs text-foreground leading-relaxed'>
+                  <span className='text-xs text-foreground leading-relaxed flex-1'>
                     {item.text}
                   </span>
+                  {item.onClick && (
+                    <i className='ri-arrow-right-s-line text-muted-foreground' />
+                  )}
                 </div>
               ))}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className='pb-3'>
-              <CardTitle className='text-base'>
-                本月发货趋势
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className='flex flex-col gap-2'>
-                {[
-                  ["03-10", 48],
-                  ["03-11", 62],
-                  ["03-12", 35],
-                  ["03-13", 78],
-                  ["03-14", 91],
-                  ["03-15", 54],
-                ].map(([d, v]) => (
-                  <div
-                    key={d}
-                    className='flex items-center gap-2'
-                  >
-                    <span className='text-[10px] font-mono text-muted-foreground w-10 shrink-0'>
-                      {d}
-                    </span>
-                    <div className='flex-1 h-1.5 rounded-full bg-muted overflow-hidden'>
-                      <div
-                        className='h-full rounded-full bg-primary transition-all'
-                        style={{ width: `${+v}%` }}
-                      />
-                    </div>
-                    <span className='text-[10px] font-mono text-muted-foreground w-6 text-right shrink-0'>
-                      {v}
-                    </span>
-                  </div>
-                ))}
-              </div>
             </CardContent>
           </Card>
         </div>
@@ -547,6 +621,12 @@ function DesktopDashboard({
 export function DashboardPage() {
   const { isMobile } = useUIStore()
   const canViewMoney = useCanViewMoney()
+  const currentUser = useAuthStore(state => state.user)
+  const navigate = useNavigate()
+  const userDisplayName =
+    currentUser?.realName?.trim() ||
+    currentUser?.username?.trim() ||
+    "用户"
 
   // 看板按“当前自然月”聚合发货数据，边界使用本地时区日期。
   const now = new Date()
@@ -604,7 +684,8 @@ export function DashboardPage() {
     const ongoingCount =
       (pendingOrdersQuery.data?.total ?? 0) +
       (partialOrdersQuery.data?.total ?? 0)
-    const monthlyDeliveryCount = monthlyDeliveriesQuery.data?.total ?? 0
+    const monthlyDeliveryCount =
+      monthlyDeliveriesQuery.data?.total ?? 0
     const partsTotal = partsTotalQuery.data?.total ?? 0
 
     const items: StatItem[] = [
@@ -648,7 +729,10 @@ export function DashboardPage() {
         label: "短交结案",
         value: String(closedOrdersQuery.data?.total ?? 0),
         delta: "普通用户仅展示履约状态",
-        trend: (closedOrdersQuery.data?.total ?? 0) > 0 ? "warn" : "neutral",
+        trend:
+          (closedOrdersQuery.data?.total ?? 0) > 0
+            ? "warn"
+            : "neutral",
         icon: "ri-close-circle-line",
       })
     }
@@ -671,13 +755,24 @@ export function DashboardPage() {
     const rows = latestOrdersQuery.data?.data ?? []
     return rows.map(order => {
       // 进度按数量口径计算，避免金额口径受单价缺失影响。
-      const orderedQty = order.items.reduce((sum, item) => sum + item.orderedQty, 0)
-      const shippedQty = order.items.reduce((sum, item) => sum + item.shippedQty, 0)
-      const progress = calcOrderProgress(orderedQty, shippedQty, order.status)
+      const orderedQty = order.items.reduce(
+        (sum, item) => sum + item.orderedQty,
+        0,
+      )
+      const shippedQty = order.items.reduce(
+        (sum, item) => sum + item.shippedQty,
+        0,
+      )
+      const progress = calcOrderProgress(
+        orderedQty,
+        shippedQty,
+        order.status,
+      )
 
       // 旧数据可能没有 totalAmount，回退为“数量 * 快照单价”的求和。
       const fallbackAmount = order.items.reduce(
-        (sum, item) => sum + item.orderedQty * orderDecimalToNum(item.unitPrice),
+        (sum, item) =>
+          sum + item.orderedQty * orderDecimalToNum(item.unitPrice),
         0,
       )
       const amount = formatYuan(order.totalAmount ?? fallbackAmount)
@@ -703,13 +798,19 @@ export function DashboardPage() {
     const shortClosedCount = closedOrdersQuery.data?.total ?? 0
 
     if (ongoingCount > 0) {
-      list.push({ text: `${ongoingCount} 张订单待履约/发货推进`, type: "warn" })
+      list.push({
+        text: `${ongoingCount} 张订单待履约/发货推进`,
+        type: "warn",
+        onClick: () => navigate({ to: "/orders" }),
+      })
     }
     if (canViewMoney) {
       const draftCount = billingDraftQuery.data?.total ?? 0
       const sealedCount = billingSealedQuery.data?.total ?? 0
       const pendingBills = draftCount + sealedCount
-      const missingPriceCount = (partsSnapshotQuery.data?.data ?? []).filter(part => {
+      const missingPriceCount = (
+        partsSnapshotQuery.data?.data ?? []
+      ).filter(part => {
         // commonPrices 任一价格 > 0 即视为已配置；全空或全 0 视为缺失。
         const entries = Object.values(part.commonPrices ?? {})
         if (entries.length === 0) return true
@@ -717,13 +818,25 @@ export function DashboardPage() {
       }).length
 
       if (pendingBills > 0) {
-        list.push({ text: `${pendingBills} 张对账单待确认或结清`, type: "warn" })
+        list.push({
+          text: `${pendingBills} 张对账单待确认或结清`,
+          type: "warn",
+          onClick: () => navigate({ to: "/billing" }),
+        })
       }
       if (missingPriceCount > 0) {
-        list.push({ text: `${missingPriceCount} 个零件价格未配置或为 0（近 50 条）`, type: "danger" })
+        list.push({
+          text: `${missingPriceCount} 个零件价格未配置或为 0（近 50 条）`,
+          type: "danger",
+          onClick: () => navigate({ to: "/parts" }),
+        })
       }
     }
-    list.push({ text: `短交结案订单累计 ${shortClosedCount} 张`, type: "success" })
+    list.push({
+      text: `短交结案订单累计 ${shortClosedCount} 张`,
+      type: "success",
+      onClick: () => navigate({ to: "/orders" }),
+    })
 
     if (list.length === 0) {
       list.push({ text: "当前暂无待办事项", type: "success" })
@@ -731,6 +844,7 @@ export function DashboardPage() {
 
     return list
   }, [
+    navigate,
     canViewMoney,
     billingDraftQuery.data?.total,
     billingSealedQuery.data?.total,
@@ -745,7 +859,9 @@ export function DashboardPage() {
       isLoading={isLoading}
       stats={stats}
       orders={orders}
+      todos={todos}
       canViewMoney={canViewMoney}
+      userDisplayName={userDisplayName}
     />
   ) : (
     <DesktopDashboard
@@ -754,6 +870,7 @@ export function DashboardPage() {
       orders={orders}
       todos={todos}
       canViewMoney={canViewMoney}
+      userDisplayName={userDisplayName}
     />
   )
 }

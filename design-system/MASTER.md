@@ -38,8 +38,9 @@
 
 以现有 token 为准，优先使用仓库已接入字体，不新增字体体系：
 
-- 正文：`Nunito Sans Variable`
-- 特殊场景可局部使用现有等宽数字/编号样式，但不扩展新字族
+- 正文：使用与 Claude 官网（code.claude.com）同款的无衬线与等宽字体组合，例如 `Inter`、`ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"` 作为基础字体，中文字体回退至系统默认。
+- 代码/等宽：优先使用系统级等宽字体或类似 `JetBrains Mono`、`IBM Plex Mono`、`Fira Code` 等开发者友好的字体组合。
+- 特殊场景可局部使用现有等宽数字/编号样式，但不扩展其他不相关的偏门字族。
 
 字号层级建议：
 
