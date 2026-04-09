@@ -11,52 +11,9 @@ import { useState } from "react"
 import type { BillingDetail, BillingDocument } from "@/hooks/api/useBilling"
 import { buildDocumentFileUrl } from "@/hooks/api/useDocuments"
 import { useFilePreviewDialog } from "@/hooks/common/useFilePreviewDialog"
+import { downloadBlob, resolveActionMessage } from "@/lib/files"
 import request from "@/lib/utils/request"
 import { toast } from "@/lib/toast"
-
-function triggerBrowserDownload(blob: Blob, fileName: string) {
-  const objectUrl = window.URL.createObjectURL(blob)
-  const anchor = document.createElement("a")
-  anchor.href = objectUrl
-  anchor.download = fileName
-  document.body.append(anchor)
-  anchor.click()
-  anchor.remove()
-  window.URL.revokeObjectURL(objectUrl)
-}
-
-async function resolveActionMessage(
-  error: unknown,
-  fallback: string,
-): Promise<string> {
-  if (
-    error &&
-    typeof error === "object" &&
-    "response" in error &&
-    error.response &&
-    typeof error.response === "object" &&
-    "data" in error.response
-  ) {
-    const payload = error.response.data
-    if (payload instanceof Blob) {
-      try {
-        const text = await payload.text()
-        const parsed = JSON.parse(text) as { message?: string }
-        if (parsed.message?.trim()) {
-          return parsed.message
-        }
-      } catch {
-        // 下载接口失败时优先尝试解析业务消息，解析失败则回退默认文案。
-      }
-    }
-  }
-
-  if (error instanceof Error && error.message.trim()) {
-    return error.message
-  }
-
-  return fallback
-}
 
 async function fetchBillingDocumentBlob(documentId: number) {
   return request.get<Blob, Blob>(buildDocumentFileUrl(documentId), {
@@ -94,7 +51,7 @@ export function useBillingDetailDownloads(billing?: BillingDetail) {
       setActionError(null)
       setDownloadingDocumentId(document.id)
       const blob = await fetchBillingDocumentBlob(document.id)
-      triggerBrowserDownload(blob, document.fileName)
+      downloadBlob(document.fileName, blob)
       toast.success(`下载成功：${document.fileName}`)
     } catch (error) {
       const message = await resolveActionMessage(error, "归档 PDF 下载失败")

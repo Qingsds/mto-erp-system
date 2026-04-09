@@ -18,6 +18,7 @@ import type {
   CreatePartRequest,
   UpdatePartRequest,
 } from "@erp/shared-types"
+import { downloadBlob } from "@/lib/files"
 import request, { resolveApiUrl } from "@/lib/utils/request"
 import { toast } from "@/lib/toast"
 
@@ -143,20 +144,6 @@ export async function fetchPartDrawingFileBlob(drawing: PartDrawing) {
   )
 }
 
-export function triggerPartDrawingDownload(
-  blob: Blob,
-  fileName: string,
-) {
-  const objectUrl = window.URL.createObjectURL(blob)
-  const anchor = document.createElement("a")
-  anchor.href = objectUrl
-  anchor.download = fileName
-  document.body.append(anchor)
-  anchor.click()
-  anchor.remove()
-  window.URL.revokeObjectURL(objectUrl)
-}
-
 /**
  * 图纸预览地址。
  *
@@ -219,7 +206,7 @@ export function usePartDrawingPreviewUrl(drawing?: PartDrawing) {
 
 export async function downloadPartDrawingFile(drawing: PartDrawing) {
   const blob = await fetchPartDrawingFileBlob(drawing)
-  triggerPartDrawingDownload(blob, drawing.fileName)
+  downloadBlob(drawing.fileName, blob)
 }
 
 // ─── Query keys ───────────────────────────────────────────

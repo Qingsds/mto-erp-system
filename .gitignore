@@ -30,3 +30,4 @@ out/
 *.sqlite
 /uploads/
 EOF
+output_after_fix.log
