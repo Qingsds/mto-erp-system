@@ -43,5 +43,8 @@ export function formatSealTarget(
   if (targetType === "DELIVERY") {
     return `发货单 #${targetId}`
   }
+  if (targetType === "DOCUMENT") {
+    return `文档 #${targetId}`
+  }
   return `对账单 #${targetId}`
 }

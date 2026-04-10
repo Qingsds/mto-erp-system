@@ -85,7 +85,8 @@ export type OrderStatusType =
 export type DeliveryStatusType = "SHIPPED"
 export type BillingStatusType = "DRAFT" | "SEALED" | "PAID"
 export type DocumentStatusType = "DRAFT" | "SIGNED"
-export type DocumentTargetType = "ORDER" | "DELIVERY" | "BILLING"
+export type DocumentSourceType = "BILLING" | "GENERIC_UPLOAD" | "LEGACY"
+export type DocumentTargetType = "ORDER" | "DELIVERY" | "BILLING" | "DOCUMENT"
 
 // ==========================================
 // 1. 零件与字典模块 (Parts)
@@ -276,7 +277,7 @@ export class ChangePasswordRequest {
 }
 
 export class ExecuteSealRequest {
-  @IsIn(["ORDER", "DELIVERY", "BILLING"])
+  @IsIn(["ORDER", "DELIVERY", "BILLING", "DOCUMENT"])
   targetType!: DocumentTargetType
 
   @IsInt()

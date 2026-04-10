@@ -27,6 +27,8 @@ model User {
 
   /// 关联：该用户执行过的所有盖章审计日志
   sealLogs SealUsageLog[]
+  /// 关联：该用户创建的通用归档文档
+  createdDocuments Document[]
 
   @@map("user")
 }
@@ -233,6 +235,12 @@ model Document {
   id          Int      @id @default(autoincrement())
   /// 最终展示给用户查看的文件名称
   fileName    String   @map("file_name") @db.VarChar(255)
+  /// 文档来源类型：BILLING 为业务生成，GENERIC_UPLOAD 为管理员上传
+  sourceType  String   @default("BILLING") @map("source_type") @db.VarChar(50)
+  /// 上传时的原始文件名；业务自动生成文档时可为空
+  sourceFileName String? @map("source_file_name") @db.VarChar(255)
+  /// 上传源文件的 MIME 类型；业务自动生成文档时默认为 application/pdf
+  sourceMimeType String? @map("source_mime_type") @db.VarChar(100)
   /// 原始未盖章的纯净版 PDF 在存储中的路径
   originalKey String   @map("original_key") @db.VarChar(255)
   /// 经服务端合成印章并彻底展平(防修改)后的 PDF 存储路径
@@ -242,6 +250,8 @@ model Document {
   /// 文件盖章状态 (DRAFT未盖章, SIGNED已盖章防篡改)
   status      String   @default("DRAFT") @db.VarChar(50)
   createdAt   DateTime @default(now()) @map("created_at")
+  /// 创建这份文档的管理员；旧数据允许为空
+  createdById Int?     @map("created_by_id")
 
   /// [外键分离设计] 取代容易产生孤儿数据的多态设计，用三个可选外键明确单据归属
   /// 关联：对应的原始业务订单 (可选)
@@ -254,6 +264,7 @@ model Document {
   order            Order?            @relation(fields: [orderId], references: [id])
   deliveryNote     DeliveryNote?     @relation(fields: [deliveryNoteId], references: [id])
   billingStatement BillingStatement? @relation(fields: [billingId], references: [id])
+  createdBy        User?             @relation(fields: [createdById], references: [id])
 
   /// 关联：在这份文件上执行过的所有盖章动作的审计日志
   sealLogs SealUsageLog[]

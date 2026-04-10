@@ -2,26 +2,49 @@
 // apps/backend/src/documents/documents.service.ts
 import {
   BadGatewayException,
-  Injectable,
   BadRequestException,
+  Injectable,
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { ExecuteSealRequest } from '@erp/shared-types';
+import {
+  type DocumentSourceType,
+  ExecuteSealRequest,
+} from '@erp/shared-types';
 import * as crypto from 'crypto';
+import * as path from 'node:path';
+import { Readable } from 'node:stream';
+import type { AuthenticatedRequest } from '../auth/auth-request';
 import { StorageService } from '../storage/storage.service';
 import {
   applySealToBillingPdfBuffer,
   createBillingPdfBuffer,
 } from './billing-pdf';
-import { Readable } from 'node:stream';
-import type { AuthenticatedRequest } from '../auth/auth-request';
+
+const MAX_SOURCE_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+const GENERIC_DOCUMENT_SOURCE_TYPE: DocumentSourceType = 'GENERIC_UPLOAD';
+const BILLING_DOCUMENT_SOURCE_TYPE: DocumentSourceType = 'BILLING';
+const LEGACY_DOCUMENT_SOURCE_TYPE: DocumentSourceType = 'LEGACY';
+
+const SUPPORTED_UPLOAD_MIME_TYPES = new Set(['application/pdf']);
 
 interface SealAuditContext {
   userId: number;
   ipAddress: string | null;
 }
+
+interface UploadSourceDocumentResult {
+  id: number;
+  fileName: string;
+  sourceFileName: string | null;
+  sourceMimeType: string | null;
+  sourceType: string;
+  status: string;
+  createdAt: Date;
+}
+
+type ManagedDocumentStatus = 'DRAFT' | 'SIGNED';
 
 @Injectable()
 export class DocumentsService {
@@ -45,6 +68,55 @@ export class DocumentsService {
     }
 
     return value;
+  }
+
+  private normalizeDisplayPdfName(fileName: string) {
+    const rawName = this.decodeUploadedFileName(fileName).trim() || '未命名单据.pdf';
+    const parsed = path.parse(rawName);
+    const baseName = parsed.name.trim() || '未命名单据';
+    return `${baseName}.pdf`;
+  }
+
+  private decodeUploadedFileName(fileName: string) {
+    const trimmedName = fileName.trim();
+    if (!trimmedName) {
+      return fileName;
+    }
+
+    // multipart/form-data 的 filename 常被服务端按 latin1 接收，
+    // 中文文件名会表现为 "ä¸­æ.pdf" 这类乱码，这里统一尝试还原回 UTF-8。
+    if (/^[\x00-\x7F]+$/.test(trimmedName)) {
+      return trimmedName;
+    }
+
+    const decodedName = Buffer.from(trimmedName, 'latin1').toString('utf8').trim();
+
+    if (!decodedName || decodedName.includes('\uFFFD')) {
+      return trimmedName;
+    }
+
+    return decodedName;
+  }
+
+  private buildSignedPdfName(fileName: string, sealName: string) {
+    const parsed = path.parse(fileName);
+    const baseName = parsed.name.trim() || '归档文件';
+    return `${baseName}-${sealName}已盖章版.pdf`;
+  }
+
+  private assertSupportedUploadFile(file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('请通过表单的 file 字段上传文件');
+    }
+    if (!file.buffer?.length) {
+      throw new BadRequestException('上传文件内容为空');
+    }
+    if (!SUPPORTED_UPLOAD_MIME_TYPES.has(file.mimetype)) {
+      throw new BadRequestException('当前仅支持上传 PDF 文件进行盖章');
+    }
+    if (file.size > MAX_SOURCE_FILE_SIZE_BYTES) {
+      throw new BadRequestException('待盖章文件不能超过 10MB');
+    }
   }
 
   private resolveAuditIp(request: AuthenticatedRequest): string | null {
@@ -114,7 +186,7 @@ export class DocumentsService {
   /**
    * 兼容旧目标类型的占位分支。
    *
-   * 当前只有 BILLING 会生成真实 PDF 并上传 MinIO。
+   * 当前只有 BILLING 与 GENERIC_UPLOAD 会生成真实 PDF 并上传 MinIO。
    * ORDER / DELIVERY 仍沿用历史占位实现，仅供兼容旧数据和旧调用保留，
    * 不能视为可生产使用的真实归档能力，前端也不会开放对应入口。
    *
@@ -165,13 +237,17 @@ export class DocumentsService {
 
       const document = await tx.document.create({
         data: {
-          fileName: fileName,
+          fileName,
+          sourceType: LEGACY_DOCUMENT_SOURCE_TYPE,
+          sourceFileName: fileName,
+          sourceMimeType: 'application/pdf',
           originalKey: legacyOriginalKey,
           signedKey: legacySignedKey,
           fileHash: legacyFileHash,
           status: 'SIGNED',
-          orderId: orderId,
-          deliveryNoteId: deliveryNoteId,
+          createdById: auditContext.userId,
+          orderId,
+          deliveryNoteId,
         },
       });
 
@@ -285,10 +361,14 @@ export class DocumentsService {
         const document = await tx.document.create({
           data: {
             fileName,
+            sourceType: BILLING_DOCUMENT_SOURCE_TYPE,
+            sourceFileName: `${targetPrefix}.pdf`,
+            sourceMimeType: 'application/pdf',
             originalKey,
             signedKey,
             fileHash,
             status: 'SIGNED',
+            createdById: auditContext.userId,
             billingId: payload.targetId,
           },
         });
@@ -318,6 +398,280 @@ export class DocumentsService {
     }
   }
 
+  private async createGenericDraftDocumentRecord(params: {
+    fileName: string;
+    originalFileName: string;
+    sourceMimeType: string;
+    pdfBuffer: Buffer;
+    userId: number;
+  }): Promise<UploadSourceDocumentResult> {
+    const { fileName, originalFileName, pdfBuffer, sourceMimeType, userId } =
+      params;
+    const now = Date.now();
+    const objectKey = `docs/uploads/draft-${now}-${crypto.randomUUID()}.pdf`;
+
+    await this.storage.uploadObject({
+      key: objectKey,
+      body: pdfBuffer,
+      size: pdfBuffer.byteLength,
+      contentType: 'application/pdf',
+    });
+
+    try {
+      const document = await this.prisma.client.document.create({
+        data: {
+          fileName,
+          sourceType: GENERIC_DOCUMENT_SOURCE_TYPE,
+          sourceFileName: originalFileName,
+          sourceMimeType,
+          originalKey: objectKey,
+          status: 'DRAFT',
+          createdById: userId,
+        },
+        select: {
+          id: true,
+          fileName: true,
+          sourceFileName: true,
+          sourceMimeType: true,
+          sourceType: true,
+          status: true,
+          createdAt: true,
+        },
+      });
+
+      return document;
+    } catch (error) {
+      await this.storage.removeObject(objectKey);
+      throw error;
+    }
+  }
+
+  async uploadSourceDocument(
+    file: Express.Multer.File,
+    request: AuthenticatedRequest,
+  ) {
+    this.assertSupportedUploadFile(file);
+
+    if (!file.buffer.byteLength) {
+      throw new BadRequestException('PDF 文件内容为空，请检查源文件');
+    }
+
+    const decodedOriginalFileName = this.decodeUploadedFileName(
+      file.originalname,
+    );
+    const normalizedFileName =
+      this.normalizeDisplayPdfName(decodedOriginalFileName);
+
+    return await this.createGenericDraftDocumentRecord({
+      fileName: normalizedFileName,
+      originalFileName: decodedOriginalFileName,
+      sourceMimeType: file.mimetype,
+      pdfBuffer: file.buffer,
+      userId: request.user.id,
+    });
+  }
+
+  async findManagedDocuments(status?: ManagedDocumentStatus) {
+    return await this.prisma.client.document.findMany({
+      where: {
+        sourceType: GENERIC_DOCUMENT_SOURCE_TYPE,
+        ...(status ? { status } : {}),
+      },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        fileName: true,
+        sourceFileName: true,
+        sourceMimeType: true,
+        status: true,
+        createdAt: true,
+        sealLogs: {
+          orderBy: { actionTime: 'desc' },
+          take: 1,
+          select: {
+            id: true,
+            actionTime: true,
+            seal: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+            user: {
+              select: {
+                id: true,
+                username: true,
+                realName: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  async findManagedDocumentById(id: number) {
+    const document = await this.prisma.client.document.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        fileName: true,
+        sourceType: true,
+        sourceFileName: true,
+        sourceMimeType: true,
+        status: true,
+        createdAt: true,
+        sealLogs: {
+          orderBy: { actionTime: 'desc' },
+          select: {
+            id: true,
+            actionTime: true,
+            pageIndex: true,
+            xRatio: true,
+            yRatio: true,
+            widthRatio: true,
+            ipAddress: true,
+            seal: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+            user: {
+              select: {
+                id: true,
+                username: true,
+                realName: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!document || document.sourceType !== GENERIC_DOCUMENT_SOURCE_TYPE) {
+      throw new NotFoundException('文档不存在');
+    }
+
+    return document;
+  }
+
+  private async createGenericSignedDocumentRecord(
+    payload: ExecuteSealRequest,
+    auditContext: SealAuditContext,
+  ) {
+    const [seal, document] = await Promise.all([
+      this.prisma.client.seal.findUnique({
+        where: { id: payload.sealId },
+      }),
+      this.prisma.client.document.findUnique({
+        where: { id: payload.targetId },
+        select: {
+          id: true,
+          fileName: true,
+          sourceType: true,
+          sourceFileName: true,
+          sourceMimeType: true,
+          originalKey: true,
+          signedKey: true,
+          status: true,
+        },
+      }),
+    ]);
+
+    if (!seal || !seal.isActive) {
+      throw new BadRequestException('所选印章不存在或已被停用');
+    }
+    if (!document) {
+      throw new NotFoundException('待盖章文档不存在');
+    }
+    if (document.sourceType !== GENERIC_DOCUMENT_SOURCE_TYPE) {
+      throw new BadRequestException('当前文档不支持通用盖章流程');
+    }
+    if (document.status !== 'DRAFT') {
+      throw new BadRequestException('当前文档已归档，不能重复盖章');
+    }
+
+    const [sealImageBytes, originalPdf] = await Promise.all([
+      this.storage.getObjectBuffer(seal.fileKey),
+      this.storage.getObjectBuffer(document.originalKey),
+    ]);
+
+    let signedPdf: Uint8Array;
+    try {
+      signedPdf = await applySealToBillingPdfBuffer({
+        originalPdf,
+        sealImageBytes,
+        placement: {
+          pageIndex: payload.pageIndex,
+          xRatio: payload.xRatio,
+          yRatio: payload.yRatio,
+          widthRatio: payload.widthRatio,
+        },
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message.trim()) {
+        throw new BadRequestException(error.message);
+      }
+      throw new InternalServerErrorException('通用文档 PDF 盖章失败');
+    }
+
+    const signedKey = `docs/uploads/signed-${Date.now()}-${crypto.randomUUID()}.pdf`;
+    const signedFileName = this.buildSignedPdfName(document.fileName, seal.name);
+    const fileHash = crypto
+      .createHash('sha256')
+      .update(Buffer.from(signedPdf))
+      .digest('hex');
+
+    await this.storage.uploadObject({
+      key: signedKey,
+      body: Buffer.from(signedPdf),
+      size: signedPdf.byteLength,
+      contentType: 'application/pdf',
+    });
+
+    try {
+      return await this.prisma.client.$transaction(async (tx) => {
+        const updatedDocument = await tx.document.update({
+          where: { id: document.id },
+          data: {
+            fileName: signedFileName,
+            signedKey,
+            fileHash,
+            status: 'SIGNED',
+          },
+          select: {
+            id: true,
+            fileName: true,
+            sourceFileName: true,
+            sourceMimeType: true,
+            sourceType: true,
+            status: true,
+            createdAt: true,
+          },
+        });
+
+        await tx.sealUsageLog.create({
+          data: {
+            sealId: payload.sealId,
+            userId: auditContext.userId,
+            documentId: document.id,
+            ipAddress: auditContext.ipAddress,
+            pageIndex: payload.pageIndex,
+            xRatio: payload.xRatio,
+            yRatio: payload.yRatio,
+            widthRatio: payload.widthRatio,
+          },
+        });
+
+        return updatedDocument;
+      });
+    } catch (error) {
+      await this.storage.removeObject(signedKey);
+      throw error;
+    }
+  }
+
   async executeSeal(payload: ExecuteSealRequest, request: AuthenticatedRequest) {
     const auditContext = await this.buildSealAuditContext(request);
 
@@ -325,7 +679,10 @@ export class DocumentsService {
       return await this.createBillingDocumentRecord(payload, auditContext);
     }
 
-    // 非 BILLING 目标仍走兼容占位分支，本轮不对前端开放入口。
+    if (payload.targetType === 'DOCUMENT') {
+      return await this.createGenericSignedDocumentRecord(payload, auditContext);
+    }
+
     return await this.createLegacyPlaceholderDocumentRecord(
       payload,
       auditContext,
@@ -342,6 +699,44 @@ export class DocumentsService {
     return {
       fileName: `${this.formatBillingNo(id)}-preview.pdf`,
       content,
+    };
+  }
+
+  async getDocumentPreviewFile(id: number): Promise<{
+    document: {
+      id: number;
+      fileName: string;
+      status: string;
+      originalKey: string;
+    };
+    stream: Readable;
+    size: number;
+    contentType: string;
+  }> {
+    const document = await this.prisma.client.document.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        fileName: true,
+        status: true,
+        originalKey: true,
+      },
+    });
+
+    if (!document) {
+      throw new NotFoundException('文档不存在');
+    }
+
+    const [stream, stat] = await Promise.all([
+      this.storage.getObjectStream(document.originalKey),
+      this.storage.statObject(document.originalKey),
+    ]);
+
+    return {
+      document,
+      stream,
+      size: stat.size,
+      contentType: 'application/pdf',
     };
   }
 

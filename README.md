@@ -72,8 +72,6 @@ pnpm dev
 - 后端默认地址: `http://localhost:3000`
 - 若后端提示 `Can't reach database server at 127.0.0.1:5433`，请先启动数据库（例如执行 `docker compose up -d db`）。
 
----
-
 ## 2. Docker 部署流程（推荐）
 
 仓库已内置以下文件：
@@ -123,6 +121,8 @@ docker compose down -v
    修改 `docker-compose.yml` 的 `ports` 映射后重启。
 3. 首次构建较慢
    属于正常现象，后续会利用 Docker 层缓存加速。
+4. 文档盖章上传失败
+   当前仅支持上传 `PDF`，并且单文件大小不能超过 10MB。
 
 ---
 

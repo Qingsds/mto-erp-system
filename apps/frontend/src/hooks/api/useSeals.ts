@@ -11,6 +11,7 @@ import type {
 import request from "@/lib/utils/request"
 import { resolveApiUrl } from "@/lib/utils/request"
 import { toast } from "@/lib/toast"
+import type { ManagedDocumentItem } from "./useDocuments"
 
 export interface SealListItem {
   id: number
@@ -246,12 +247,14 @@ export function useExecuteSeal() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (payload: ExecuteSealRequest) =>
-      request.post<unknown, ApiResponse<unknown>>("/api/documents/seal", payload),
+      request
+        .post<unknown, ApiResponse<ManagedDocumentItem>>("/api/documents/seal", payload)
+        .then(res => res.data!),
     onSuccess: () => {
       toast.success("盖章成功，归档文件已生成")
 
-      // 本轮前端只开放对账单盖章，因此成功后只刷新对账上下文。
       qc.invalidateQueries({ queryKey: ["billing"] })
+      qc.invalidateQueries({ queryKey: ["documents"] })
       qc.invalidateQueries({ queryKey: SEALS_KEYS.list() })
     },
     onError: (e: Error) => toast.error(`盖章失败：${e.message}`),

@@ -1,5 +1,5 @@
 /**
- * 对账单盖章预览画布。
+ * 通用签章预览画布。
  *
  * 职责：
  * - 渲染当前页 PDF
@@ -23,32 +23,29 @@ import {
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url"
 import { cn } from "@/lib/utils"
 import {
-  BILLING_A4_ASPECT_RATIO,
-  BILLING_A4_PREVIEW_MAX_WIDTH,
-  MAX_BILLING_SEAL_WIDTH_RATIO,
-  MIN_BILLING_SEAL_WIDTH_RATIO,
+  MAX_SEAL_WIDTH_RATIO,
+  MIN_SEAL_WIDTH_RATIO,
+  SEAL_WORKBENCH_A4_ASPECT_RATIO,
+  SEAL_WORKBENCH_PREVIEW_MAX_WIDTH,
   clamp,
-  type BillingSealPlacement,
+  type SealPlacement,
 } from "./types"
 
 GlobalWorkerOptions.workerSrc = pdfWorkerUrl
 
-interface BillingSealCanvasProps {
+interface SealWorkbenchCanvasProps {
   pdfBytes: Uint8Array | null
   pageIndex: number
-  placement: BillingSealPlacement
+  placement: SealPlacement
   sealPreviewUrl: string | null
   sealName: string | null
-  onPlacementChange: (placement: BillingSealPlacement) => void
+  onPlacementChange: (placement: SealPlacement) => void
   onPageCountChange: (count: number) => void
 }
 
 type InteractionMode = "idle" | "dragging" | "resizing"
 
-function isSamePlacement(
-  left: BillingSealPlacement,
-  right: BillingSealPlacement,
-) {
+function isSamePlacement(left: SealPlacement, right: SealPlacement) {
   return (
     left.pageIndex === right.pageIndex &&
     left.xRatio === right.xRatio &&
@@ -58,7 +55,7 @@ function isSamePlacement(
 }
 
 function clampPlacement(params: {
-  placement: BillingSealPlacement
+  placement: SealPlacement
   sealAspectRatio: number | null
   renderWidth: number
   renderHeight: number
@@ -73,10 +70,10 @@ function clampPlacement(params: {
   const maxWidthByY = (1 - placement.yRatio) / (sealAspectRatio * pageAspectRatio)
   const widthRatio = clamp(
     placement.widthRatio,
-    MIN_BILLING_SEAL_WIDTH_RATIO,
+    MIN_SEAL_WIDTH_RATIO,
     Math.max(
-      MIN_BILLING_SEAL_WIDTH_RATIO,
-      Math.min(MAX_BILLING_SEAL_WIDTH_RATIO, maxWidthByX, maxWidthByY),
+      MIN_SEAL_WIDTH_RATIO,
+      Math.min(MAX_SEAL_WIDTH_RATIO, maxWidthByX, maxWidthByY),
     ),
   )
   const heightRatio = widthRatio * sealAspectRatio * pageAspectRatio
@@ -89,7 +86,7 @@ function clampPlacement(params: {
   }
 }
 
-export function BillingSealCanvas({
+export function SealWorkbenchCanvas({
   pdfBytes,
   pageIndex,
   placement,
@@ -97,7 +94,7 @@ export function BillingSealCanvas({
   sealName,
   onPlacementChange,
   onPageCountChange,
-}: BillingSealCanvasProps) {
+}: SealWorkbenchCanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const pageFrameRef = useRef<HTMLDivElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -216,8 +213,8 @@ export function BillingSealCanvas({
     void (async () => {
       const page = await pdfDocument.getPage(pageIndex)
       const viewport = page.getViewport({ scale: 1 })
-      const targetWidth = Math.min(containerWidth, BILLING_A4_PREVIEW_MAX_WIDTH)
-      const targetHeight = targetWidth / BILLING_A4_ASPECT_RATIO
+      const targetWidth = Math.min(containerWidth, SEAL_WORKBENCH_PREVIEW_MAX_WIDTH)
+      const targetHeight = targetWidth / SEAL_WORKBENCH_A4_ASPECT_RATIO
       const scale = Math.min(
         targetWidth / viewport.width,
         targetHeight / viewport.height,
@@ -330,7 +327,7 @@ export function BillingSealCanvas({
     )
   }, [renderSize.height, renderSize.width, resolvedPlacement.widthRatio, sealAspectRatio])
 
-  const commitPlacement = (nextPlacement: BillingSealPlacement) => {
+  const commitPlacement = (nextPlacement: SealPlacement) => {
     setInteractionMode("idle")
     setDraftPlacement(nextPlacement)
     draftPlacementRef.current = nextPlacement

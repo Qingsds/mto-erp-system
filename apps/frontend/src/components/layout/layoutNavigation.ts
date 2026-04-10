@@ -136,6 +136,17 @@ export const LAYOUT_NAV_SECTIONS: LayoutNavSection[] = [
         searchable: true,
       },
       {
+        to: "/documents",
+        label: "文档盖章",
+        description: "上传 PDF 并进入统一盖章工作台。",
+        icon: "ri-file-shield-2-line",
+        iconActive: "ri-file-shield-2-fill",
+        aliases: ["文档盖章", "PDF 盖章", "documents"],
+        adminOnly: true,
+        showInSidebar: true,
+        searchable: true,
+      },
+      {
         to: "/users",
         label: "用户管理",
         description: "维护用户账号、权限与可见范围。",
@@ -339,6 +350,27 @@ export function getLayoutLocation(pathname: string): LayoutLocation {
       breadcrumbs: [
         { label: "财务对账", to: "/billing" },
         { label: "对账详情" },
+        { label: "盖章工作台" },
+      ],
+    }
+  }
+
+  if (pathname === "/documents") {
+    return {
+      pageLabel: "文档盖章",
+      mobileLabel: "文档盖章",
+      breadcrumbs: [
+        { label: "文档盖章", to: "/documents" },
+      ],
+    }
+  }
+
+  if (pathname === "/documents/seal") {
+    return {
+      pageLabel: "文档盖章工作台",
+      mobileLabel: "文档盖章",
+      breadcrumbs: [
+        { label: "文档盖章", to: "/documents" },
         { label: "盖章工作台" },
       ],
     }

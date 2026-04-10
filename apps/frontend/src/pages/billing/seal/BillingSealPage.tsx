@@ -1,152 +1,37 @@
 /**
  * 对账单盖章工作台页。
  *
- * 负责：
- * - 桌面端真实 PNG 压 PDF 的交互编排
- * - 预览原始 PDF 并选择页码
- * - 选择印章、拖拽定位、提交归档
+ * 现在只保留：
+ * - 对账单数据读取与状态校验
+ * - 向共享工作台提供预览源
+ * - 提交 BILLING 目标的盖章动作
  */
 
-import { useMemo, useState } from "react"
 import { useNavigate, useParams } from "@tanstack/react-router"
 import { Button } from "@/components/ui/button"
-import { PageContentWrapper } from "@/components/common/PageContentWrapper"
 import { DetailPageToolbar } from "@/components/common/DetailPageToolbar"
+import { SealWorkbench } from "@/components/documents/seal-workbench/SealWorkbench"
+import { formatBillingNo, useGetBillingDetail } from "@/hooks/api/useBilling"
+import { useBillingSealPreview } from "@/hooks/api/useDocuments"
+import { useExecuteSeal } from "@/hooks/api/useSeals"
 import { BillingStatusBadge } from "../list/BillingStatusBadge"
-import { useGetBillingDetail, formatBillingNo } from "@/hooks/api/useBilling"
-import { useExecuteSeal, useGetSeals, useSealPreviewUrl } from "@/hooks/api/useSeals"
-import { useUIStore } from "@/store/ui.store"
-import { BillingSealCanvas } from "./BillingSealCanvas"
-import { BillingSealSidebar } from "./BillingSealSidebar"
-import {
-  createDefaultBillingSealPlacement,
-  type BillingSealPlacement,
-} from "./types"
-import { useBillingSealPreview } from "./useBillingSealPreview"
 
 export function BillingSealPage() {
   const params = useParams({ strict: false })
   const navigate = useNavigate()
-  const { isMobile } = useUIStore()
   const billingId = Number(params.id)
-  const [pageCount, setPageCount] = useState(0)
-  const [manualSealId, setManualSealId] = useState<number | null>(null)
-  const [currentPageIndex, setCurrentPageIndex] = useState(1)
-  const [placementsByPage, setPlacementsByPage] = useState<Record<number, BillingSealPlacement>>({
-    1: createDefaultBillingSealPlacement(1),
-  })
-  const [actionError, setActionError] = useState<string | null>(null)
 
   const { data: billing, isLoading } = useGetBillingDetail(
     Number.isFinite(billingId) ? billingId : undefined,
   )
-  const { data: seals = [] } = useGetSeals()
-  const executeSeal = useExecuteSeal()
   const preview = useBillingSealPreview(Number.isFinite(billingId) ? billingId : undefined)
-  const activeSeals = useMemo(
-    () => seals.filter(seal => seal.isActive),
-    [seals],
-  )
-  const selectedSeal = useMemo(
-    () =>
-      activeSeals.find(seal => seal.id === manualSealId) ??
-      activeSeals[0] ??
-      null,
-    [activeSeals, manualSealId],
-  )
-  const selectedSealId = selectedSeal?.id ?? null
-
-  const resolvedPageIndex =
-    pageCount > 0
-      ? Math.min(currentPageIndex, pageCount)
-      : currentPageIndex
-
-  const effectivePlacement = useMemo(() => {
-    const basePlacement =
-      placementsByPage[resolvedPageIndex] ??
-      createDefaultBillingSealPlacement(resolvedPageIndex)
-
-    return {
-      ...basePlacement,
-      pageIndex: resolvedPageIndex,
-    }
-  }, [placementsByPage, resolvedPageIndex])
-
-  const handlePlacementChange = (nextPlacement: BillingSealPlacement) => {
-    setActionError(null)
-    setPlacementsByPage(currentPlacements => ({
-      ...currentPlacements,
-      [resolvedPageIndex]: {
-        ...nextPlacement,
-        pageIndex: resolvedPageIndex,
-      },
-    }))
-  }
-
-  const handlePageChange = (pageIndex: number) => {
-    setActionError(null)
-    setCurrentPageIndex(pageIndex)
-    setPlacementsByPage(currentPlacements => {
-      if (currentPlacements[pageIndex]) {
-        return currentPlacements
-      }
-
-      return {
-        ...currentPlacements,
-        [pageIndex]: createDefaultBillingSealPlacement(pageIndex),
-      }
-    })
-  }
-
-  const handlePageCountChange = (nextPageCount: number) => {
-    setPageCount(nextPageCount)
-
-    if (nextPageCount <= 0) {
-      return
-    }
-
-    const nextPageIndex = Math.min(currentPageIndex, nextPageCount)
-
-    setPlacementsByPage(currentPlacements => {
-      if (currentPlacements[nextPageIndex]) {
-        return currentPlacements
-      }
-
-      return {
-        ...currentPlacements,
-        [nextPageIndex]: createDefaultBillingSealPlacement(nextPageIndex),
-      }
-    })
-  }
-
-  const sealPreview = useSealPreviewUrl(selectedSealId ?? undefined, selectedSeal?.fileKey)
-  const resolvedActionError = actionError ?? preview.error ?? sealPreview.previewError
+  const executeSeal = useExecuteSeal()
 
   const backToDetail = () =>
     navigate({
       to: "/billing/$id",
       params: { id: String(billingId) },
     })
-
-  const handleSubmit = async () => {
-    if (!billing || !selectedSealId) return
-
-    try {
-      setActionError(null)
-      await executeSeal.mutateAsync({
-        targetType: "BILLING",
-        targetId: billing.id,
-        sealId: selectedSealId,
-        pageIndex: effectivePlacement.pageIndex,
-        xRatio: effectivePlacement.xRatio,
-        yRatio: effectivePlacement.yRatio,
-        widthRatio: effectivePlacement.widthRatio,
-      })
-      backToDetail()
-    } catch (error) {
-      setActionError(error instanceof Error ? error.message : "盖章归档失败")
-    }
-  }
 
   if (isLoading) {
     return (
@@ -165,32 +50,6 @@ export function BillingSealPage() {
         <Button variant='outline' size='sm' onClick={backToDetail}>
           返回对账详情
         </Button>
-      </div>
-    )
-  }
-
-  if (isMobile) {
-    return (
-      <div className='flex flex-1 flex-col overflow-hidden'>
-        <DetailPageToolbar
-          title={`${formatBillingNo(billing.id)} 盖章归档`}
-          subtitle={billing.customerName}
-          backLabel='返回详情'
-          onBack={backToDetail}
-          meta={<BillingStatusBadge status={billing.status} />}
-        />
-        <div className='flex flex-1 items-center justify-center px-4'>
-          <div className='w-full max-w-md border border-border bg-card px-5 py-6 text-center'>
-            <i className='ri-computer-line text-3xl text-muted-foreground/60' />
-            <p className='mt-3 text-sm font-medium'>移动端暂不支持拖拽盖章</p>
-            <p className='mt-2 text-xs text-muted-foreground'>
-              请在桌面端进入当前对账单详情页，再执行盖章归档。
-            </p>
-            <Button className='mt-4 h-9 w-full' variant='outline' onClick={backToDetail}>
-              返回对账详情
-            </Button>
-          </div>
-        </div>
       </div>
     )
   }
@@ -222,66 +81,32 @@ export function BillingSealPage() {
   }
 
   return (
-    <div className='flex flex-1 flex-col overflow-hidden'>
-      <DetailPageToolbar
-        title={`${formatBillingNo(billing.id)} 盖章归档`}
-        subtitle={billing.customerName}
-        backLabel='返回详情'
-        onBack={backToDetail}
-        meta={<BillingStatusBadge status={billing.status} />}
-        actions={
-          <Button
-            size='sm'
-            className='h-8 px-2.5 text-xs'
-            onClick={() => void handleSubmit()}
-            disabled={!selectedSealId || executeSeal.isPending}
-          >
-            {executeSeal.isPending ? (
-              <>
-                <i className='ri-loader-4-line mr-1.5 animate-spin' />
-                归档中…
-              </>
-            ) : (
-              <>
-                <i className='ri-award-line mr-1.5' />
-                确认盖章
-              </>
-            )}
-          </Button>
-        }
-      />
-
-      <PageContentWrapper className='max-w-none'>
-        <div className='grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]'>
-          <BillingSealCanvas
-            pdfBytes={preview.pdfBytes}
-            pageIndex={effectivePlacement.pageIndex}
-            placement={effectivePlacement}
-            sealPreviewUrl={sealPreview.previewUrl}
-            sealName={selectedSeal?.name ?? null}
-            onPlacementChange={handlePlacementChange}
-            onPageCountChange={handlePageCountChange}
-          />
-
-          <BillingSealSidebar
-            billing={billing}
-            seals={activeSeals}
-            selectedSealId={selectedSealId}
-            placement={effectivePlacement}
-            pageCount={pageCount}
-            actionError={resolvedActionError}
-            isSubmitting={executeSeal.isPending}
-            isPreviewLoading={preview.isLoading || preview.isFetching}
-            onSelectSeal={sealId => {
-              setActionError(null)
-              setManualSealId(sealId)
-            }}
-            onPageChange={handlePageChange}
-            onPlacementChange={handlePlacementChange}
-            onSubmit={() => void handleSubmit()}
-          />
-        </div>
-      </PageContentWrapper>
-    </div>
+    <SealWorkbench
+      title={`${formatBillingNo(billing.id)} 盖章归档`}
+      subtitle={billing.customerName}
+      backLabel='返回详情'
+      onBack={backToDetail}
+      meta={<BillingStatusBadge status={billing.status} />}
+      sidebarTitle='盖章设置'
+      sidebarSubtitle={`${formatBillingNo(billing.id)} · ${billing.customerName}`}
+      previewBytes={preview.pdfBytes}
+      isPreviewLoading={preview.isLoading || preview.isFetching}
+      previewError={preview.error}
+      isSubmitting={executeSeal.isPending}
+      submitLabel='确认盖章'
+      submitLoadingLabel='归档中…'
+      onSubmit={async ({ sealId, placement }) => {
+        await executeSeal.mutateAsync({
+          targetType: "BILLING",
+          targetId: billing.id,
+          sealId,
+          pageIndex: placement.pageIndex,
+          xRatio: placement.xRatio,
+          yRatio: placement.yRatio,
+          widthRatio: placement.widthRatio,
+        })
+        backToDetail()
+      }}
+    />
   )
 }

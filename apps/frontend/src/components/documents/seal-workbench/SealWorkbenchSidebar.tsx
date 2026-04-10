@@ -1,5 +1,5 @@
 /**
- * 对账单盖章工作台侧栏。
+ * 通用签章工作台侧栏。
  *
  * 负责：
  * - 选择印章
@@ -8,33 +8,35 @@
  * - 展示提交与错误状态
  */
 
-import type { BillingDetail } from "@/hooks/api/useBilling"
 import type { SealListItem } from "@/hooks/api/useSeals"
 import { Button } from "@/components/ui/button"
-import { formatBillingNo } from "@/hooks/api/useBilling"
 import {
-  MAX_BILLING_SEAL_WIDTH_RATIO,
-  MIN_BILLING_SEAL_WIDTH_RATIO,
-  type BillingSealPlacement,
+  MAX_SEAL_WIDTH_RATIO,
+  MIN_SEAL_WIDTH_RATIO,
+  type SealPlacement,
 } from "./types"
 
-interface BillingSealSidebarProps {
-  billing: BillingDetail
+interface SealWorkbenchSidebarProps {
+  title: string
+  subtitle: string
   seals: SealListItem[]
   selectedSealId: number | null
-  placement: BillingSealPlacement
+  placement: SealPlacement
   pageCount: number
   actionError: string | null
   isSubmitting: boolean
   isPreviewLoading: boolean
+  submitLabel: string
+  submitLoadingLabel: string
   onSelectSeal: (sealId: number) => void
   onPageChange: (pageIndex: number) => void
-  onPlacementChange: (placement: BillingSealPlacement) => void
+  onPlacementChange: (placement: SealPlacement) => void
   onSubmit: () => void
 }
 
-export function BillingSealSidebar({
-  billing,
+export function SealWorkbenchSidebar({
+  title,
+  subtitle,
   seals,
   selectedSealId,
   placement,
@@ -42,18 +44,18 @@ export function BillingSealSidebar({
   actionError,
   isSubmitting,
   isPreviewLoading,
+  submitLabel,
+  submitLoadingLabel,
   onSelectSeal,
   onPageChange,
   onPlacementChange,
   onSubmit,
-}: BillingSealSidebarProps) {
+}: SealWorkbenchSidebarProps) {
   return (
     <aside className='flex h-full flex-col border border-border bg-card'>
       <div className='border-b border-border px-4 py-3'>
-        <h2 className='text-sm font-semibold'>盖章设置</h2>
-        <p className='mt-1 text-xs text-muted-foreground'>
-          {formatBillingNo(billing.id)} · {billing.customerName}
-        </p>
+        <h2 className='text-sm font-semibold'>{title}</h2>
+        <p className='mt-1 text-xs text-muted-foreground'>{subtitle}</p>
       </div>
 
       <div className='flex flex-1 flex-col gap-4 overflow-auto px-4 py-4'>
@@ -67,7 +69,7 @@ export function BillingSealSidebar({
           <div>
             <h3 className='text-xs font-medium text-foreground'>选择印章</h3>
             <p className='mt-1 text-[11px] text-muted-foreground'>
-              本轮不展示文件键，只保留业务需要的印章名称。
+              工作台只展示印章名称与缩略图，不显示内部文件键。
             </p>
           </div>
 
@@ -138,8 +140,8 @@ export function BillingSealSidebar({
             </div>
             <input
               type='range'
-              min={MIN_BILLING_SEAL_WIDTH_RATIO}
-              max={MAX_BILLING_SEAL_WIDTH_RATIO}
+              min={MIN_SEAL_WIDTH_RATIO}
+              max={MAX_SEAL_WIDTH_RATIO}
               step={0.01}
               value={placement.widthRatio}
               onChange={event =>
@@ -168,12 +170,12 @@ export function BillingSealSidebar({
           {isSubmitting ? (
             <>
               <i className='ri-loader-4-line mr-1.5 animate-spin' />
-              盖章归档中…
+              {submitLoadingLabel}
             </>
           ) : (
             <>
               <i className='ri-award-line mr-1.5' />
-              确认盖章归档
+              {submitLabel}
             </>
           )}
         </Button>

@@ -30,9 +30,11 @@ function resolveStoredContentType(stat: {
 }
 
 function resolveLogTarget(document: {
+  id: number;
   orderId: number | null;
   deliveryNoteId: number | null;
   billingId: number | null;
+  sourceType?: string | null;
 }): {
   targetType: DocumentTargetType | null;
   targetId: number | null;
@@ -45,6 +47,9 @@ function resolveLogTarget(document: {
   }
   if (document.billingId) {
     return { targetType: 'BILLING', targetId: document.billingId };
+  }
+  if (document.sourceType === 'GENERIC_UPLOAD') {
+    return { targetType: 'DOCUMENT', targetId: document.id };
   }
 
   return { targetType: null, targetId: null };
@@ -333,6 +338,7 @@ export class SealsService {
             orderId: true,
             deliveryNoteId: true,
             billingId: true,
+            sourceType: true,
           },
         },
       },
