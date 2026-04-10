@@ -9,7 +9,7 @@ Use **pnpm** exclusively. npm and yarn are prohibited.
 ## Development Commands
 
 ```bash
-# Start both frontend and backend concurrently
+# Start both frontend and backend
 pnpm dev
 
 # Individual packages
@@ -36,17 +36,25 @@ pnpm --filter frontend test             # Vitest single run
 ## Database Commands
 
 ```bash
-# Generate Prisma client (required after schema changes)
-pnpm --filter @erp/database exec prisma generate
-
-# Push schema changes to dev DB
-pnpm --filter @erp/database exec prisma db push
-
-# Create a named migration
+# Create and apply a named migration after schema changes
 pnpm --filter @erp/database exec prisma migrate dev --name <name>
+
+# Apply committed migrations to the current database
+pnpm --filter @erp/database exec prisma migrate deploy
 ```
 
-`DATABASE_URL` is read from `packages/database/.env`.
+`DATABASE_URL` is read from `packages/database/.env` and is required for local startup.
+Copy `packages/database/.env.example` when setting up a new machine.
+
+Local startup now runs Prisma sync automatically before `pnpm dev` and
+`pnpm --filter backend dev`:
+- always runs `prisma generate`
+- applies pending migrations with `prisma migrate deploy`
+- blocks startup on legacy `db push` databases unless
+  `PRISMA_DEV_ALLOW_DB_PUSH_FALLBACK=true` is set for a one-time local baseline
+
+When changing `packages/database/prisma/schema.prisma`, always commit the new
+`packages/database/prisma/migrations/*` directory in the same change.
 
 ## Monorepo Structure
 

@@ -37,6 +37,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS "part_part_number_key" ON "part"("part_number"
 
 -- 4) Align order table status/reason
 ALTER TABLE "order" ADD COLUMN IF NOT EXISTS "reason" VARCHAR(100);
+ALTER TABLE "order" ALTER COLUMN "status" DROP DEFAULT;
 
 ALTER TABLE "order"
 ALTER COLUMN "status" TYPE "OrderStatus"
@@ -49,7 +50,7 @@ USING (
     ELSE 'PENDING'::"OrderStatus"
   END
 );
-ALTER TABLE "order" ALTER COLUMN "status" SET DEFAULT 'PENDING';
+ALTER TABLE "order" ALTER COLUMN "status" SET DEFAULT 'PENDING'::"OrderStatus";
 
 -- 5) Align order_item delivered/shipped naming
 DO $$

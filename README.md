@@ -29,14 +29,7 @@ git pull origin main
 pnpm install
 ```
 
-### 1.2 生成 Prisma Client
-Prisma Client 产物不提交到 Git，首次运行前必须生成：
-
-```bash
-pnpm --filter @erp/database exec prisma generate
-```
-
-### 1.3 构建共享包（后端依赖）
+### 1.2 构建共享包（后端依赖）
 后端依赖 `@erp/shared-types` 和 `@erp/database` 的构建产物：
 
 ```bash
@@ -44,29 +37,38 @@ pnpm --filter @erp/shared-types build
 pnpm --filter @erp/database build
 ```
 
-### 1.4 配置数据库连接
-在 `packages/database/.env` 创建环境变量：
+### 1.3 配置数据库连接
+复制 `packages/database/.env.example` 为 `packages/database/.env`，再填写本机数据库连接：
 
 ```env
 # 格式：postgresql://用户名:密码@主机:端口/数据库名?schema=public
 DATABASE_URL="postgresql://postgres:你的密码@127.0.0.1:5433/mto_erp?schema=public"
 ```
 
-说明：根目录 `pnpm dev` 会优先读取 `packages/database/.env`；若未配置，则回退到默认值 `postgresql://postgres:postgres@127.0.0.1:5433/mto_erp?schema=public`。
+说明：根目录 `pnpm dev` 和 `pnpm --filter backend dev` 都会优先读取 `packages/database/.env`；如果 `DATABASE_URL` 未配置，启动会直接报错，不再使用脚本内置默认地址。
 
-### 1.5 同步数据库结构
-开发环境可直接使用：
+### 1.4 修改 Prisma Schema 的正确流程
+从现在开始，开发环境统一采用“migration 优先”：
 
 ```bash
-pnpm --filter @erp/database exec prisma db push
+pnpm --filter @erp/database exec prisma migrate dev --name <变更名称>
 ```
 
-### 1.6 启动前后端
+- 修改 `packages/database/prisma/schema.prisma` 后，必须同时提交新生成的 `packages/database/prisma/migrations/*`
+- 不再把团队协作建立在手工 `prisma db push` 上，否则其他人的机器启动时无法自动知道字段变化
+
+### 1.5 启动前后端
 在根目录执行一条命令即可同时启动前后端：
 
 ```bash
 pnpm dev
 ```
+
+- 启动前会自动执行 `prisma generate` 和 `prisma migrate deploy`
+- 如果本地数据库是历史上通过 `db push` 建出来的旧库，默认会阻止启动并提示处理方式
+- 仅在需要对旧本地库做一次性基线收口时，才临时设置 `PRISMA_DEV_ALLOW_DB_PUSH_FALLBACK=true`
+  - macOS / Linux: `PRISMA_DEV_ALLOW_DB_PUSH_FALLBACK=true pnpm dev`
+  - Windows PowerShell: `$env:PRISMA_DEV_ALLOW_DB_PUSH_FALLBACK="true"; pnpm dev`
 
 - 前端默认地址: `http://localhost:5173`
 - 后端默认地址: `http://localhost:3000`
