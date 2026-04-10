@@ -38,14 +38,30 @@ pnpm --filter @erp/database build
 ```
 
 ### 1.3 配置数据库连接
-复制 `packages/database/.env.example` 为 `packages/database/.env`，再填写本机数据库连接：
+复制 `packages/database/.env.example` 为 `packages/database/.env`，再填写本机数据库连接与对象存储配置：
 
 ```env
 # 格式：postgresql://用户名:密码@主机:端口/数据库名?schema=public
 DATABASE_URL="postgresql://postgres:你的密码@127.0.0.1:5433/mto_erp?schema=public"
+
+# mac 本地 MinIO 示例
+MINIO_ENDPOINT=127.0.0.1
+MINIO_PORT=9000
+MINIO_USE_SSL=false
+MINIO_ACCESS_KEY=minioadmin
+MINIO_SECRET_KEY=minioadmin
+MINIO_BUCKET=mto-erp
 ```
 
 说明：根目录 `pnpm dev` 和 `pnpm --filter backend dev` 都会优先读取 `packages/database/.env`；如果 `DATABASE_URL` 未配置，启动会直接报错，不再使用脚本内置默认地址。
+
+MinIO 有两种常见接法：
+- mac 本地启动 MinIO：`MINIO_ENDPOINT=127.0.0.1`，端口按你本机实际端口填写。
+- Windows 连接 NAS 上的 MinIO：`MINIO_ENDPOINT` 改为 NAS 的主机名或 IP，账号密码改成 NAS 实际配置。
+
+注意：
+- `MINIO_BUCKET` 指定的桶必须预先存在。
+- mac 上如果你装的是 `MinIO AIStor`，无 license 时会拒绝 S3 操作，不能直接作为本项目的本地对象存储。请使用标准 MinIO，或者继续走 Docker 中的 `minio` 服务。
 
 ### 1.4 修改 Prisma Schema 的正确流程
 从现在开始，开发环境统一采用“migration 优先”：
@@ -69,10 +85,16 @@ pnpm dev
 - 仅在需要对旧本地库做一次性基线收口时，才临时设置 `PRISMA_DEV_ALLOW_DB_PUSH_FALLBACK=true`
   - macOS / Linux: `PRISMA_DEV_ALLOW_DB_PUSH_FALLBACK=true pnpm dev`
   - Windows PowerShell: `$env:PRISMA_DEV_ALLOW_DB_PUSH_FALLBACK="true"; pnpm dev`
+- 启动本地开发前，请先确保 PostgreSQL 和 MinIO 已启动；如果你本机没有单独运行 MinIO，可以直接使用仓库内置 Docker 方式：
+
+```bash
+docker compose up -d db minio minio-init
+```
 
 - 前端默认地址: `http://localhost:5173`
 - 后端默认地址: `http://localhost:3000`
-- 若后端提示 `Can't reach database server at 127.0.0.1:5433`，请先启动数据库（例如执行 `docker compose up -d db`）。
+- 若后端提示 `Can't reach database server at 127.0.0.1:5433`，请先启动数据库。
+- 若后端提示 `connect ECONNREFUSED 127.0.0.1:9000` 或 `MinIO bucket validation failed`，请先启动 MinIO。
 
 ## 2. Docker 部署流程（推荐）
 
@@ -92,12 +114,16 @@ docker compose up -d --build
 - 前端（Nginx）: `http://localhost:8080`
 - 后端 API: `http://localhost:3000`
 - PostgreSQL: `localhost:5433`
+- MinIO API: `http://localhost:9000`
+- MinIO Console: `http://localhost:9001`
 
 ### 2.3 查看状态与日志
 
 ```bash
 docker compose ps
 docker compose logs -f db
+docker compose logs -f minio
+docker compose logs -f minio-init
 docker compose logs -f backend
 docker compose logs -f frontend
 ```
@@ -119,7 +145,7 @@ docker compose down -v
 ### 2.6 常见问题
 1. `Cannot connect to the Docker daemon`
    Docker Desktop / Docker Engine 未启动。
-2. 端口冲突 (`8080` / `3000` / `5433`)
+2. 端口冲突 (`8080` / `3000` / `5433` / `9000` / `9001`)
    修改 `docker-compose.yml` 的 `ports` 映射后重启。
 3. 首次构建较慢
    属于正常现象，后续会利用 Docker 层缓存加速。

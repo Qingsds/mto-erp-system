@@ -45,6 +45,10 @@ pnpm --filter @erp/database exec prisma migrate deploy
 
 `DATABASE_URL` is read from `packages/database/.env` and is required for local startup.
 Copy `packages/database/.env.example` when setting up a new machine.
+MinIO settings are also environment-driven:
+- macOS can point `MINIO_ENDPOINT` to local MinIO
+- Windows can point `MINIO_ENDPOINT` to a NAS-hosted MinIO endpoint
+- `MINIO_BUCKET` must already exist
 
 Local startup now runs Prisma sync automatically before `pnpm dev` and
 `pnpm --filter backend dev`:
