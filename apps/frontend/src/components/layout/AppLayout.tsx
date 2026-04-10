@@ -5,6 +5,7 @@ import { Sidebar }             from "./Sidebar"
 import { Header }              from "./Header"
 import { BottomNav }           from "./BottomNav"
 import { SettingsPanel }       from "./SettingsPanel"
+import { GlobalCommandDialog } from "./GlobalCommandDialog"
 import { QuickAddSheet }       from "./QuickAddSheet"
 import { ToastContainer }      from "@/components/common/ToastContainer"
 import { useUIStore, useUIInit } from "@/store/ui.store"
@@ -12,7 +13,7 @@ import { useUIStore, useUIInit } from "@/store/ui.store"
 const MOBILE_BP = 768
 
 export function AppLayout() {
-  const { isMobile, setIsMobile, showSettings } = useUIStore()
+  const { isMobile, setIsMobile } = useUIStore()
   const [showQuickAdd, setShowQuickAdd] = useState(false)
 
   useUIInit()
@@ -45,7 +46,8 @@ export function AppLayout() {
               </>
             )}
           </div>
-          {showSettings && <SettingsPanel />}
+          <SettingsPanel />
+          <GlobalCommandDialog />
         </div>
         {isMobile && showQuickAdd && (
           <QuickAddSheet onClose={() => setShowQuickAdd(false)} />

@@ -1,30 +1,24 @@
 import { useEffect, useRef, useState } from "react"
-import { useNavigate }                 from "@tanstack/react-router"
-import { Button }                      from "@/components/ui/button"
-import { cn }                          from "@/lib/utils"
-
-interface Action {
-  icon:  string
-  title: string
-  desc:  string
-  to:    string
-}
-
-const ACTIONS: Action[] = [
-  { icon: "ri-settings-3-line", title: "新增零件", desc: "录入新零件，系统自动生成编号", to: "/parts?action=new" },
-  { icon: "ri-file-list-3-line",title: "新建订单", desc: "选择客户和零件，锁定价格快照", to: "/orders/new" },
-]
+import { useNavigate } from "@tanstack/react-router"
+import { Button } from "@/components/ui/button"
+import { useIsAdmin } from "@/lib/permissions"
+import { cn } from "@/lib/utils"
+import { getQuickActions } from "./layoutNavigation"
 
 interface QuickAddSheetProps {
   onClose: () => void
 }
 
 export function QuickAddSheet({ onClose }: QuickAddSheetProps) {
-  const navigate   = useNavigate()
+  const navigate = useNavigate()
+  const isAdmin = useIsAdmin()
+  const actions = getQuickActions(isAdmin)
   const overlayRef = useRef<HTMLDivElement>(null)
   const [visible, setVisible] = useState(false)
 
-  useEffect(() => { requestAnimationFrame(() => setVisible(true)) }, [])
+  useEffect(() => {
+    requestAnimationFrame(() => setVisible(true))
+  }, [])
 
   const close = () => {
     setVisible(false)
@@ -33,13 +27,13 @@ export function QuickAddSheet({ onClose }: QuickAddSheetProps) {
 
   const go = (to: string) => {
     close()
-    setTimeout(() => navigate({ to }), 220)
+    setTimeout(() => void navigate({ to }), 220)
   }
 
   return (
     <div
       ref={overlayRef}
-      onClick={(e) => e.target === overlayRef.current && close()}
+      onClick={event => event.target === overlayRef.current && close()}
       className="fixed inset-0 z-50 flex flex-col justify-end"
       style={{
         background: visible ? "rgba(0,0,0,.4)" : "rgba(0,0,0,0)",
@@ -47,44 +41,48 @@ export function QuickAddSheet({ onClose }: QuickAddSheetProps) {
       }}
     >
       <div
-        className="bg-background rounded-t-2xl"
+        className="bg-background"
         style={{
-          transform:  visible ? "translateY(0)" : "translateY(100%)",
+          transform: visible ? "translateY(0)" : "translateY(100%)",
           transition: "transform .22s cubic-bezier(.32,0,.67,0)",
           paddingBottom: "max(16px, env(safe-area-inset-bottom))",
         }}
       >
-        {/* Handle */}
         <div className="flex justify-center pt-3 pb-1">
-          <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
+          <div className="h-1 w-10 bg-muted-foreground/30" />
         </div>
 
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-          <span className="text-sm font-semibold">快速操作</span>
-          <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={close}>
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <div>
+            <span className="text-sm font-semibold text-foreground">快捷操作</span>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              直接进入高频创建和录入流程
+            </p>
+          </div>
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={close}>
             <i className="ri-close-line text-base" />
           </Button>
         </div>
 
-        {/* Actions */}
-        <div className="p-3 flex flex-col gap-1">
-          {ACTIONS.map((a) => (
+        <div className="flex flex-col gap-1 p-3">
+          {actions.map(action => (
             <button
-              key={a.to}
-              onClick={() => go(a.to)}
+              key={action.id}
+              type="button"
+              onClick={() => go(action.to)}
               className={cn(
-                "flex items-center gap-3 w-full p-4 rounded-lg text-left",
-                "bg-transparent border-none cursor-pointer",
-                "hover:bg-accent active:bg-accent transition-colors",
+                "flex w-full items-center gap-3 border border-transparent px-4 py-4 text-left transition-colors",
+                "bg-transparent hover:border-border hover:bg-accent active:bg-accent",
               )}
             >
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                <i className={cn(a.icon, "text-primary text-lg")} />
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center bg-primary/10 text-primary">
+                <i className={cn(action.icon, "text-lg")} />
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground">{a.title}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{a.desc}</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-foreground">{action.label}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {action.description}
+                </p>
               </div>
               <i className="ri-arrow-right-s-line text-muted-foreground" />
             </button>

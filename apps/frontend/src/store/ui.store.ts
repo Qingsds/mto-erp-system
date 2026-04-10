@@ -1,33 +1,89 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 
-// ─── Types ────────────────────────────────────────────────
 export type Density = "compact" | "default" | "comfortable"
 export type FontSize = 12 | 14 | 16 | 18
 export type LineHeight = 1.4 | 1.6 | 1.8
+export type AppearancePreset =
+  | "compact-input"
+  | "default-browse"
+  | "comfortable-read"
+  | "custom"
 
-interface UIState {
-  // appearance
+export interface AppearanceState {
   isDark: boolean
   fontSize: FontSize
   lineHeight: LineHeight
   density: Density
-  // layout
+}
+
+export type AppearancePresetConfig = Omit<AppearanceState, "isDark">
+
+export const DEFAULT_APPEARANCE: AppearanceState = {
+  isDark: false,
+  fontSize: 14,
+  lineHeight: 1.6,
+  density: "default",
+}
+
+export const APPEARANCE_PRESETS: Record<
+  Exclude<AppearancePreset, "custom">,
+  AppearancePresetConfig
+> = {
+  "compact-input": {
+    fontSize: 12,
+    lineHeight: 1.4,
+    density: "compact",
+  },
+  "default-browse": {
+    fontSize: 14,
+    lineHeight: 1.6,
+    density: "default",
+  },
+  "comfortable-read": {
+    fontSize: 16,
+    lineHeight: 1.8,
+    density: "comfortable",
+  },
+}
+
+export function resolveAppearancePreset(
+  appearance: Pick<AppearanceState, "fontSize" | "lineHeight" | "density">,
+): AppearancePreset {
+  for (const [preset, values] of Object.entries(APPEARANCE_PRESETS)) {
+    if (
+      values.fontSize === appearance.fontSize &&
+      values.lineHeight === appearance.lineHeight &&
+      values.density === appearance.density
+    ) {
+      return preset as Exclude<AppearancePreset, "custom">
+    }
+  }
+
+  return "custom"
+}
+
+interface UIState extends AppearanceState {
   collapsed: boolean
   isMobile: boolean
   showSettings: boolean
-  // actions
+  showCommandPalette: boolean
   setDark: (v: boolean) => void
-  toggleDark: () => void
   setFontSize: (v: FontSize) => void
   setLineHeight: (v: LineHeight) => void
   setDensity: (v: Density) => void
+  applyPreset: (preset: Exclude<AppearancePreset, "custom">) => void
+  resetAppearance: () => void
   toggleCollapsed: () => void
   setIsMobile: (v: boolean) => void
-  toggleSettings: () => void
+  openSettings: () => void
+  closeSettings: () => void
+  setSettingsOpen: (open: boolean) => void
+  openCommandPalette: () => void
+  closeCommandPalette: () => void
+  setCommandPaletteOpen: (open: boolean) => void
 }
 
-// ─── CSS helpers ──────────────────────────────────────────
 const R = () => document.documentElement
 
 function applyTheme(isDark: boolean) {
@@ -37,14 +93,12 @@ function applyTheme(isDark: boolean) {
 function applyFont(fs: FontSize, lh: LineHeight) {
   R().style.setProperty("--erp-fs", `${fs}px`)
   R().style.setProperty("--erp-lh", `${lh}`)
-
-  // Make text-size/line-height controls affect all rem-based utilities.
   R().style.fontSize = `${fs}px`
   R().style.lineHeight = `${lh}`
 }
 
 function applyDensity(d: Density) {
-  const map = {
+  const map: Record<Density, Record<string, string>> = {
     compact: {
       cell: "6px 12px",
       card: "10px 14px",
@@ -69,78 +123,83 @@ function applyDensity(d: Density) {
       pageX: "28px",
       gap: "16px",
     },
-  }[d]
+  }
 
   R().setAttribute("data-density", d)
-  R().style.setProperty("--erp-cell-pad", map.cell)
-  R().style.setProperty("--erp-card-pad", map.card)
-  R().style.setProperty("--erp-page-pad", map.page)
-  R().style.setProperty("--erp-page-py", map.pageY)
-  R().style.setProperty("--erp-page-px", map.pageX)
-  R().style.setProperty("--erp-gap", map.gap)
+  R().style.setProperty("--erp-cell-pad", map[d].cell)
+  R().style.setProperty("--erp-card-pad", map[d].card)
+  R().style.setProperty("--erp-page-pad", map[d].page)
+  R().style.setProperty("--erp-page-py", map[d].pageY)
+  R().style.setProperty("--erp-page-px", map[d].pageX)
+  R().style.setProperty("--erp-gap", map[d].gap)
 }
 
-function applyAll(s: Pick<UIState, "isDark" | "fontSize" | "lineHeight" | "density">) {
+function applyAll(s: AppearanceState) {
   applyTheme(s.isDark)
   applyFont(s.fontSize, s.lineHeight)
   applyDensity(s.density)
 }
 
-// ─── Store ────────────────────────────────────────────────
 export const useUIStore = create<UIState>()(
   persist(
     (set, get) => ({
-      isDark: false,
-      fontSize: 14,
-      lineHeight: 1.6,
-      density: "default",
+      ...DEFAULT_APPEARANCE,
       collapsed: false,
       isMobile: false,
       showSettings: false,
+      showCommandPalette: false,
 
-      setDark: (v) => {
+      setDark: v => {
         set({ isDark: v })
         applyTheme(v)
       },
-      toggleDark: () => {
-        const v = !get().isDark
-        set({ isDark: v })
-        applyTheme(v)
-      },
-
-      setFontSize: (v) => {
+      setFontSize: v => {
         set({ fontSize: v })
         applyFont(v, get().lineHeight)
       },
-      setLineHeight: (v) => {
+      setLineHeight: v => {
         set({ lineHeight: v })
         applyFont(get().fontSize, v)
       },
-      setDensity: (v) => {
+      setDensity: v => {
         set({ density: v })
         applyDensity(v)
       },
+      applyPreset: preset => {
+        const next = APPEARANCE_PRESETS[preset]
+        set(next)
+        applyFont(next.fontSize, next.lineHeight)
+        applyDensity(next.density)
+      },
+      resetAppearance: () => {
+        set(DEFAULT_APPEARANCE)
+        applyAll(DEFAULT_APPEARANCE)
+      },
 
-      toggleCollapsed: () => set((s) => ({ collapsed: !s.collapsed })),
-      setIsMobile: (v) => set({ isMobile: v }),
-      toggleSettings: () => set((s) => ({ showSettings: !s.showSettings })),
+      toggleCollapsed: () => set(s => ({ collapsed: !s.collapsed })),
+      setIsMobile: v => set({ isMobile: v }),
+      openSettings: () => set({ showSettings: true }),
+      closeSettings: () => set({ showSettings: false }),
+      setSettingsOpen: open => set({ showSettings: open }),
+      openCommandPalette: () => set({ showCommandPalette: true }),
+      closeCommandPalette: () => set({ showCommandPalette: false }),
+      setCommandPaletteOpen: open => set({ showCommandPalette: open }),
     }),
     {
       name: "erp-ui",
-      partialize: (s) => ({
+      partialize: s => ({
         isDark: s.isDark,
         fontSize: s.fontSize,
         lineHeight: s.lineHeight,
         density: s.density,
       }),
-      onRehydrateStorage: () => (state) => {
+      onRehydrateStorage: () => state => {
         if (state) applyAll(state)
       },
     },
   ),
 )
 
-// ─── Init — call once at app mount ────────────────────────
 export function useUIInit() {
   applyAll(useUIStore.getState())
 }

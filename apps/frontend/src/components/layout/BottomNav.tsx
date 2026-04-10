@@ -1,20 +1,16 @@
 import { Link, useRouterState } from "@tanstack/react-router"
-import { cn }                   from "@/lib/utils"
-
-const ITEMS = [
-  { to: "/",       label: "首页", icon: "ri-home-4-line",     iconActive: "ri-home-4-fill"     },
-  { to: "/parts",  label: "零件", icon: "ri-settings-3-line", iconActive: "ri-settings-3-fill" },
-  null, // FAB slot
-  { to: "/orders", label: "订单", icon: "ri-file-list-3-line",iconActive: "ri-file-list-3-fill"},
-  { to: "/deliveries", label: "发货", icon: "ri-truck-line", iconActive: "ri-truck-fill" },
-]
+import { useIsAdmin } from "@/lib/permissions"
+import { cn } from "@/lib/utils"
+import { getBottomNavItems } from "./layoutNavigation"
 
 interface BottomNavProps {
   onFabClick?: () => void
 }
 
 export function BottomNav({ onFabClick }: BottomNavProps) {
-  const path = useRouterState({ select: (s) => s.location.pathname })
+  const pathname = useRouterState({ select: state => state.location.pathname })
+  const isAdmin = useIsAdmin()
+  const items = getBottomNavItems(isAdmin)
 
   return (
     <nav
@@ -28,47 +24,58 @@ export function BottomNav({ onFabClick }: BottomNavProps) {
         className="grid h-full grid-cols-5 items-stretch"
         style={{ minHeight: "var(--erp-bottom-nav-h, 60px)" }}
       >
-        {ITEMS.map((item) => {
-          // FAB center slot
-          if (!item) {
-            return (
-              <div key="fab" className="flex items-center justify-center">
-                <button
-                  type="button"
-                  onClick={onFabClick}
-                  aria-label="快速添加"
-                  className={cn(
-                    "relative -top-4 size-13",
-                    "bg-primary text-primary-foreground",
-                    "flex items-center justify-center",
-                    "border-4 border-background",
-                    "active:scale-95 transition-transform cursor-pointer",
-                    "shadow-lg",
-                  )}
-                >
-                  <i className="ri-add-line text-[22px]" />
-                </button>
-              </div>
-            )
-          }
-
+        {items.slice(0, 2).map(item => {
           const active =
-            path === item.to || (item.to !== "/" && path.startsWith(item.to))
+            pathname === item.to || (item.to !== "/" && pathname.startsWith(item.to))
 
           return (
             <Link
               key={item.to}
               to={item.to}
               className={cn(
-                "flex flex-col items-center justify-center gap-0.5 px-1",
-                "no-underline transition-colors select-none",
-                active
-                  ? "text-primary"
-                  : "text-muted-foreground hover:text-foreground",
+                "flex flex-col items-center justify-center gap-0.5 px-1 no-underline transition-colors",
+                active ? "text-primary" : "text-muted-foreground hover:text-foreground",
               )}
             >
               <i className={cn("text-xl", active ? item.iconActive : item.icon)} />
-              <span className="text-[10px] leading-none">{item.label}</span>
+              <span className="text-[10px] leading-none">
+                {item.shortLabel ?? item.label}
+              </span>
+            </Link>
+          )
+        })}
+
+        <div className="flex items-center justify-center">
+          <button
+            type="button"
+            onClick={onFabClick}
+            aria-label="打开快捷操作"
+            className={cn(
+              "relative -top-4 flex size-13 items-center justify-center border-4 border-background bg-primary text-primary-foreground",
+              "cursor-pointer shadow-lg transition-transform active:scale-95",
+            )}
+          >
+            <i className="ri-add-line text-[22px]" />
+          </button>
+        </div>
+
+        {items.slice(2, 4).map(item => {
+          const active =
+            pathname === item.to || (item.to !== "/" && pathname.startsWith(item.to))
+
+          return (
+            <Link
+              key={item.to}
+              to={item.to}
+              className={cn(
+                "flex flex-col items-center justify-center gap-0.5 px-1 no-underline transition-colors",
+                active ? "text-primary" : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <i className={cn("text-xl", active ? item.iconActive : item.icon)} />
+              <span className="text-[10px] leading-none">
+                {item.shortLabel ?? item.label}
+              </span>
             </Link>
           )
         })}

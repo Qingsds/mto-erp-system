@@ -1,195 +1,149 @@
 import { Link, useRouterState } from "@tanstack/react-router"
+import { Button } from "@/components/ui/button"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { useIsAdmin } from "@/lib/permissions"
 import { cn } from "@/lib/utils"
 import { useUIStore } from "@/store/ui.store"
-import { useIsAdmin } from "@/lib/permissions"
+import { HeaderAccountMenu } from "./HeaderAccountMenu"
+import { filterLayoutNavSections } from "./layoutNavigation"
 
-// ─── Nav config ───────────────────────────────────────────
-const NAV = [
-  {
-    section: "概览",
-    items: [
-      {
-        to: "/",
-        label: "仪表盘",
-        icon: "ri-dashboard-line",
-        iconActive: "ri-dashboard-fill",
-      },
-    ],
-  },
-  {
-    section: "业务管理",
-    items: [
-      {
-        to: "/parts",
-        label: "零件库",
-        icon: "ri-settings-3-line",
-        iconActive: "ri-settings-3-fill",
-        badge: undefined,
-      },
-      {
-        to: "/orders",
-        label: "订单管理",
-        icon: "ri-file-list-3-line",
-        iconActive: "ri-file-list-3-fill",
-        badge: "24",
-      },
-      {
-        to: "/deliveries",
-        label: "发货管理",
-        icon: "ri-truck-line",
-        iconActive: "ri-truck-fill",
-      },
-      {
-        to: "/billing",
-        label: "财务对账",
-        icon: "ri-bank-card-line",
-        iconActive: "ri-bank-card-fill",
-        badge: "4",
-        adminOnly: true,
-      },
-    ],
-  },
-  {
-    section: "文件归档",
-    items: [
-      {
-        to: "/seals",
-        label: "印章管理",
-        icon: "ri-award-line",
-        iconActive: "ri-award-fill",
-        adminOnly: true,
-      },
-      {
-        to: "/users",
-        label: "用户管理",
-        icon: "ri-user-settings-line",
-        iconActive: "ri-user-settings-fill",
-        adminOnly: true,
-      },
-    ],
-  },
-]
-
-// ─── Nav item ─────────────────────────────────────────────
-function NavItem({
+function SidebarNavItem({
   to,
   label,
   icon,
   iconActive,
-  badge,
   collapsed,
 }: {
   to: string
   label: string
   icon: string
   iconActive: string
-  badge?: string
   collapsed: boolean
 }) {
-  const path = useRouterState({ select: s => s.location.pathname })
-  const isActive = path === to || (to !== "/" && path.startsWith(to))
+  const pathname = useRouterState({ select: state => state.location.pathname })
+  const isActive = pathname === to || (to !== "/" && pathname.startsWith(to))
 
-  return (
+  const content = (
     <Link
       to={to}
-      title={collapsed ? label : undefined}
       className={cn(
-        "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors",
-        "no-underline whitespace-nowrap select-none",
+        "flex items-center gap-3 border border-transparent px-3 py-2.5 text-sm no-underline transition-colors",
         isActive
-          ? "bg-primary/10 text-primary font-medium"
-          : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+          ? "border-primary/20 bg-primary/8 text-primary"
+          : "text-sidebar-foreground/72 hover:border-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-foreground",
+        collapsed && "justify-center px-0",
       )}
     >
-      <i
-        className={cn(
-          "text-base shrink-0",
-          isActive ? iconActive : icon,
-        )}
-      />
-
-      {!collapsed && (
-        <>
-          <span className='flex-1 truncate'>{label}</span>
-          {badge && (
-            <span className='text-[10px] font-mono bg-muted text-muted-foreground rounded px-1.5 py-0.5'>
-              {badge}
-            </span>
-          )}
-        </>
-      )}
+      <i className={cn("shrink-0 text-base", isActive ? iconActive : icon)} />
+      {!collapsed && <span className="truncate">{label}</span>}
     </Link>
+  )
+
+  if (!collapsed) {
+    return content
+  }
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{content}</TooltipTrigger>
+      <TooltipContent side="right" sideOffset={8}>
+        {label}
+      </TooltipContent>
+    </Tooltip>
   )
 }
 
-// ─── Sidebar ──────────────────────────────────────────────
 export function Sidebar() {
   const { collapsed, toggleCollapsed } = useUIStore()
   const isAdmin = useIsAdmin()
-
-  const navSections = NAV.map(section => ({
-    ...section,
-    items: section.items.filter(item => !item.adminOnly || isAdmin),
-  })).filter(section => section.items.length > 0)
+  const sections = filterLayoutNavSections(isAdmin)
 
   return (
     <aside
-      className={cn(
-        "flex flex-col shrink-0 overflow-hidden",
-        "bg-sidebar border-r border-sidebar-border",
-        "transition-[width] duration-200",
-      )}
+      className="flex shrink-0 flex-col overflow-hidden border-r border-sidebar-border bg-sidebar transition-[width] duration-200"
       style={{
         width: collapsed
           ? "var(--erp-sidebar-w-collapsed)"
           : "var(--erp-sidebar-w)",
       }}
     >
-      {/* Logo */}
-      <button
-        onClick={toggleCollapsed}
+      <div
         className={cn(
-          "flex items-center gap-2.5 px-3 border-b border-sidebar-border",
-          "bg-transparent cursor-pointer w-full text-left",
-          "hover:bg-sidebar-accent transition-colors",
+          "border-b border-sidebar-border px-3 py-3",
+          collapsed ? "flex justify-center" : "space-y-3",
         )}
-        style={{ height: "var(--erp-header-h, 56px)" }}
-        title='切换侧边栏'
       >
-        <div className='flex items-center justify-center w-6 h-6 rounded bg-primary shrink-0'>
-          <i className='ri-grid-fill text-primary-foreground text-xs' />
-        </div>
-        {!collapsed && (
-          <>
-            <span className='text-sm font-semibold text-sidebar-foreground tracking-tight flex-1'>
-              瑞海隆鑫ERP
-            </span>
-            <span className='text-[10px] font-medium bg-muted text-muted-foreground px-1.5 py-0.5 rounded'>
-              v1.0
-            </span>
-          </>
-        )}
-      </button>
+        <button
+          type="button"
+          onClick={toggleCollapsed}
+          className={cn(
+            "flex w-full items-center gap-3 border border-transparent bg-transparent p-0 text-left transition-colors",
+            "hover:border-sidebar-border hover:bg-sidebar-accent",
+            collapsed && "justify-center",
+          )}
+          title="切换侧边栏"
+        >
+          <div className="flex size-8 shrink-0 items-center justify-center bg-primary text-primary-foreground">
+            <i className="ri-grid-fill text-sm" />
+          </div>
+          {!collapsed && (
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-sidebar-foreground">
+                MTO ERP
+              </p>
+              <p className="mt-1 truncate text-[11px] text-sidebar-foreground/60">
+                导航壳与全局工作入口
+              </p>
+            </div>
+          )}
+        </button>
+      </div>
 
-      {/* Nav */}
-      <nav className='flex-1 overflow-y-auto py-2 px-2 flex flex-col gap-0.5'>
-        {navSections.map(section => (
-          <div key={section.section}>
+      <nav className="flex-1 overflow-y-auto px-2 py-3">
+        {sections.map(section => (
+          <div key={section.id} className="mb-4 last:mb-0">
             {!collapsed && (
-              <p className='text-[10.5px] font-medium tracking-widest text-muted-foreground/60 px-2.5 pt-3 pb-1 uppercase'>
-                {section.section}
+              <p className="px-2 py-1 text-[10.5px] font-medium tracking-[0.14em] text-sidebar-foreground/45 uppercase">
+                {section.label}
               </p>
             )}
-            {section.items.map(item => (
-              <NavItem
-                key={item.to}
-                {...item}
-                collapsed={collapsed}
-              />
-            ))}
+            <div className="space-y-1">
+              {section.items
+                .filter(item => item.showInSidebar)
+                .map(item => (
+                  <SidebarNavItem
+                    key={item.to}
+                    to={item.to}
+                    label={item.label}
+                    icon={item.icon}
+                    iconActive={item.iconActive}
+                    collapsed={collapsed}
+                  />
+                ))}
+            </div>
           </div>
         ))}
       </nav>
+
+      <div className="border-t border-sidebar-border p-2">
+        {!collapsed && (
+          <div className="mb-2 flex items-center justify-between gap-2 px-1">
+            <p className="text-[10.5px] font-medium tracking-[0.14em] text-sidebar-foreground/45 uppercase">
+              账户与系统
+            </p>
+            <Button
+              variant="ghost"
+              className="h-8 px-2 text-xs text-muted-foreground"
+              title="通知暂未接入"
+              disabled
+            >
+              <i className="ri-notification-3-line text-sm" />
+            </Button>
+          </div>
+        )}
+
+        <HeaderAccountMenu placement="sidebar" compact={collapsed} />
+      </div>
     </aside>
   )
 }
