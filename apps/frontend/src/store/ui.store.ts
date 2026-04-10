@@ -1,5 +1,5 @@
 import { create } from "zustand"
-import { persist } from "zustand/middleware"
+import { createJSONStorage, persist } from "zustand/middleware"
 
 export type Density = "compact" | "default" | "comfortable"
 export type FontSize = 12 | 14 | 16 | 18
@@ -187,6 +187,7 @@ export const useUIStore = create<UIState>()(
     }),
     {
       name: "erp-ui",
+      storage: createJSONStorage(() => localStorage),
       partialize: s => ({
         isDark: s.isDark,
         fontSize: s.fontSize,

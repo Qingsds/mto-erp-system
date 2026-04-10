@@ -73,12 +73,6 @@ export function GlobalCommandDialog() {
     return () => window.removeEventListener("keydown", onKeyDown)
   }, [openCommandPalette])
 
-  useEffect(() => {
-    if (!showCommandPalette) {
-      setQuery("")
-    }
-  }, [showCommandPalette])
-
   const items: CommandActionItem[] = [
     ...getCommandItems(isAdmin),
     {
@@ -108,6 +102,13 @@ export function GlobalCommandDialog() {
   const pageItems = filteredItems.filter(item => item.kind === "page")
   const actionItems = filteredItems.filter(item => item.kind === "action")
 
+  const handleOpenChange = (open: boolean) => {
+    setCommandPaletteOpen(open)
+    if (!open) {
+      setQuery("")
+    }
+  }
+
   const handleSelect = (item: CommandActionItem) => {
     if (item.run) {
       item.run()
@@ -121,7 +122,7 @@ export function GlobalCommandDialog() {
   }
 
   return (
-    <Dialog open={showCommandPalette} onOpenChange={setCommandPaletteOpen}>
+    <Dialog open={showCommandPalette} onOpenChange={handleOpenChange}>
       <DialogContent
         showCloseButton={false}
         className="max-w-[680px] gap-0 border border-border bg-background p-0 shadow-none"
