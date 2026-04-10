@@ -14,6 +14,8 @@ export interface BillingSealPlacement {
   widthRatio: number
 }
 
+export const BILLING_A4_ASPECT_RATIO = 210 / 297
+export const BILLING_A4_PREVIEW_MAX_WIDTH = 794
 export const MIN_BILLING_SEAL_WIDTH_RATIO = 0.1
 export const MAX_BILLING_SEAL_WIDTH_RATIO = 0.38
 

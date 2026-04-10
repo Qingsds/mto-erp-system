@@ -1,13 +1,19 @@
 /**
  * 对账单盖章预览画布。
  *
- * 负责：
+ * 职责：
  * - 渲染当前页 PDF
  * - 在页上叠加可拖拽 / 可缩放的印章预览层
- * - 管理 PDF 渲染任务的取消，避免同一 canvas 并发 render
+ * - 将拖拽中的位置保留在画布内部，避免每帧回写父层造成闪烁
  */
 
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react"
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react"
 import {
   GlobalWorkerOptions,
   getDocument,
@@ -17,6 +23,8 @@ import {
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url"
 import { cn } from "@/lib/utils"
 import {
+  BILLING_A4_ASPECT_RATIO,
+  BILLING_A4_PREVIEW_MAX_WIDTH,
   MAX_BILLING_SEAL_WIDTH_RATIO,
   MIN_BILLING_SEAL_WIDTH_RATIO,
   clamp,
@@ -33,6 +41,20 @@ interface BillingSealCanvasProps {
   sealName: string | null
   onPlacementChange: (placement: BillingSealPlacement) => void
   onPageCountChange: (count: number) => void
+}
+
+type InteractionMode = "idle" | "dragging" | "resizing"
+
+function isSamePlacement(
+  left: BillingSealPlacement,
+  right: BillingSealPlacement,
+) {
+  return (
+    left.pageIndex === right.pageIndex &&
+    left.xRatio === right.xRatio &&
+    left.yRatio === right.yRatio &&
+    left.widthRatio === right.widthRatio
+  )
 }
 
 function clampPlacement(params: {
@@ -86,6 +108,11 @@ export function BillingSealCanvas({
   const [containerWidth, setContainerWidth] = useState(0)
   const [renderError, setRenderError] = useState<string | null>(null)
   const [sealAspectRatio, setSealAspectRatio] = useState<number | null>(null)
+  const [draftPlacement, setDraftPlacement] = useState(placement)
+  const [interactionMode, setInteractionMode] = useState<InteractionMode>("idle")
+  const draftPlacementRef = useRef(placement)
+
+  const isInteracting = interactionMode !== "idle"
 
   const cancelCurrentRender = () => {
     const currentTask = renderTaskRef.current
@@ -94,6 +121,21 @@ export function BillingSealCanvas({
     renderTaskRef.current = null
     currentTask.cancel()
   }
+
+  const resolvedPlacement = useMemo(
+    () =>
+      clampPlacement({
+        placement: draftPlacement,
+        sealAspectRatio,
+        renderWidth: renderSize.width,
+        renderHeight: renderSize.height,
+      }),
+    [draftPlacement, renderSize.height, renderSize.width, sealAspectRatio],
+  )
+
+  useEffect(() => {
+    draftPlacementRef.current = resolvedPlacement
+  }, [resolvedPlacement])
 
   useEffect(() => {
     const previousDocument = pdfDocumentRef.current
@@ -174,7 +216,12 @@ export function BillingSealCanvas({
     void (async () => {
       const page = await pdfDocument.getPage(pageIndex)
       const viewport = page.getViewport({ scale: 1 })
-      const scale = containerWidth / viewport.width
+      const targetWidth = Math.min(containerWidth, BILLING_A4_PREVIEW_MAX_WIDTH)
+      const targetHeight = targetWidth / BILLING_A4_ASPECT_RATIO
+      const scale = Math.min(
+        targetWidth / viewport.width,
+        targetHeight / viewport.height,
+      )
       const scaledViewport = page.getViewport({ scale })
       const canvas = canvasRef.current
 
@@ -187,17 +234,27 @@ export function BillingSealCanvas({
         return
       }
 
-      canvas.width = Math.floor(scaledViewport.width * devicePixelRatio)
-      canvas.height = Math.floor(scaledViewport.height * devicePixelRatio)
-      canvas.style.width = `${scaledViewport.width}px`
-      canvas.style.height = `${scaledViewport.height}px`
+      const offsetX = (targetWidth - scaledViewport.width) / 2
+      const offsetY = (targetHeight - scaledViewport.height) / 2
+
+      canvas.width = Math.floor(targetWidth * devicePixelRatio)
+      canvas.height = Math.floor(targetHeight * devicePixelRatio)
+      canvas.style.width = `${targetWidth}px`
+      canvas.style.height = `${targetHeight}px`
       context.setTransform(1, 0, 0, 1, 0, 0)
       context.clearRect(0, 0, canvas.width, canvas.height)
 
       const renderTask = page.render({
         canvasContext: context,
         viewport: scaledViewport,
-        transform: [devicePixelRatio, 0, 0, devicePixelRatio, 0, 0],
+        transform: [
+          devicePixelRatio,
+          0,
+          0,
+          devicePixelRatio,
+          offsetX * devicePixelRatio,
+          offsetY * devicePixelRatio,
+        ],
       })
       renderTaskRef.current = renderTask
 
@@ -221,8 +278,8 @@ export function BillingSealCanvas({
 
       setRenderError(null)
       setRenderSize({
-        width: scaledViewport.width,
-        height: scaledViewport.height,
+        width: targetWidth,
+        height: targetHeight,
       })
     })().catch(error => {
       if (cancelled) return
@@ -236,6 +293,10 @@ export function BillingSealCanvas({
   }, [containerWidth, pageIndex, pdfDocument])
 
   useEffect(() => {
+    if (isInteracting) {
+      return
+    }
+
     const nextPlacement = clampPlacement({
       placement,
       sealAspectRatio,
@@ -243,21 +304,38 @@ export function BillingSealCanvas({
       renderHeight: renderSize.height,
     })
 
-    if (
-      nextPlacement.xRatio !== placement.xRatio ||
-      nextPlacement.yRatio !== placement.yRatio ||
-      nextPlacement.widthRatio !== placement.widthRatio
-    ) {
-      onPlacementChange(nextPlacement)
+    setDraftPlacement(currentPlacement =>
+      isSamePlacement(currentPlacement, nextPlacement)
+        ? currentPlacement
+        : nextPlacement,
+    )
+  }, [isInteracting, placement, renderSize.height, renderSize.width, sealAspectRatio])
+
+  useEffect(() => {
+    if (isInteracting || isSamePlacement(resolvedPlacement, placement)) {
+      return
     }
-  }, [onPlacementChange, placement, renderSize.height, renderSize.width, sealAspectRatio])
+
+    onPlacementChange(resolvedPlacement)
+  }, [isInteracting, onPlacementChange, placement, resolvedPlacement])
 
   const overlayHeightRatio = useMemo(() => {
     if (!sealAspectRatio || renderSize.width <= 0 || renderSize.height <= 0) {
       return 0
     }
-    return placement.widthRatio * sealAspectRatio * (renderSize.width / renderSize.height)
-  }, [placement.widthRatio, renderSize.height, renderSize.width, sealAspectRatio])
+    return (
+      resolvedPlacement.widthRatio *
+      sealAspectRatio *
+      (renderSize.width / renderSize.height)
+    )
+  }, [renderSize.height, renderSize.width, resolvedPlacement.widthRatio, sealAspectRatio])
+
+  const commitPlacement = (nextPlacement: BillingSealPlacement) => {
+    setInteractionMode("idle")
+    setDraftPlacement(nextPlacement)
+    draftPlacementRef.current = nextPlacement
+    onPlacementChange(nextPlacement)
+  }
 
   const handleDragStart = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (!sealAspectRatio || renderSize.width <= 0 || renderSize.height <= 0) return
@@ -266,14 +344,18 @@ export function BillingSealCanvas({
 
     const pageRect = pageFrameRef.current?.getBoundingClientRect()
     if (!pageRect) return
+
+    setInteractionMode("dragging")
+
     const overlayRect = event.currentTarget.getBoundingClientRect()
     const pointerOffsetX = event.clientX - overlayRect.left
     const pointerOffsetY = event.clientY - overlayRect.top
+    const startPlacement = draftPlacementRef.current
 
     const onPointerMove = (moveEvent: PointerEvent) => {
       const nextPlacement = clampPlacement({
         placement: {
-          ...placement,
+          ...startPlacement,
           xRatio: (moveEvent.clientX - pageRect.left - pointerOffsetX) / pageRect.width,
           yRatio: (moveEvent.clientY - pageRect.top - pointerOffsetY) / pageRect.height,
         },
@@ -282,12 +364,14 @@ export function BillingSealCanvas({
         renderHeight: renderSize.height,
       })
 
-      onPlacementChange(nextPlacement)
+      draftPlacementRef.current = nextPlacement
+      setDraftPlacement(nextPlacement)
     }
 
     const onPointerUp = () => {
       window.removeEventListener("pointermove", onPointerMove)
       window.removeEventListener("pointerup", onPointerUp)
+      commitPlacement(draftPlacementRef.current)
     }
 
     window.addEventListener("pointermove", onPointerMove)
@@ -300,15 +384,18 @@ export function BillingSealCanvas({
     event.preventDefault()
     event.stopPropagation()
 
-    const startX = event.clientX
-    const startY = event.clientY
-    const startPlacement = placement
     const pageRect = pageFrameRef.current?.getBoundingClientRect()
-    const pageWidth = pageRect?.width ?? renderSize.width
-    const pageHeight = pageRect?.height ?? renderSize.height
     const overlayElement = event.currentTarget.parentElement
     const overlayRect = overlayElement?.getBoundingClientRect()
     if (!overlayRect) return
+
+    setInteractionMode("resizing")
+
+    const startX = event.clientX
+    const startY = event.clientY
+    const startPlacement = draftPlacementRef.current
+    const pageWidth = pageRect?.width ?? renderSize.width
+    const pageHeight = pageRect?.height ?? renderSize.height
 
     const onPointerMove = (moveEvent: PointerEvent) => {
       const widthRatioByX = (moveEvent.clientX - overlayRect.left) / pageWidth
@@ -329,12 +416,14 @@ export function BillingSealCanvas({
         renderHeight: renderSize.height,
       })
 
-      onPlacementChange(nextPlacement)
+      draftPlacementRef.current = nextPlacement
+      setDraftPlacement(nextPlacement)
     }
 
     const onPointerUp = () => {
       window.removeEventListener("pointermove", onPointerMove)
       window.removeEventListener("pointerup", onPointerUp)
+      commitPlacement(draftPlacementRef.current)
     }
 
     window.addEventListener("pointermove", onPointerMove)
@@ -358,7 +447,7 @@ export function BillingSealCanvas({
       <div className='flex-1 overflow-auto bg-muted/20 p-4'>
         <div
           ref={containerRef}
-          className='mx-auto w-full max-w-4xl'
+          className='mx-auto w-full max-w-[794px]'
         >
           {!pdfBytes ? (
             <div className='flex min-h-[420px] items-center justify-center border border-dashed border-border bg-background text-sm text-muted-foreground'>
@@ -383,13 +472,14 @@ export function BillingSealCanvas({
                 <button
                   type='button'
                   className={cn(
-                    "absolute cursor-move border border-primary/30 bg-primary/10 p-0 shadow-sm backdrop-blur",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+                    "absolute cursor-move border border-transparent bg-transparent p-0 shadow-sm transition-[border-color,box-shadow]",
+                    "hover:border-primary/25 focus-visible:border-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20",
+                    isInteracting && "border-primary/35",
                   )}
                   style={{
-                    left: `${placement.xRatio * 100}%`,
-                    top: `${placement.yRatio * 100}%`,
-                    width: `${placement.widthRatio * 100}%`,
+                    left: `${resolvedPlacement.xRatio * 100}%`,
+                    top: `${resolvedPlacement.yRatio * 100}%`,
+                    width: `${resolvedPlacement.widthRatio * 100}%`,
                     height: `${overlayHeightRatio * 100}%`,
                   }}
                   onPointerDown={handleDragStart}
@@ -397,13 +487,12 @@ export function BillingSealCanvas({
                   <img
                     src={sealPreviewUrl}
                     alt={sealName ?? "印章预览"}
-                    className='h-full w-full object-contain select-none'
+                    className='pointer-events-none h-full w-full select-none object-contain'
                     draggable={false}
                     onLoad={event => {
                       const { naturalHeight, naturalWidth } = event.currentTarget
                       if (!naturalHeight || !naturalWidth) return
-                      const nextRatio = naturalHeight / naturalWidth
-                      setSealAspectRatio(nextRatio)
+                      setSealAspectRatio(naturalHeight / naturalWidth)
                     }}
                   />
 
