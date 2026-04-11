@@ -24,8 +24,14 @@ const {
 } = require("./dev-utils.cjs")
 const { syncPrismaDatabase } = require("../apps/backend/scripts/prisma-sync.cjs")
 
-// 所有工作区子进程都统一通过这里启动。
-// 这样 Windows 兼容逻辑只保留在 dev-utils.cjs 一处，不会散落到多个脚本里。
+/**
+ * 启动一个由工作区根脚本托管的子进程。
+ *
+ * @param {string} name 子进程名称，仅用于日志输出
+ * @param {string[]} args 传给 pnpm 的参数数组
+ * @param {() => void} [onError] 子进程启动失败时的收口回调
+ * @returns {import("node:child_process").ChildProcess} 已启动的子进程对象
+ */
 function startManagedProcess(name, args, onError) {
   const child = spawnProcess(getPnpmCommand(), args, {
     cwd: workspaceRoot,
@@ -47,11 +53,19 @@ async function run() {
   await ensureSharedTypesBuilt()
   await syncPrismaDatabase()
 
+  /** @type {boolean} 是否已经进入统一收口流程 */
   let shuttingDown = false
+
+  /** @type {{ name: string; child: import("node:child_process").ChildProcess }[]} 当前托管的子进程列表 */
   let children = []
 
-  // 任意一个子进程失败时，整个 dev 会话都应该一起收口。
-  // 否则另一个 watch 进程会继续占端口，下一次启动看起来就像随机的端口冲突。
+  /**
+   * 统一关闭当前 dev 会话下的所有子进程。
+   * 任意一个子进程失败时，整个 dev 会话都应该一起收口，
+   * 否则另一个 watcher 会继续占端口，下一次启动看起来就像随机的端口冲突。
+   *
+   * @param {NodeJS.Signals} signal 发送给子进程的结束信号
+   */
   const shutdown = signal => {
     if (shuttingDown) return
     shuttingDown = true
@@ -66,18 +80,18 @@ async function run() {
   children = [
     {
       name: "backend",
-      child: startManagedProcess("backend", [
-        "--filter",
+      child: startManagedProcess(
         "backend",
-        "dev",
-        "--",
-        "--skip-db-sync",
-      ], () => shutdown("SIGTERM")),
+        ["--filter", "backend", "dev", "--", "--skip-db-sync"],
+        () => shutdown("SIGTERM"),
+      ),
     },
     {
       name: "frontend",
-      child: startManagedProcess("frontend", ["--filter", "frontend", "dev"], () =>
-        shutdown("SIGTERM"),
+      child: startManagedProcess(
+        "frontend",
+        ["--filter", "frontend", "dev"],
+        () => shutdown("SIGTERM"),
       ),
     },
   ]

@@ -21,15 +21,44 @@ const {
   listMigrationNames,
   prepareDatabaseEnv,
   runCommand,
-  workspaceRoot,
 } = require("../../../scripts/dev-utils.cjs")
 
+/**
+ * Prisma schema 源文件路径。
+ * 用于判断当前源码是否比已生成 client 更新。
+ */
 const sourceSchemaPath = path.join(databaseRoot, "prisma", "schema.prisma")
+
+/**
+ * Prisma generate 后输出的 schema 路径。
+ * 用于和其他生成文件一起判断当前 dist 是否完整、是否最新。
+ */
 const generatedSchemaPath = path.join(generatedClientPath, "schema.prisma")
+
+/**
+ * Prisma Client 入口 JS 文件路径。
+ * backend 运行时最终会 import 这里的产物。
+ */
 const generatedIndexPath = path.join(generatedClientPath, "index.js")
+
+/**
+ * Prisma Client 类型声明文件路径。
+ * 用于确认生成产物是否完整。
+ */
 const generatedTypesPath = path.join(generatedClientPath, "index.d.ts")
+
+/**
+ * Prisma Client 包描述文件路径。
+ * 同样作为“生成产物是否完整”的判断条件之一。
+ */
 const generatedPackagePath = path.join(generatedClientPath, "package.json")
 
+/**
+ * 解析当前工作区里的 Prisma CLI 入口文件。
+ * 这里固定走本地依赖，避免依赖全局命令或 shell shim。
+ *
+ * @returns {string} Prisma CLI 的绝对路径
+ */
 function resolvePrismaCliPath() {
   try {
     return require.resolve("prisma/build/index.js", {
@@ -42,8 +71,14 @@ function resolvePrismaCliPath() {
   }
 }
 
-// Prisma 相关命令统一通过“当前 Node + 本地 Prisma CLI 入口”执行。
-// 这样 macOS 和 Windows 走的是同一条调用链，不依赖 shell shim。
+/**
+ * 执行一条 Prisma CLI 命令。
+ * 调用方式统一固定为：当前 Node 进程 + 本地 Prisma CLI 入口 + 参数，
+ * 这样 macOS 和 Windows 走的是同一条路径，不再受 `pnpm exec prisma` 影响。
+ *
+ * @param {string[]} args Prisma CLI 参数，例如 `["generate"]`
+ * @returns {Promise<void>} 命令执行完成后结束
+ */
 function runPrismaCommand(args) {
   const prismaCliPath = resolvePrismaCliPath()
 
@@ -53,8 +88,12 @@ function runPrismaCommand(args) {
   })
 }
 
-// 启动前只需要一个足够快的“当前 dist 能不能直接用”的判断。
-// 这里检查几份关键产物是否存在，就足以判断 backend 能否正常 import Prisma Client。
+/**
+ * 判断 Prisma Client 的关键产物是否都已经存在。
+ * 这里只检查 backend 启动真正需要 import 的那几份文件。
+ *
+ * @returns {boolean} 生成产物是否完整存在
+ */
 function hasGeneratedClientArtifacts() {
   return [
     generatedSchemaPath,
@@ -64,9 +103,13 @@ function hasGeneratedClientArtifacts() {
   ].every(filePath => fs.existsSync(filePath))
 }
 
-// Prisma 会按自己的格式重写 generated/schema.prisma，
-// 所以不能用“文件内容是否完全相等”来判断新旧。
-// 这里改用源 schema 修改时间与主要生成产物时间做比较，跨平台更稳。
+/**
+ * 判断当前 Prisma Client 产物是否仍然是最新的。
+ * Prisma 会重排 generated schema 的格式，所以不适合做文本全量比对；
+ * 这里改用“源 schema 修改时间 <= 生成产物修改时间”的轻量判断。
+ *
+ * @returns {boolean} 是否可以直接复用当前 Prisma Client
+ */
 function isGeneratedClientCurrent() {
   if (!hasGeneratedClientArtifacts()) {
     return false
@@ -89,6 +132,15 @@ function isGeneratedClientCurrent() {
   }
 }
 
+/**
+ * 读取目标数据库当前 schema 的状态：
+ * 1. 是否存在 `_prisma_migrations`
+ * 2. 是否已经有业务表
+ *
+ * @param {import("@prisma/client").PrismaClient} prisma 已初始化的 Prisma Client
+ * @param {string} schema 要检查的数据库 schema 名称
+ * @returns {Promise<{ hasBusinessTables: boolean; hasMigrationTable: boolean }>} 当前 schema 状态
+ */
 async function queryDatabaseState(prisma, schema) {
   const [migrationTableRow] = await prisma.$queryRaw`
     SELECT EXISTS (
@@ -114,10 +166,23 @@ async function queryDatabaseState(prisma, schema) {
   }
 }
 
+/**
+ * 判断是否允许对本地旧库启用 db push fallback。
+ *
+ * @returns {boolean} 是否开启 fallback
+ */
 function isDbPushFallbackEnabled() {
   return process.env.PRISMA_DEV_ALLOW_DB_PUSH_FALLBACK === "true"
 }
 
+/**
+ * 生成“旧库但没有 Prisma migration 历史”时的提示文案。
+ * 非本地库和本地库会给出不同的引导信息。
+ *
+ * @param {string} databaseUrl 当前数据库连接串
+ * @param {boolean} isLocalDatabase 是否为本地数据库
+ * @returns {string} 最终展示给开发者的错误文案
+ */
 function formatLegacyDatabaseMessage(databaseUrl, isLocalDatabase) {
   const lines = [
     "[db-sync] Detected a legacy database without Prisma migration history.",
@@ -143,6 +208,12 @@ function formatLegacyDatabaseMessage(databaseUrl, isLocalDatabase) {
   return lines.join("\n")
 }
 
+/**
+ * 把现有 migration 目录逐个标记为已应用。
+ * 仅在对本地旧库做一次性 baseline 时使用。
+ *
+ * @returns {Promise<void>} 全部 resolve 完成后结束
+ */
 async function resolveExistingMigrations() {
   const migrationNames = listMigrationNames()
 
@@ -157,9 +228,15 @@ async function resolveExistingMigrations() {
   }
 }
 
-// Windows 下 query engine DLL 可能会被其他进程短暂占用。
-// 如果 generate 失败但当前产物其实已经是最新，就直接复用已有 dist，
-// 避免为了一个无效重建把整个启动流程卡死。
+/**
+ * 确保 Prisma Client 已经可用。
+ *
+ * 这里有两个关键策略：
+ * 1. 当前 dist 已最新时，直接跳过 generate
+ * 2. Windows 下 generate 因 DLL 文件锁失败，但产物其实已最新时，仍然复用已有 dist
+ *
+ * @returns {Promise<void>} Prisma Client 已确认可用后结束
+ */
 async function ensurePrismaClientGenerated() {
   if (isGeneratedClientCurrent()) {
     console.log("[db-sync] Prisma Client is up to date, skipping generate")
@@ -189,6 +266,12 @@ async function ensurePrismaClientGenerated() {
   }
 }
 
+/**
+ * 加载当前生成好的 Prisma Client 构造函数。
+ * backend 后续会用它创建真实的数据库连接实例。
+ *
+ * @returns {typeof import("@prisma/client").PrismaClient} PrismaClient 构造函数
+ */
 function loadPrismaClient() {
   try {
     const generatedClient = require(generatedClientPath)
@@ -204,6 +287,15 @@ function loadPrismaClient() {
   }
 }
 
+/**
+ * 执行 backend 启动前的完整 Prisma 同步流程。
+ * 会根据数据库现状自动选择：
+ * 1. 仅 generate
+ * 2. migrate deploy
+ * 3. 本地旧库的一次性 db push + resolve + deploy
+ *
+ * @returns {Promise<void>} 同步完成后结束
+ */
 async function syncPrismaDatabase() {
   prepareDatabaseEnv()
 
@@ -216,7 +308,7 @@ async function syncPrismaDatabase() {
   )
 
   // 先确保 Prisma Client 可用，再去查询数据库状态。
-  // 否则后面的 Prisma 实例化本身就会先崩掉，错误信号会变得很混乱。
+  // 否则后面的 Prisma 实例化本身就会先失败，错误信号会变得很乱。
   await ensurePrismaClientGenerated()
 
   const PrismaClient = loadPrismaClient()
@@ -259,11 +351,17 @@ async function syncPrismaDatabase() {
   }
 }
 
+/**
+ * 允许这个脚本单独作为命令行入口运行。
+ * `--dry-run` 只打印环境，不执行真正的数据库同步。
+ *
+ * @returns {Promise<void>} 入口逻辑执行完成后结束
+ */
 async function main() {
   prepareDatabaseEnv()
 
   if (process.argv.slice(2).includes("--dry-run")) {
-    const envFileStatus = require("node:fs").existsSync(databaseEnvPath)
+    const envFileStatus = fs.existsSync(databaseEnvPath)
       ? databaseEnvPath
       : "not found"
     console.log(`[db-sync] database env file: ${envFileStatus}`)

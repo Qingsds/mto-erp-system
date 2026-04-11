@@ -4,18 +4,87 @@ const fs = require("node:fs")
 const path = require("node:path")
 const { spawn, spawnSync } = require("node:child_process")
 
+/**
+ * 工作区根目录。
+ * 所有跨包启动脚本都以它作为统一基准路径，避免不同 cwd 下相对路径漂移。
+ */
 const workspaceRoot = path.resolve(__dirname, "..")
+
+/**
+ * backend 包目录。
+ * 用于解析 Nest CLI、本地 backend 脚本和 backend 专属资源。
+ */
 const backendRoot = path.resolve(workspaceRoot, "apps/backend")
+
+/**
+ * database 包目录。
+ * Prisma schema、数据库环境变量、生成产物都放在这里。
+ */
 const databaseRoot = path.resolve(workspaceRoot, "packages/database")
+
+/**
+ * shared-types 包目录。
+ * 前后端都会消费它的编译产物，因此启动前需要判断它是否过期。
+ */
 const sharedTypesRoot = path.resolve(workspaceRoot, "packages/shared-types")
+
+/**
+ * 数据库环境变量文件路径。
+ * 本地开发时如果 shell 没有手动注入 DATABASE_URL，会从这里补齐。
+ */
 const databaseEnvPath = path.resolve(databaseRoot, ".env")
+
+/**
+ * 数据库环境变量示例文件路径。
+ * 仅用于报错提示时告诉开发者参考哪份模板。
+ */
 const databaseEnvExamplePath = path.resolve(databaseRoot, ".env.example")
+
+/**
+ * Prisma migration 目录。
+ * 预检查阶段会读取这里的 migration 名称，决定是否需要做 resolve。
+ */
 const migrationsRoot = path.resolve(databaseRoot, "prisma/migrations")
+
+/**
+ * Prisma Client 生成目录。
+ * backend 运行时实际 import 的就是这里的产物。
+ */
 const generatedClientPath = path.resolve(databaseRoot, "dist/generated/client")
+
+/**
+ * shared-types 源码目录。
+ * 用于判断类型包源码是否比 dist 更新。
+ */
 const sharedTypesSrcRoot = path.resolve(sharedTypesRoot, "src")
+
+/**
+ * shared-types 编译产物目录。
+ * 启动前会检查这里的时间戳，决定是否需要重新 build。
+ */
 const sharedTypesDistRoot = path.resolve(sharedTypesRoot, "dist")
+
+/**
+ * shared-types 的 tsconfig 路径。
+ * 如果只改了编译配置，也应该触发一次重新构建。
+ */
 const sharedTypesTsconfigPath = path.resolve(sharedTypesRoot, "tsconfig.json")
 
+/**
+ * 缓存解析后的 pnpm 命令路径。
+ * 一次启动过程中只需要解析一次，避免反复扫描 PATH / where.exe。
+ *
+ * @type {string | null}
+ */
+let cachedPnpmCommand = null
+
+/**
+ * 去掉环境变量值最外层的单双引号。
+ * 例如 `.env` 中 `DATABASE_URL="..."` 这种写法需要先解包再使用。
+ *
+ * @param {string} value 原始字符串值
+ * @returns {string} 去掉最外层引号后的结果
+ */
 function unquote(value) {
   if (value.length >= 2) {
     const first = value[0]
@@ -31,6 +100,14 @@ function unquote(value) {
   return value
 }
 
+/**
+ * 把 `.env` 文件内容解析成 key-value 对象。
+ * 这里不依赖 dotenv，是因为启动脚本只需要非常小的一组能力，
+ * 自己解析更可控，也能避免额外引入运行时差异。
+ *
+ * @param {string} content `.env` 文件原始文本内容
+ * @returns {Record<string, string>} 解析后的环境变量映射
+ */
 function parseEnvFile(content) {
   const result = {}
   const lines = content.split(/\r?\n/)
@@ -53,6 +130,13 @@ function parseEnvFile(content) {
   return result
 }
 
+/**
+ * 从 `packages/database/.env` 读取环境变量，并只填充当前进程里还没有值的字段。
+ * 这样开发者在 shell 里手动覆盖的值会优先生效，不会被脚本反向覆盖。
+ *
+ * @param {NodeJS.ProcessEnv} [targetEnv=process.env] 需要被写入的目标环境变量对象
+ * @returns {NodeJS.ProcessEnv} 写入后的环境变量对象
+ */
 function loadDatabaseEnv(targetEnv = process.env) {
   if (!fs.existsSync(databaseEnvPath)) return targetEnv
 
@@ -75,6 +159,13 @@ function loadDatabaseEnv(targetEnv = process.env) {
   return targetEnv
 }
 
+/**
+ * 确保 DATABASE_URL 已经可用。
+ * 启动链的后续步骤都会依赖数据库连接，因此这里直接做硬校验。
+ *
+ * @param {NodeJS.ProcessEnv} [targetEnv=process.env] 待校验的环境变量对象
+ * @returns {NodeJS.ProcessEnv} 原样返回，便于链式复用
+ */
 function ensureDatabaseUrl(targetEnv = process.env) {
   const current = targetEnv.DATABASE_URL?.trim()
   if (!current) {
@@ -86,16 +177,27 @@ function ensureDatabaseUrl(targetEnv = process.env) {
   return targetEnv
 }
 
+/**
+ * 为当前启动流程准备数据库环境变量。
+ * 这是 root dev / backend dev / Prisma 预检查共用的前置步骤。
+ *
+ * @param {NodeJS.ProcessEnv} [targetEnv=process.env] 待准备的环境变量对象
+ * @returns {NodeJS.ProcessEnv} 准备完成后的环境变量对象
+ */
 function prepareDatabaseEnv(targetEnv = process.env) {
   loadDatabaseEnv(targetEnv)
   ensureDatabaseUrl(targetEnv)
   return targetEnv
 }
 
-let cachedPnpmCommand = null
-
-// PATH 在不同终端里可能带引号、空白项，或者同时出现 Path / PATH 两种写法。
-// 这里先做一次标准化，后面的可执行文件解析才能不受环境差异影响。
+/**
+ * 标准化 PATH 字符串。
+ * Windows 上可能出现 Path / PATH 混用、带引号、带空白项等情况，
+ * 这里统一洗成“可遍历目录数组”。
+ *
+ * @param {string} [envPath=process.env.Path || process.env.PATH || ""] 原始 PATH 文本
+ * @returns {string[]} 清洗后的 PATH 目录列表
+ */
 function getPathEntries(envPath = process.env.Path || process.env.PATH || "") {
   return envPath
     .split(path.delimiter)
@@ -104,6 +206,12 @@ function getPathEntries(envPath = process.env.Path || process.env.PATH || "") {
     .map(entry => unquote(entry))
 }
 
+/**
+ * 判断某个路径是否是实际存在的文件。
+ *
+ * @param {string} filePath 待检查的文件路径
+ * @returns {boolean} 是否存在且为文件
+ */
 function isExistingFile(filePath) {
   try {
     return fs.statSync(filePath).isFile()
@@ -112,8 +220,13 @@ function isExistingFile(filePath) {
   }
 }
 
-// Windows 下优先从 PATH 中找到真实可执行文件，
-// 避免一上来就去调 pnpm.cmd，踩到当前环境的 Node spawn 兼容问题。
+/**
+ * 在 PATH 中按目录顺序查找指定可执行文件。
+ * Windows 上优先找 `pnpm.exe`，避免优先走到 `pnpm.cmd`。
+ *
+ * @param {string} fileName 可执行文件名，例如 `pnpm.exe`
+ * @returns {string | null} 命中的绝对路径；没找到返回 null
+ */
 function findExecutableInPath(fileName) {
   for (const directory of getPathEntries()) {
     const candidate = path.join(directory, fileName)
@@ -125,8 +238,13 @@ function findExecutableInPath(fileName) {
   return null
 }
 
-// 某些版本管理器会通过 shim 暴露命令，PATH 未必能直接枚举到真实文件。
-// 这里用 Windows 自带的 where.exe 做兜底解析。
+/**
+ * 使用 Windows 自带的 `where.exe` 解析可执行文件路径。
+ * 这是 PATH 枚举失败后的兜底手段，适合处理 shim / 版本管理器场景。
+ *
+ * @param {string} fileName 待解析的命令名，例如 `pnpm`
+ * @returns {string | null} 命中的绝对路径；没找到返回 null
+ */
 function findExecutableWithWhere(fileName) {
   try {
     const result = spawnSync("where.exe", [fileName], {
@@ -155,9 +273,17 @@ function findExecutableWithWhere(fileName) {
   return null
 }
 
-// Windows 优先选择 pnpm.exe，再回退 pnpm.cmd。
-// 这样既能兼容 nvmd / nvm-windows / Corepack / 手动安装，
-// 也能规避当前环境里 pnpm.cmd 被 Node 直接拒绝的问题。
+/**
+ * 解析 Windows 下应该使用哪个 pnpm 可执行文件。
+ * 优先顺序：
+ * 1. PATH 里的 `pnpm.exe`
+ * 2. `where.exe` 找到的 `pnpm.exe`
+ * 3. PATH 里的 `pnpm.cmd`
+ * 4. `where.exe` 找到的 `pnpm.cmd`
+ * 5. `where.exe` 直接解析 `pnpm`
+ *
+ * @returns {string} 可用于 spawn 的命令路径
+ */
 function resolveWindowsPnpmCommand() {
   const candidateResolvers = [
     () => findExecutableInPath("pnpm.exe"),
@@ -179,8 +305,13 @@ function resolveWindowsPnpmCommand() {
   )
 }
 
-// macOS / Linux 继续保持最简单的 pnpm 调用方式。
-// 这些平台的 PATH 与 shell 解析更稳定，不需要额外绕路。
+/**
+ * 获取当前平台应使用的 pnpm 启动命令。
+ * macOS / Linux 直接返回 `pnpm`；
+ * Windows 则返回解析后的绝对路径，避免继续踩 `.cmd` 兼容坑。
+ *
+ * @returns {string} 可用于 child_process.spawn 的命令
+ */
 function getPnpmCommand() {
   if (process.platform !== "win32") {
     return "pnpm"
@@ -194,8 +325,13 @@ function getPnpmCommand() {
   return cachedPnpmCommand
 }
 
-// 当前仓库只在 Windows 上遇到过 spawn 同步抛 EINVAL。
-// 一旦命中，就降级为 shell 模式再试一次，让 cmd 负责拉起子进程。
+/**
+ * 判断当前错误是否需要退回 Windows shell 模式。
+ * 当前已知只有 win32 下的同步 `spawn EINVAL` 需要这样处理。
+ *
+ * @param {unknown} error spawn 抛出的错误对象
+ * @returns {boolean} 是否应该启用 shell 回退
+ */
 function shouldFallbackToWindowsShell(error) {
   return (
     process.platform === "win32" &&
@@ -205,8 +341,15 @@ function shouldFallbackToWindowsShell(error) {
   )
 }
 
-// 所有子进程都统一走这一层，避免平台兼容逻辑散落在多个脚本里。
-// 先尝试最直接的 spawn；如果 Windows 同步抛 EINVAL，再回退到 shell 模式。
+/**
+ * 统一的子进程启动入口。
+ * 这样所有脚本都共享同一套跨平台兼容逻辑，不会各自实现一遍。
+ *
+ * @param {string} command 要执行的命令
+ * @param {string[]} args 命令参数数组
+ * @param {import("node:child_process").SpawnOptions} [options={}] spawn 选项
+ * @returns {import("node:child_process").ChildProcess} 已启动的子进程对象
+ */
 function spawnProcess(command, args, options = {}) {
   const baseOptions = {
     stdio: "inherit",
@@ -227,6 +370,15 @@ function spawnProcess(command, args, options = {}) {
   }
 }
 
+/**
+ * 以 Promise 形式执行一个命令。
+ * 供“预检查 / 预构建 / 预同步”这类需要顺序等待完成的脚本复用。
+ *
+ * @param {string} command 要执行的命令
+ * @param {string[]} args 命令参数数组
+ * @param {import("node:child_process").SpawnOptions} [options={}] spawn 选项
+ * @returns {Promise<void>} 命令成功结束则 resolve，失败则 reject
+ */
 function runCommand(command, args, options = {}) {
   return new Promise((resolve, reject) => {
     const child = spawnProcess(command, args, options)
@@ -247,6 +399,13 @@ function runCommand(command, args, options = {}) {
   })
 }
 
+/**
+ * 判断数据库地址是否指向本机。
+ * 仅本地数据库才允许某些更激进的 dev fallback，例如 db push baseline。
+ *
+ * @param {string} databaseUrl 数据库连接串
+ * @returns {boolean} 是否为 localhost / 127.0.0.1 / ::1
+ */
 function isLocalDatabaseUrl(databaseUrl) {
   try {
     const parsed = new URL(databaseUrl)
@@ -261,6 +420,13 @@ function isLocalDatabaseUrl(databaseUrl) {
   }
 }
 
+/**
+ * 从 DATABASE_URL 中解析 schema 名。
+ * 如果 URL 里没有显式 schema，默认按 PostgreSQL 的 public 处理。
+ *
+ * @param {string} databaseUrl 数据库连接串
+ * @returns {string} schema 名称
+ */
 function getSchemaFromDatabaseUrl(databaseUrl) {
   try {
     const parsed = new URL(databaseUrl)
@@ -270,6 +436,12 @@ function getSchemaFromDatabaseUrl(databaseUrl) {
   }
 }
 
+/**
+ * 读取 Prisma migration 目录下的所有 migration 名称。
+ * 返回结果会按名称排序，保证 resolve 顺序稳定。
+ *
+ * @returns {string[]} migration 目录名称列表
+ */
 function listMigrationNames() {
   if (!fs.existsSync(migrationsRoot)) return []
 
@@ -280,6 +452,13 @@ function listMigrationNames() {
     .sort((left, right) => left.localeCompare(right))
 }
 
+/**
+ * 递归获取某个文件或目录下最新的修改时间。
+ * 用于做“源码是否比产物更新”的轻量判断。
+ *
+ * @param {string} targetPath 目标文件或目录路径
+ * @returns {number} 最新修改时间戳（毫秒）
+ */
 function getNewestMtimeMs(targetPath) {
   if (!fs.existsSync(targetPath)) {
     return 0
@@ -303,6 +482,12 @@ function getNewestMtimeMs(targetPath) {
   return newest
 }
 
+/**
+ * 判断目录中是否至少存在一个文件/子目录。
+ *
+ * @param {string} targetPath 待检查目录路径
+ * @returns {boolean} 是否存在可见内容
+ */
 function hasFiles(targetPath) {
   try {
     return fs.readdirSync(targetPath).length > 0
@@ -311,9 +496,13 @@ function hasFiles(targetPath) {
   }
 }
 
-// shared-types 是前后端共同依赖的类型包。
-// 这里只做一个轻量 freshness 判断：dist 中最新产物时间只要晚于
-// src 和 tsconfig 的最新修改时间，就认为可以直接复用。
+/**
+ * 判断 shared-types 的 dist 是否仍可复用。
+ * 这里只做轻量时间戳判断：如果 dist 的最新时间晚于 src 和 tsconfig，
+ * 就认为当前产物仍然足够新，不需要在启动时重复 build。
+ *
+ * @returns {boolean} 是否可以跳过 shared-types 重建
+ */
 function isSharedTypesBuildCurrent() {
   if (!hasFiles(sharedTypesDistRoot)) {
     return false
@@ -327,8 +516,12 @@ function isSharedTypesBuildCurrent() {
   return getNewestMtimeMs(sharedTypesDistRoot) >= newestSourceTime
 }
 
-// 启动前自动构建 shared-types，避免 backend / frontend 直接消费过期 dist，
-// 导致“源码有新类型，但编译产物还是旧的”这类难排查问题。
+/**
+ * 启动前自动确保 shared-types 已经构建。
+ * 这样 backend / frontend 都不会再因为消费到过期 dist 而报类型缺失。
+ *
+ * @returns {Promise<void>} 构建完成或确认无需构建后结束
+ */
 async function ensureSharedTypesBuilt() {
   if (isSharedTypesBuildCurrent()) {
     console.log("[types-sync] @erp/shared-types is up to date, skipping build")

@@ -15,7 +15,6 @@
  * 这里仍然使用 `node <nest-bin> start --watch`，而不是 `pnpm exec nest`，
  * 目的是把 backend 启动链从包管理器 shim 中隔离出来，减少平台差异。
  */
-
 const fs = require("node:fs")
 const { spawn } = require("node:child_process")
 
@@ -33,6 +32,7 @@ async function run() {
   prepareDatabaseEnv()
   await ensureSharedTypesBuilt()
 
+  /** @type {string[]} 当前脚本接收到的启动参数 */
   const args = process.argv.slice(2)
   if (args.includes("--dry-run")) {
     const hasEnvFile = fs.existsSync(databaseEnvPath)
