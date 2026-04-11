@@ -76,6 +76,41 @@ export class OrdersService {
     return fallback > 0 ? fallback : snapshot;
   }
 
+  private async buildCustomerFilters(
+    customerId?: number,
+    customerName?: string,
+  ): Promise<Prisma.OrderWhereInput[]> {
+    const filters: Prisma.OrderWhereInput[] = [];
+
+    if (customerId) {
+      const customer = await this.prisma.client.customer.findUnique({
+        where: { id: Number(customerId) },
+        select: { id: true, name: true },
+      });
+
+      if (customer) {
+        filters.push({
+          OR: [
+            { customerId: customer.id },
+            { customerId: null, customerName: customer.name },
+          ],
+        });
+      } else {
+        filters.push({
+          customerId: Number(customerId),
+        });
+      }
+    }
+
+    if (customerName) {
+      filters.push({
+        customerName: { contains: customerName, mode: 'insensitive' },
+      });
+    }
+
+    return filters;
+  }
+
   private sanitizeListItemForUser(order: {
     totalAmount?: number;
     items: {
@@ -124,7 +159,7 @@ export class OrdersService {
    * @Qingsds
    */
   async createOrder(payload: CreateOrderRequest) {
-    const { customerName, items } = payload;
+    const { customerId, items } = payload;
 
     if (!items || items.length === 0) {
       // 遇到不合法的业务请求，直接抛出异常，NestJS 会自动将其转化为 HTTP 400 响应
@@ -135,10 +170,22 @@ export class OrdersService {
     // 保证订单主表和所有明细表要么同时创建成功，要么同时回滚失败，防止出现脏数据
     const newOrder = await this.prisma.client.$transaction(
       async (tx: Prisma.TransactionClient) => {
+        const customer = await tx.customer.findUnique({
+          where: { id: customerId },
+          select: { id: true, name: true, isActive: true },
+        });
+        if (!customer) {
+          throw new BadRequestException(`客户 ID${customerId} 不存在`);
+        }
+        if (!customer.isActive) {
+          throw new BadRequestException('客户已停用，无法用于新建订单');
+        }
+
         // 1.创建订单主表记录
         const order = await tx.order.create({
           data: {
-            customerName,
+            customerId: customer.id,
+            customerName: customer.name,
             status: 'PENDING', // 默认订单状态为待处理
           },
         });
@@ -213,19 +260,24 @@ export class OrdersService {
     page: number = 1,
     pageSize: number = 10,
     status?: OrderStatus,
+    customerId?: number,
     customerName?: string,
     role: UserRoleType = 'ADMIN',
   ) {
     const skip = (page - 1) * pageSize;
 
     // 构建动态查询条件
-    const where: Prisma.OrderWhereInput = {};
+    const filters = await this.buildCustomerFilters(customerId, customerName);
     if (status) {
-      where.status = status;
+      filters.unshift({ status });
     }
-    if (customerName) {
-      where.customerName = { contains: customerName, mode: 'insensitive' };
-    }
+
+    const where: Prisma.OrderWhereInput =
+      filters.length === 0
+        ? {}
+        : filters.length === 1
+          ? filters[0]
+          : { AND: filters };
 
     const [total, rawData] = await Promise.all([
       this.prisma.client.order.count({ where }),

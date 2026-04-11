@@ -13,6 +13,7 @@ import {
   IsObject,
   IsIn,
   MinLength,
+  MaxLength,
 } from "class-validator"
 import { Type } from "class-transformer"
 
@@ -127,6 +128,87 @@ export class UpdatePartRequest {
 }
 
 // ==========================================
+// 1.5 客户管理模块 (Customers)
+// ==========================================
+export class CreateCustomerRequest {
+  @IsString({ message: "客户名称必须是字符串" })
+  @IsNotEmpty({ message: "客户名称不能为空" })
+  @MaxLength(100, { message: "客户名称长度不能超过 100 个字符" })
+  name!: string
+
+  @IsString({ message: "地址必须是字符串" })
+  @IsOptional()
+  @MaxLength(255, { message: "地址长度不能超过 255 个字符" })
+  address?: string | null
+
+  @IsString({ message: "联系人必须是字符串" })
+  @IsOptional()
+  @MaxLength(50, { message: "联系人长度不能超过 50 个字符" })
+  contactName?: string | null
+
+  @IsString({ message: "联系电话必须是字符串" })
+  @IsOptional()
+  @MaxLength(50, { message: "联系电话长度不能超过 50 个字符" })
+  contactPhone?: string | null
+
+  @IsString({ message: "开票信息必须是字符串" })
+  @IsOptional()
+  @MaxLength(500, { message: "开票信息长度不能超过 500 个字符" })
+  invoiceInfo?: string | null
+}
+
+export class UpdateCustomerRequest {
+  @IsString({ message: "客户名称必须是字符串" })
+  @IsOptional()
+  @MaxLength(100, { message: "客户名称长度不能超过 100 个字符" })
+  name?: string
+
+  @IsString({ message: "地址必须是字符串" })
+  @IsOptional()
+  @MaxLength(255, { message: "地址长度不能超过 255 个字符" })
+  address?: string | null
+
+  @IsString({ message: "联系人必须是字符串" })
+  @IsOptional()
+  @MaxLength(50, { message: "联系人长度不能超过 50 个字符" })
+  contactName?: string | null
+
+  @IsString({ message: "联系电话必须是字符串" })
+  @IsOptional()
+  @MaxLength(50, { message: "联系电话长度不能超过 50 个字符" })
+  contactPhone?: string | null
+
+  @IsString({ message: "开票信息必须是字符串" })
+  @IsOptional()
+  @MaxLength(500, { message: "开票信息长度不能超过 500 个字符" })
+  invoiceInfo?: string | null
+}
+
+export class UpdateCustomerStatusRequest {
+  @IsBoolean({ message: "启用状态必须是布尔值" })
+  isActive!: boolean
+}
+
+export interface CustomerListItem {
+  id: number
+  name: string
+  address?: string | null
+  contactName?: string | null
+  contactPhone?: string | null
+  invoiceInfo?: string | null
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface PaginatedCustomers {
+  total: number
+  data: CustomerListItem[]
+  page: number
+  pageSize: number
+}
+
+// ==========================================
 // 2. 订单管理模块 (Orders)
 // ==========================================
 export class OrderItemRequest {
@@ -140,9 +222,9 @@ export class OrderItemRequest {
 }
 
 export class CreateOrderRequest {
-  @IsString({ message: "客户名称必须是字符串" })
-  @IsNotEmpty({ message: "客户名称不能为空" })
-  customerName!: string
+  @IsInt({ message: "客户ID必须是整数" })
+  @Min(1, { message: "客户ID不能小于1" })
+  customerId!: number
 
   @IsArray({ message: "订单明细必须是数组" })
   @ValidateNested({ each: true })
@@ -201,9 +283,9 @@ export class ExtraBillingItemRequest {
 }
 
 export class CreateBillingRequest {
-  @IsString()
-  @IsNotEmpty()
-  customerName!: string
+  @IsInt({ message: "客户ID必须是整数" })
+  @Min(1, { message: "客户ID不能小于1" })
+  customerId!: number
 
   @IsArray()
   @IsInt({ each: true })

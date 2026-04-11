@@ -53,6 +53,7 @@ export class OrdersController {
     @Query('page') page: number = 1,
     @Query('pageSize') pageSize: number = 10,
     @Query('status') status?: OrderStatus,
+    @Query('customerId') customerId?: number,
     @Query('customerName') customerName?: string,
     @Req() request?: AuthenticatedRequest,
   ): Promise<ApiResponse> {
@@ -60,6 +61,7 @@ export class OrdersController {
       page,
       pageSize,
       status,
+      customerId,
       customerName,
       request?.user.role,
     );

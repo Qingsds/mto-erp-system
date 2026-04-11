@@ -16,6 +16,7 @@ import { Route as OrdersRouteImport } from './routes/orders'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DocumentsRouteImport } from './routes/documents'
 import { Route as DeliveriesRouteImport } from './routes/deliveries'
+import { Route as CustomersRouteImport } from './routes/customers'
 import { Route as BillingRouteImport } from './routes/billing'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PartsIdRouteImport } from './routes/parts.$id'
@@ -23,6 +24,7 @@ import { Route as OrdersNewRouteImport } from './routes/orders.new'
 import { Route as OrdersIdRouteImport } from './routes/orders.$id'
 import { Route as DocumentsSealRouteImport } from './routes/documents.seal'
 import { Route as DeliveriesIdRouteImport } from './routes/deliveries.$id'
+import { Route as CustomersIdRouteImport } from './routes/customers.$id'
 import { Route as BillingNewRouteImport } from './routes/billing.new'
 import { Route as BillingIdRouteImport } from './routes/billing.$id'
 import { Route as BillingIdIndexRouteImport } from './routes/billing.$id.index'
@@ -64,6 +66,11 @@ const DeliveriesRoute = DeliveriesRouteImport.update({
   path: '/deliveries',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CustomersRoute = CustomersRouteImport.update({
+  id: '/customers',
+  path: '/customers',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const BillingRoute = BillingRouteImport.update({
   id: '/billing',
   path: '/billing',
@@ -99,6 +106,11 @@ const DeliveriesIdRoute = DeliveriesIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => DeliveriesRoute,
 } as any)
+const CustomersIdRoute = CustomersIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => CustomersRoute,
+} as any)
 const BillingNewRoute = BillingNewRouteImport.update({
   id: '/new',
   path: '/new',
@@ -128,6 +140,7 @@ const BillingIdSealRoute = BillingIdSealRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/billing': typeof BillingRouteWithChildren
+  '/customers': typeof CustomersRouteWithChildren
   '/deliveries': typeof DeliveriesRouteWithChildren
   '/documents': typeof DocumentsRouteWithChildren
   '/login': typeof LoginRoute
@@ -137,6 +150,7 @@ export interface FileRoutesByFullPath {
   '/users': typeof UsersRoute
   '/billing/$id': typeof BillingIdRouteWithChildren
   '/billing/new': typeof BillingNewRoute
+  '/customers/$id': typeof CustomersIdRoute
   '/deliveries/$id': typeof DeliveriesIdRoute
   '/documents/seal': typeof DocumentsSealRoute
   '/orders/$id': typeof OrdersIdRoute
@@ -149,6 +163,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/billing': typeof BillingRouteWithChildren
+  '/customers': typeof CustomersRouteWithChildren
   '/deliveries': typeof DeliveriesRouteWithChildren
   '/documents': typeof DocumentsRouteWithChildren
   '/login': typeof LoginRoute
@@ -157,6 +172,7 @@ export interface FileRoutesByTo {
   '/seals': typeof SealsRouteWithChildren
   '/users': typeof UsersRoute
   '/billing/new': typeof BillingNewRoute
+  '/customers/$id': typeof CustomersIdRoute
   '/deliveries/$id': typeof DeliveriesIdRoute
   '/documents/seal': typeof DocumentsSealRoute
   '/orders/$id': typeof OrdersIdRoute
@@ -170,6 +186,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/billing': typeof BillingRouteWithChildren
+  '/customers': typeof CustomersRouteWithChildren
   '/deliveries': typeof DeliveriesRouteWithChildren
   '/documents': typeof DocumentsRouteWithChildren
   '/login': typeof LoginRoute
@@ -179,6 +196,7 @@ export interface FileRoutesById {
   '/users': typeof UsersRoute
   '/billing/$id': typeof BillingIdRouteWithChildren
   '/billing/new': typeof BillingNewRoute
+  '/customers/$id': typeof CustomersIdRoute
   '/deliveries/$id': typeof DeliveriesIdRoute
   '/documents/seal': typeof DocumentsSealRoute
   '/orders/$id': typeof OrdersIdRoute
@@ -193,6 +211,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/billing'
+    | '/customers'
     | '/deliveries'
     | '/documents'
     | '/login'
@@ -202,6 +221,7 @@ export interface FileRouteTypes {
     | '/users'
     | '/billing/$id'
     | '/billing/new'
+    | '/customers/$id'
     | '/deliveries/$id'
     | '/documents/seal'
     | '/orders/$id'
@@ -214,6 +234,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/billing'
+    | '/customers'
     | '/deliveries'
     | '/documents'
     | '/login'
@@ -222,6 +243,7 @@ export interface FileRouteTypes {
     | '/seals'
     | '/users'
     | '/billing/new'
+    | '/customers/$id'
     | '/deliveries/$id'
     | '/documents/seal'
     | '/orders/$id'
@@ -234,6 +256,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/billing'
+    | '/customers'
     | '/deliveries'
     | '/documents'
     | '/login'
@@ -243,6 +266,7 @@ export interface FileRouteTypes {
     | '/users'
     | '/billing/$id'
     | '/billing/new'
+    | '/customers/$id'
     | '/deliveries/$id'
     | '/documents/seal'
     | '/orders/$id'
@@ -256,6 +280,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   BillingRoute: typeof BillingRouteWithChildren
+  CustomersRoute: typeof CustomersRouteWithChildren
   DeliveriesRoute: typeof DeliveriesRouteWithChildren
   DocumentsRoute: typeof DocumentsRouteWithChildren
   LoginRoute: typeof LoginRoute
@@ -316,6 +341,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DeliveriesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/customers': {
+      id: '/customers'
+      path: '/customers'
+      fullPath: '/customers'
+      preLoaderRoute: typeof CustomersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/billing': {
       id: '/billing'
       path: '/billing'
@@ -364,6 +396,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/deliveries/$id'
       preLoaderRoute: typeof DeliveriesIdRouteImport
       parentRoute: typeof DeliveriesRoute
+    }
+    '/customers/$id': {
+      id: '/customers/$id'
+      path: '/$id'
+      fullPath: '/customers/$id'
+      preLoaderRoute: typeof CustomersIdRouteImport
+      parentRoute: typeof CustomersRoute
     }
     '/billing/new': {
       id: '/billing/new'
@@ -430,6 +469,18 @@ const BillingRouteChildren: BillingRouteChildren = {
 const BillingRouteWithChildren =
   BillingRoute._addFileChildren(BillingRouteChildren)
 
+interface CustomersRouteChildren {
+  CustomersIdRoute: typeof CustomersIdRoute
+}
+
+const CustomersRouteChildren: CustomersRouteChildren = {
+  CustomersIdRoute: CustomersIdRoute,
+}
+
+const CustomersRouteWithChildren = CustomersRoute._addFileChildren(
+  CustomersRouteChildren,
+)
+
 interface DeliveriesRouteChildren {
   DeliveriesIdRoute: typeof DeliveriesIdRoute
 }
@@ -490,6 +541,7 @@ const SealsRouteWithChildren = SealsRoute._addFileChildren(SealsRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BillingRoute: BillingRouteWithChildren,
+  CustomersRoute: CustomersRouteWithChildren,
   DeliveriesRoute: DeliveriesRouteWithChildren,
   DocumentsRoute: DocumentsRouteWithChildren,
   LoginRoute: LoginRoute,

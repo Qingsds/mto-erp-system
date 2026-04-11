@@ -72,7 +72,8 @@ export const OrderItemFormSchema = z.object({
 })
 
 export const OrderFormSchema = z.object({
-  customerName: z.string().min(1, "客户名称不能为空").max(100),
+  customerId:   z.number({ error: "请选择客户" }).min(1, "请选择客户"),
+  customerName: z.string().max(100).optional(),
   remark:       z.string().max(500).optional(),
   items:        z.array(OrderItemFormSchema).min(1, "至少添加一个零件"),
 })

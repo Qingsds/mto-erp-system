@@ -11,12 +11,14 @@ import { SealsModule } from './seals/seals.module';
 import { DocumentsModule } from './documents/documents.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { CustomersModule } from './customers/customers.module';
 
 @Module({
   imports: [
     PrismaModule,
     AuthModule,
     UsersModule,
+    CustomersModule,
     OrdersModule,
     PartsModule,
     DeliveriesModule,

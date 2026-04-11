@@ -120,6 +120,7 @@ export interface OrdersParams {
   page?:         number
   pageSize?:     number
   status?:       OrderStatusType
+  customerId?:   number
   customerName?: string
 }
 
@@ -149,12 +150,12 @@ export function useGetOrder(id?: number) {
   })
 }
 
-/** 创建订单（对齐 CreateOrderRequest：customerName + items[{partId, orderedQty}]） */
+/** 创建订单（对齐 CreateOrderRequest：customerId + items[{partId, orderedQty}]） */
 export function useCreateOrder() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (payload: {
-      customerName: string
+      customerId: number
       items: { partId: number; orderedQty: number }[]
     }) =>
       request.post<unknown, ApiResponse<OrderListItem>>("/api/orders", payload),

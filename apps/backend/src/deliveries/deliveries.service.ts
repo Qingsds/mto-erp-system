@@ -109,6 +109,45 @@ export class DeliveriesService {
     return fallback > 0 ? fallback : snapshot;
   }
 
+  private async buildOrderFilter(
+    customerId?: number,
+    customerName?: string,
+  ): Promise<Prisma.OrderWhereInput | undefined> {
+    const filters: Prisma.OrderWhereInput[] = [];
+
+    if (customerId) {
+      const customer = await this.prisma.client.customer.findUnique({
+        where: { id: Number(customerId) },
+        select: { id: true, name: true },
+      });
+
+      if (customer) {
+        filters.push({
+          OR: [
+            { customerId: customer.id },
+            { customerId: null, customerName: customer.name },
+          ],
+        });
+      } else {
+        filters.push({
+          customerId: Number(customerId),
+        });
+      }
+    }
+
+    if (customerName) {
+      filters.push({
+        customerName: { contains: customerName, mode: 'insensitive' },
+      });
+    }
+
+    if (filters.length === 0) {
+      return undefined;
+    }
+
+    return filters.length === 1 ? filters[0] : { AND: filters };
+  }
+
   async createDelivery(payload: CreateDeliveryRequest) {
     if (!payload.items || payload.items.length === 0) {
       throw new BadRequestException('发货明细不能为空');
@@ -207,6 +246,7 @@ export class DeliveriesService {
     page: number = 1,
     pageSize: number = 10,
     orderId?: number,
+    customerId?: number,
     customerName?: string,
     deliveryDateStart?: string,
     deliveryDateEnd?: string,
@@ -222,10 +262,9 @@ export class DeliveriesService {
       where.orderId = Number(orderId);
     }
 
-    if (customerName) {
-      where.order = {
-        customerName: { contains: customerName, mode: 'insensitive' },
-      };
+    const orderFilter = await this.buildOrderFilter(customerId, customerName);
+    if (orderFilter) {
+      where.order = orderFilter;
     }
 
     if (deliveryDateStart || deliveryDateEnd) {

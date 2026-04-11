@@ -24,6 +24,7 @@ export function OrderNewPage() {
   const form = useForm<OrderFormInput, unknown, OrderFormValues>({
     resolver: zodResolverCompat<OrderFormInput, OrderFormValues>(OrderFormSchema),
     defaultValues: {
+      customerId: 0,
       customerName: "",
       remark: "",
       items: [{ partId: 0, orderedQty: 1, _displayPrice: 0 }],
@@ -32,7 +33,7 @@ export function OrderNewPage() {
 
   const handleSubmit = async (values: OrderFormValues) => {
     await createOrder.mutateAsync({
-      customerName: values.customerName,
+      customerId: values.customerId,
       items: values.items.map(({ partId, orderedQty }) => ({ partId, orderedQty })),
     })
     navigate({ to: "/orders" })

@@ -28,7 +28,7 @@ export function calculateEstimatedTotal(
  */
 export function validateCanSubmit(
   selectedItemIds: Set<number>,
-  searchedCustomer: string
+  customerId: number
 ): boolean {
-  return selectedItemIds.size > 0 && searchedCustomer.length > 0
+  return selectedItemIds.size > 0 && customerId > 0
 }

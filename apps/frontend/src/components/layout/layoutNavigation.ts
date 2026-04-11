@@ -107,6 +107,18 @@ export const LAYOUT_NAV_SECTIONS: LayoutNavSection[] = [
         searchable: true,
       },
       {
+        to: "/customers",
+        label: "客户管理",
+        shortLabel: "客户",
+        description: "管理客户资料，并查看客户关联订单与零件。",
+        icon: "ri-building-line",
+        iconActive: "ri-building-fill",
+        aliases: ["客户", "customer", "客户库"],
+        adminOnly: true,
+        showInSidebar: true,
+        searchable: true,
+      },
+      {
         to: "/billing",
         label: "财务对账",
         shortLabel: "对账",
@@ -320,6 +332,25 @@ export function getLayoutLocation(pathname: string): LayoutLocation {
       breadcrumbs: [
         { label: "发货管理", to: "/deliveries" },
         { label: "发货详情" },
+      ],
+    }
+  }
+
+  if (pathname === "/customers") {
+    return {
+      pageLabel: "客户管理",
+      mobileLabel: "客户管理",
+      breadcrumbs: [{ label: "客户管理", to: "/customers" }],
+    }
+  }
+
+  if (pathname.startsWith("/customers/")) {
+    return {
+      pageLabel: "客户详情",
+      mobileLabel: "客户详情",
+      breadcrumbs: [
+        { label: "客户管理", to: "/customers" },
+        { label: "客户详情" },
       ],
     }
   }

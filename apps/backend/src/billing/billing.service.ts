@@ -3,19 +3,21 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '@erp/database';
 import {
   CreateBillingRequest,
   UpdateBillingStatusRequest,
 } from '@erp/shared-types';
-import { Prisma } from '@erp/database';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class BillingService {
   constructor(private readonly prisma: PrismaService) {}
 
   private toFiniteNumber(value: unknown): number | undefined {
-    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
     if (typeof value === 'string') {
       const parsed = Number(value);
       return Number.isFinite(parsed) ? parsed : undefined;
@@ -31,33 +33,51 @@ export class BillingService {
     ) {
       return 0;
     }
+
     const priceMap = commonPrices as Record<string, unknown>;
     const standardPrice = this.toFiniteNumber(priceMap['标准价']);
-    if (standardPrice !== undefined) return standardPrice;
+    if (standardPrice !== undefined) {
+      return standardPrice;
+    }
+
     for (const value of Object.values(priceMap)) {
       const parsed = this.toFiniteNumber(value);
-      if (parsed !== undefined) return parsed;
+      if (parsed !== undefined) {
+        return parsed;
+      }
     }
+
     return 0;
   }
 
-  /** 优先使用订单快照单价，快照为 0 时回退零件当前价格字典（与 deliveries.service 保持一致）。 */
   private resolveUnitPrice(
     snapshotUnitPrice: Prisma.Decimal | number | string,
     fallbackCommonPrices?: unknown,
   ): number {
     const snapshot = this.toFiniteNumber(snapshotUnitPrice) ?? 0;
-    if (snapshot > 0) return snapshot;
+    if (snapshot > 0) {
+      return snapshot;
+    }
+
     const fallback = this.resolvePriceFromCommonPrices(fallbackCommonPrices);
     return fallback > 0 ? fallback : snapshot;
   }
 
   async createBilling(payload: CreateBillingRequest) {
-    return this.prisma.client.$transaction(async (tx) => {
-      const { deliveryItemIds, extraItems } = payload;
+    return this.prisma.client.$transaction(async tx => {
+      const { customerId, deliveryItemIds, extraItems } = payload;
 
       if (!deliveryItemIds || deliveryItemIds.length === 0) {
         throw new BadRequestException('请选择至少一条发货明细进行结算');
+      }
+
+      const customer = await tx.customer.findUnique({
+        where: { id: customerId },
+        select: { id: true, name: true },
+      });
+
+      if (!customer) {
+        throw new BadRequestException(`客户 ID: ${customerId} 不存在`);
       }
 
       const uniqueDeliveryItemIds = [...new Set(deliveryItemIds)];
@@ -65,18 +85,27 @@ export class BillingService {
         throw new BadRequestException('发货明细 ID 不允许重复');
       }
 
-      // 步骤 A: 抓取发货明细，并向上溯源拉取单价快照，向下检查是否已计费
-      const deliverItems = await tx.deliveryItem.findMany({
+      const deliveryItems = await tx.deliveryItem.findMany({
         where: { id: { in: uniqueDeliveryItemIds } },
         include: {
-          orderItem: { include: { part: true } },
+          orderItem: {
+            include: {
+              part: true,
+              order: {
+                select: {
+                  customerId: true,
+                  customerName: true,
+                },
+              },
+            },
+          },
           billingItem: true,
         },
       });
 
-      if (deliverItems.length !== uniqueDeliveryItemIds.length) {
+      if (deliveryItems.length !== uniqueDeliveryItemIds.length) {
         throw new BadRequestException(
-          '部分发货明细在系统中不存在，请核对发货明细 ID 数组',
+          '部分发货明细在系统中不存在，请核对发货明细 ID',
         );
       }
 
@@ -84,14 +113,24 @@ export class BillingService {
       const billingItemCreates: Prisma.BillingItemCreateWithoutBillingInput[] =
         [];
 
-      for (const item of deliverItems) {
+      for (const item of deliveryItems) {
         if (item.billingItem) {
           throw new BadRequestException(
-            `发货明细 ID: ${item.id} 已经被其他对账单锁定计费，严禁重复结算！`,
+            `发货明细 ID: ${item.id} 已被其他对账单计费，禁止重复结算`,
           );
         }
 
-        // 计算公式：单次发货量 * 单价（优先快照，快照为 0 时回退零件当前价格字典）
+        const belongsToCustomer =
+          item.orderItem.order.customerId === customer.id ||
+          (item.orderItem.order.customerId == null &&
+            item.orderItem.order.customerName === customer.name);
+
+        if (!belongsToCustomer) {
+          throw new BadRequestException(
+            `发货明细 ID: ${item.id} 不属于客户 ${customer.name}`,
+          );
+        }
+
         const unitPrice = this.resolveUnitPrice(
           item.orderItem.unitPrice,
           item.orderItem.part?.commonPrices,
@@ -101,40 +140,43 @@ export class BillingService {
 
         billingItemCreates.push({
           deliveryItem: { connect: { id: item.id } },
-          description: `物料结算: 发货量 ${item.shippedQty} 件, 单价快照 ${unitPrice}`,
+          description: `物料结算：发货 ${item.shippedQty} 件，单价 ${unitPrice}`,
           amount: itemAmount,
         });
       }
 
-      // 可选：附加费用（运费/打包费等）
-      if (extraItems && extraItems.length > 0) {
+      if (extraItems?.length) {
         for (const extra of extraItems) {
+          const desc = extra.desc.trim();
+          if (!desc) {
+            throw new BadRequestException('附加费用说明不能为空');
+          }
+          if (extra.amount <= 0) {
+            throw new BadRequestException('附加费用金额必须大于 0');
+          }
+
           totalAmount += extra.amount;
           billingItemCreates.push({
-            description: `附加费用: ${extra.desc}`,
+            description: `附加费用：${desc}`,
             amount: extra.amount,
           });
         }
       }
 
-      // 步骤 D: 级联创建主账单及所有计费条目
-      const billingStatement = await tx.billingStatement.create({
+      return tx.billingStatement.create({
         data: {
-          customerName: payload.customerName,
-          totalAmount: totalAmount,
-          status: 'DRAFT', // 初始状态为草稿
+          customerName: customer.name,
+          totalAmount,
+          status: 'DRAFT',
           items: {
             create: billingItemCreates,
           },
         },
         include: { items: true },
       });
-
-      return billingStatement;
     });
   }
 
-  // 2. 分页查询对账单列表
   async findAll(page: number = 1, pageSize: number = 10, status?: string) {
     const skip = (page - 1) * pageSize;
 
@@ -157,7 +199,6 @@ export class BillingService {
     return { total, data, page: Number(page), pageSize: Number(pageSize) };
   }
 
-  // 3. 查询单张对账单详情（含来源发货项与归档记录）
   async findOne(id: number) {
     const billing = await this.prisma.client.billingStatement.findUnique({
       where: { id },
@@ -210,7 +251,6 @@ export class BillingService {
     return billing;
   }
 
-  // 4. 修改对账单状态 (如：变更为 PAID 已结清)
   async updateStatus(id: number, payload: UpdateBillingStatusRequest) {
     const billing = await this.prisma.client.billingStatement.findUnique({
       where: { id },
@@ -220,7 +260,7 @@ export class BillingService {
       throw new NotFoundException(`对账单 ID: ${id} 不存在`);
     }
 
-    return await this.prisma.client.billingStatement.update({
+    return this.prisma.client.billingStatement.update({
       where: { id },
       data: { status: payload.status },
     });

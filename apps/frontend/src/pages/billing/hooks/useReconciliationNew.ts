@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react"
 import { useQueries } from "@tanstack/react-query"
-import type { CreateBillingRequest, ApiResponse } from "@erp/shared-types"
+import type { ApiResponse, CreateBillingRequest } from "@erp/shared-types"
 import {
   useGetDeliveries,
   DELIVERIES_KEYS,
@@ -8,7 +8,7 @@ import {
 } from "@/hooks/api/useDeliveries"
 import { useCreateBilling } from "@/hooks/api/useBilling"
 import request from "@/lib/utils/request"
-
+import type { CustomerListItem } from "@/hooks/api/useCustomers"
 import { calculateEstimatedTotal, validateCanSubmit } from "../new/logic"
 
 export interface ExtraItem {
@@ -17,18 +17,19 @@ export interface ExtraItem {
 }
 
 export function useReconciliationNew() {
-  const [customerInput, setCustomerInput] = useState("")
-  const [searchedCustomer, setSearchedCustomer] = useState("")
+  const [customer, setCustomer] =
+    useState<Pick<CustomerListItem, "id" | "name"> | null>(null)
   const [selectedDeliveryIds, setSelectedDeliveryIds] = useState<Set<number>>(new Set())
   const [selectedItemIds, setSelectedItemIds] = useState<Set<number>>(new Set())
   const [extraItems, setExtraItems] = useState<ExtraItem[]>([])
 
   const createBilling = useCreateBilling()
 
-  const { data: deliveriesData, isFetching: fetchingDeliveries } = useGetDeliveries(
-    { customerName: searchedCustomer, pageSize: 50 },
-  )
-  const deliveries = searchedCustomer ? (deliveriesData?.data ?? []) : []
+  const { data: deliveriesData, isFetching: fetchingDeliveries } = useGetDeliveries({
+    customerId: customer?.id,
+    pageSize: 50,
+  })
+  const deliveries = customer ? (deliveriesData?.data ?? []) : []
 
   const detailQueries = useQueries({
     queries: [...selectedDeliveryIds].map(id => ({
@@ -59,8 +60,23 @@ export function useReconciliationNew() {
 
   const estimatedTotal = useMemo(
     () => calculateEstimatedTotal(allDetailItems, selectedItemIds, extraItems),
-    [allDetailItems, selectedItemIds, extraItems]
+    [allDetailItems, selectedItemIds, extraItems],
   )
+
+  const resetSelection = () => {
+    setSelectedDeliveryIds(new Set())
+    setSelectedItemIds(new Set())
+  }
+
+  const selectCustomer = (nextCustomer: Pick<CustomerListItem, "id" | "name">) => {
+    setCustomer(nextCustomer)
+    resetSelection()
+  }
+
+  const clearCustomer = () => {
+    setCustomer(null)
+    resetSelection()
+  }
 
   const toggleDelivery = (id: number) => {
     setSelectedDeliveryIds(prev => {
@@ -71,7 +87,7 @@ export function useReconciliationNew() {
         if (detail?.data) {
           setSelectedItemIds(prevItems => {
             const nextItems = new Set(prevItems)
-            for (const item of detail.data!.items) nextItems.delete(item.id)
+            for (const item of detail.data.items) nextItems.delete(item.id)
             return nextItems
           })
         }
@@ -102,24 +118,23 @@ export function useReconciliationNew() {
   }
 
   const validExtraItems = extraItems.filter(e => e.desc.trim() && parseFloat(e.amount) > 0)
-  const canSubmit = validateCanSubmit(selectedItemIds, searchedCustomer)
+  const canSubmit = validateCanSubmit(selectedItemIds, customer?.id ?? 0)
 
   const handleSubmit = async (onSuccess?: (billingId: number) => void) => {
-    if (!canSubmit) return
+    if (!customer || !canSubmit) return
+
     const payload: CreateBillingRequest = {
-      customerName: searchedCustomer,
+      customerId: customer.id,
       deliveryItemIds: [...selectedItemIds],
       extraItems: validExtraItems.map(e => ({ desc: e.desc.trim(), amount: parseFloat(e.amount) })),
     }
+
     const billing = await createBilling.mutateAsync(payload)
     onSuccess?.(billing.id)
   }
 
   return {
-    customerInput,
-    setCustomerInput,
-    searchedCustomer,
-    setSearchedCustomer,
+    customer,
     selectedDeliveryIds,
     selectedItemIds,
     extraItems,
@@ -129,6 +144,8 @@ export function useReconciliationNew() {
     billedItemIds,
     allDetailItems,
     estimatedTotal,
+    selectCustomer,
+    clearCustomer,
     toggleDelivery,
     toggleItem,
     addExtraItem,
