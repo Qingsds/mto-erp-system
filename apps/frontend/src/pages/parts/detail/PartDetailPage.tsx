@@ -80,8 +80,9 @@ export function PartDetailPage() {
       spec: part?.spec ?? "",
       prices:
         prices.length > 0 ? prices : [{ label: "标准价", value: 0 }],
+      customerIds: part?.customers.map(customer => customer.id) ?? [],
     }),
-    [part?.material, part?.name, part?.spec, prices],
+    [part?.customers, part?.material, part?.name, part?.spec, prices],
   )
 
   const { confirmDiscard } = useUnsavedChangesGuard({
@@ -143,6 +144,7 @@ export function PartDetailPage() {
       material: values.material,
       spec: values.spec,
       commonPrices: formPricesToApi(values.prices),
+      customerIds: values.customerIds,
     })
     setHasUnsavedChanges(false)
     setIsEditing(false)
@@ -264,6 +266,7 @@ export function PartDetailPage() {
                 </div>
                 <PartDetailEditForm
                   defaultValues={editDefaultValues}
+                  selectedCustomers={part.customers}
                   onSave={handleSave}
                   onCancel={handleExitEditMode}
                   isSaving={updatePart.isPending}

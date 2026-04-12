@@ -6,8 +6,8 @@ import { ErpSheet } from "@/components/common/ErpSheet"
 import {
   useCreateCustomer,
   useUpdateCustomer,
-  type CustomerDetail,
   type CustomerListItem,
+  type CustomerSubmitted,
 } from "@/hooks/api/useCustomers"
 
 type CustomerFormMode = "create" | "edit"
@@ -16,8 +16,8 @@ interface CustomerFormSheetProps {
   mode: CustomerFormMode
   open: boolean
   onOpenChange: (open: boolean) => void
-  customer?: CustomerDetail | CustomerListItem | null
-  onSubmitted?: (customer: CustomerDetail) => void
+  customer?: CustomerListItem | null
+  onSubmitted?: (customer: CustomerSubmitted) => void
 }
 
 export function CustomerFormSheet({

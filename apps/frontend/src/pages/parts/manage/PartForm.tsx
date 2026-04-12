@@ -31,6 +31,7 @@ import {
   type PartFormValues,
 } from "@/pages/parts/parts.schema"
 import { PartDrawingUploadSection } from "./PartDrawingUploadSection"
+import { PartCustomerAssignmentField } from "./PartCustomerAssignmentField"
 
 // eslint-disable-next-line react-refresh/only-export-components
 export function usePartForm() {
@@ -43,6 +44,7 @@ export function usePartForm() {
       material: "",
       spec: "",
       prices: [{ label: "标准价", value: 0 }],
+      customerIds: [],
     },
   })
 }
@@ -65,6 +67,8 @@ export function PartForm({
     control,
     handleSubmit,
     reset,
+    setValue,
+    watch,
     formState: { errors, isSubmitting },
   } = form
 
@@ -72,6 +76,7 @@ export function PartForm({
     control,
     name: "prices",
   })
+  const selectedCustomerIds = watch("customerIds") ?? []
 
   useEffect(() => {
     if (editingPart) {
@@ -84,6 +89,7 @@ export function PartForm({
         prices: prices.length > 0
           ? prices
           : [{ label: "标准价", value: 0 }],
+        customerIds: editingPart.customers.map(customer => customer.id),
       })
       return
     }
@@ -93,6 +99,7 @@ export function PartForm({
       material: "",
       spec: "",
       prices: [{ label: "标准价", value: 0 }],
+      customerIds: [],
     })
   }, [editingPart, reset])
 
@@ -151,6 +158,22 @@ export function PartForm({
               </FieldContent>
             </Field>
           </div>
+
+          <Field>
+            <FieldLabel htmlFor='part-customer-assignments'>关联客户</FieldLabel>
+            <FieldContent>
+              <PartCustomerAssignmentField
+                value={selectedCustomerIds}
+                onChange={customerIds =>
+                  setValue("customerIds", customerIds, { shouldDirty: true })
+                }
+                selectedCustomers={editingPart?.customers}
+              />
+              <FieldDescription>
+                选填。用于后续订单按客户收敛可选零件；旧零件不关联也不会出错。
+              </FieldDescription>
+            </FieldContent>
+          </Field>
 
           <Field data-invalid={!!errors.prices?.root}>
             <div className='flex items-center justify-between gap-3'>

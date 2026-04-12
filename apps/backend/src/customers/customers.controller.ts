@@ -10,12 +10,12 @@ import {
   Query,
   Req,
 } from '@nestjs/common';
-import type { ApiResponse } from '@erp/shared-types';
-import type {
+import {
   CreateCustomerRequest,
   UpdateCustomerRequest,
   UpdateCustomerStatusRequest,
 } from '@erp/shared-types';
+import type { ApiResponse } from '@erp/shared-types';
 import type { AuthenticatedRequest } from '../auth/auth-request';
 import { Roles } from '../auth/roles.decorator';
 import { CustomersService } from './customers.service';

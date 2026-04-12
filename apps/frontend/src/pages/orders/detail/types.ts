@@ -11,7 +11,9 @@ import type { OrderDetail } from "@/hooks/api/useOrders"
 export type DetailTab = "items" | "deliveries" | "timeline"
 
 /** 订单行视图模型（在原始订单行基础上追加派生字段）。 */
-export type OrderLineVM = OrderDetail["items"][number] & {
+export type OrderLineVM = Omit<OrderDetail["items"][number], "unitPrice"> & {
+  /** 解析后的数值单价。 */
+  unitPrice: number
   /** 待发数量（orderedQty - shippedQty）。 */
   pendingQty: number
   /** 行金额小计（短交结案时按已发数量结算）。 */

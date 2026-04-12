@@ -29,6 +29,7 @@ export const PartFormSchema = z.object({
   material: z.string().min(1, "材质不能为空").max(100),
   spec:     z.string().max(100).optional(),
   prices:   z.array(PriceEntrySchema).min(1, "至少填写一项价格"),
+  customerIds: z.array(z.number().int().positive()).default([]),
 })
 
 export type PartFormInput = z.input<typeof PartFormSchema>

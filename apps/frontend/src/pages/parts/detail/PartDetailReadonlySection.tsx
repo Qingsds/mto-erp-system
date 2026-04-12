@@ -90,6 +90,22 @@ export function PartReadonlyInfoSection({
           <ViewField label='最新图纸'>
             {latestDrawingName ?? "未上传"}
           </ViewField>
+          <ViewField label='关联客户'>
+            {part.customers.length > 0 ? (
+              <div className='flex flex-wrap gap-1.5'>
+                {part.customers.map(customer => (
+                  <span
+                    key={customer.id}
+                    className='inline-flex items-center border border-border bg-muted/30 px-2 py-0.5 text-xs text-foreground'
+                  >
+                    {customer.name}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <span className='text-muted-foreground'>未限制客户</span>
+            )}
+          </ViewField>
         </div>
 
         {canViewMoney && (

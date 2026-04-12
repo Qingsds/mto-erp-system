@@ -15,6 +15,8 @@ export interface CustomerListItem {
   updatedAt?: string
 }
 
+export type CustomerSubmitted = Pick<CustomerListItem, "id" | "name">
+
 export interface CustomerPartItem {
   customerId: number
   partId: number
@@ -99,7 +101,11 @@ export function useCreateCustomer() {
       contactPhone?: string | null
       invoiceInfo?: string | null
     }) => request.post<unknown, ApiResponse<CustomerDetail>>("/api/customers", payload),
-    onSuccess: () => {
+    onSuccess: response => {
+      const customer = response.data
+      if (customer) {
+        qc.setQueryData(CUSTOMERS_KEYS.detail(customer.id), customer)
+      }
       toast.success("客户创建成功")
       qc.invalidateQueries({ queryKey: ["customers"] })
     },
@@ -122,7 +128,11 @@ export function useUpdateCustomer() {
       const { id, ...body } = payload
       return request.patch<unknown, ApiResponse<CustomerDetail>>(`/api/customers/${id}`, body)
     },
-    onSuccess: (_, vars) => {
+    onSuccess: (response, vars) => {
+      const customer = response.data
+      if (customer) {
+        qc.setQueryData(CUSTOMERS_KEYS.detail(customer.id), customer)
+      }
       toast.success("客户信息已更新")
       qc.invalidateQueries({ queryKey: ["customers"] })
       qc.invalidateQueries({ queryKey: CUSTOMERS_KEYS.detail(vars.id) })
@@ -140,7 +150,11 @@ export function useUpdateCustomerStatus() {
         `/api/customers/${payload.id}/status`,
         { isActive: payload.isActive },
       ),
-    onSuccess: (_, vars) => {
+    onSuccess: (response, vars) => {
+      const customer = response.data
+      if (customer) {
+        qc.setQueryData(CUSTOMERS_KEYS.detail(customer.id), customer)
+      }
       toast.success(vars.isActive ? "客户已启用" : "客户已停用")
       qc.invalidateQueries({ queryKey: ["customers"] })
       qc.invalidateQueries({ queryKey: CUSTOMERS_KEYS.detail(vars.id) })

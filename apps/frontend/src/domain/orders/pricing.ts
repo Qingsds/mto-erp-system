@@ -6,6 +6,7 @@
  */
 
 import { decimalToNum, type OrderDetail, type OrderListItem } from "@/hooks/api/useOrders"
+import type { OrderItemStatsVM } from "@/pages/orders/detail/types"
 
 /**
  * 解析单价：
@@ -64,7 +65,7 @@ export function computeListOrderAmount(order: OrderListItem): number {
  * 计算订单详情统计：
  * 聚合行明细、总数量、总发货数、总待发数与结算总金额。
  */
-export function computeOrderStats(order: OrderDetail) {
+export function computeOrderStats(order: OrderDetail): OrderItemStatsVM {
   const isClosedShort = order.status === "CLOSED_SHORT"
 
   const lines = order.items.map(it => {

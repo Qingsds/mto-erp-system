@@ -3,15 +3,18 @@ import { useForm, useFieldArray } from "react-hook-form"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
+import type { PartCustomerItem } from "@/hooks/api/useParts"
 import { zodResolverCompat } from "@/lib/zodResolverCompat"
 import {
   PartFormSchema,
   type PartFormInput,
   type PartFormValues,
 } from "../parts.schema"
+import { PartCustomerAssignmentField } from "../manage/PartCustomerAssignmentField"
 
 interface PartDetailEditFormProps {
   defaultValues: PartFormValues
+  selectedCustomers?: PartCustomerItem[]
   isSaving: boolean
   onSave: (values: PartFormValues) => Promise<void>
   onCancel: () => void
@@ -24,6 +27,7 @@ interface PartDetailEditFormProps {
  */
 export function PartDetailEditForm({
   defaultValues,
+  selectedCustomers = [],
   isSaving,
   onSave,
   onCancel,
@@ -33,6 +37,8 @@ export function PartDetailEditForm({
     register,
     control,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors, isDirty },
   } = useForm<PartFormInput, unknown, PartFormValues>({
     resolver: zodResolverCompat<PartFormInput, PartFormValues>(PartFormSchema),
@@ -43,6 +49,7 @@ export function PartDetailEditForm({
     control,
     name: "prices",
   })
+  const selectedCustomerIds = watch("customerIds") ?? []
 
   useEffect(() => {
     onDirtyChange(isDirty)
@@ -83,6 +90,22 @@ export function PartDetailEditForm({
           </label>
           <Input {...register("spec")} placeholder='可选' />
         </div>
+      </div>
+
+      <div className='flex flex-col gap-1.5'>
+        <label className='text-[11px] font-medium uppercase tracking-wider text-muted-foreground'>
+          关联客户
+        </label>
+        <PartCustomerAssignmentField
+          value={selectedCustomerIds}
+          onChange={customerIds =>
+            setValue("customerIds", customerIds, { shouldDirty: true })
+          }
+          selectedCustomers={selectedCustomers}
+        />
+        <p className='text-xs text-muted-foreground'>
+          选填。后续按客户创建订单时，会优先展示这些已关联零件。
+        </p>
       </div>
 
       <div className='flex flex-col gap-2'>

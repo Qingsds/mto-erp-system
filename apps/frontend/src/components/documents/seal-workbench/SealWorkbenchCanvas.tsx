@@ -242,6 +242,7 @@ export function SealWorkbenchCanvas({
       context.clearRect(0, 0, canvas.width, canvas.height)
 
       const renderTask = page.render({
+        canvas,
         canvasContext: context,
         viewport: scaledViewport,
         transform: [

@@ -11,6 +11,7 @@ import type { PartListItem } from "@/hooks/api/useParts"
 interface PartPickerProps {
   open: boolean
   parts: PartListItem[]
+  customerName?: string
   selectedPartId?: number
   onSelect: (part: PartListItem) => void
   onClose: () => void
@@ -19,6 +20,7 @@ interface PartPickerProps {
 export function PartPicker({
   open,
   parts,
+  customerName,
   selectedPartId,
   onSelect,
   onClose,
@@ -27,6 +29,7 @@ export function PartPicker({
     <PartPickerDialog
       open={open}
       parts={parts}
+      customerName={customerName}
       selectedPartId={selectedPartId}
       onSelect={onSelect}
       onClose={onClose}

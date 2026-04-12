@@ -6,12 +6,13 @@
  * - 管理零件明细区的新增、选择与金额汇总
  */
 
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useFieldArray, type UseFormReturn } from "react-hook-form"
 import {
   apiPricesToForm,
   type PartListItem,
 } from "@/hooks/api/useParts"
+import type { CustomerDetail } from "@/hooks/api/useCustomers"
 import { PageContentWrapper } from "@/components/common/PageContentWrapper"
 import { useCanViewMoney } from "@/lib/permissions"
 import { useUIStore } from "@/store/ui.store"
@@ -29,6 +30,7 @@ import { PartPicker } from "./PartPicker"
 interface OrderNewFormProps {
   form: UseFormReturn<OrderFormInput, unknown, OrderFormValues>
   parts: PartListItem[]
+  selectedCustomer?: Pick<CustomerDetail, "id" | "name"> | null
   onSubmit: (values: OrderFormValues) => Promise<void>
   onCancel: () => void
 }
@@ -36,6 +38,7 @@ interface OrderNewFormProps {
 export function OrderNewForm({
   form,
   parts,
+  selectedCustomer,
   onSubmit,
   onCancel,
 }: OrderNewFormProps) {
@@ -46,6 +49,8 @@ export function OrderNewForm({
     control,
     handleSubmit,
     setValue,
+    setError,
+    clearErrors,
     watch,
     formState: { errors, isSubmitting },
   } = form
@@ -74,6 +79,52 @@ export function OrderNewForm({
     0,
   )
 
+  const filteredParts = useMemo(() => {
+    if (!selectedCustomer?.id) {
+      return parts
+    }
+
+    return parts.filter(part =>
+      part.customers.length === 0 ||
+      part.customers.some(customer => customer.id === selectedCustomer.id),
+    )
+  }, [parts, selectedCustomer?.id])
+
+  const incompatibleItemIndexes = useMemo(() => {
+    if (!selectedCustomer?.id) {
+      return []
+    }
+
+    return watchedItems.flatMap((item, index) => {
+      const selectedPart = parts.find(part => part.id === item.partId)
+      if (!selectedPart || selectedPart.customers.length === 0) {
+        return []
+      }
+
+      return selectedPart.customers.some(customer => customer.id === selectedCustomer.id)
+        ? []
+        : [index]
+    })
+  }, [parts, selectedCustomer?.id, watchedItems])
+
+  useEffect(() => {
+    watchedItems.forEach((item, index) => {
+      const fieldName = `items.${index}.partId` as const
+
+      if (incompatibleItemIndexes.includes(index)) {
+        setError(fieldName, {
+          type: "manual",
+          message: "该零件未关联当前客户，请重新选择",
+        })
+        return
+      }
+
+      if (item.partId > 0) {
+        clearErrors(fieldName)
+      }
+    })
+  }, [clearErrors, incompatibleItemIndexes, setError, watchedItems])
+
   const handlePickerSelect = (part: PartListItem) => {
     if (pickerIndex === null) return
     const prices = apiPricesToForm(part.commonPrices)
@@ -88,7 +139,19 @@ export function OrderNewForm({
     setPickerIndex(null)
   }
 
-  const submitForm = handleSubmit(onSubmit)
+  const submitForm = handleSubmit(async values => {
+    if (incompatibleItemIndexes.length > 0) {
+      incompatibleItemIndexes.forEach(index => {
+        setError(`items.${index}.partId`, {
+          type: "manual",
+          message: "该零件未关联当前客户，请重新选择",
+        })
+      })
+      return
+    }
+
+    await onSubmit(values)
+  })
 
   return (
     <>
@@ -209,7 +272,8 @@ export function OrderNewForm({
 
       <PartPicker
         open={pickerIndex !== null}
-        parts={parts}
+        parts={filteredParts}
+        customerName={selectedCustomer?.name}
         selectedPartId={
           pickerIndex !== null
             ? watchedItems[pickerIndex]?.partId

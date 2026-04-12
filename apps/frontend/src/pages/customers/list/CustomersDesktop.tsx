@@ -68,9 +68,16 @@ export function CustomersDesktop({ search }: CustomersDesktopProps) {
         size: 260,
         cell: ({ row }: { row: { original: CustomerListItem } }) => (
           <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-foreground">
+            <button
+              type="button"
+              className="truncate text-left text-sm font-medium text-foreground hover:text-primary"
+              onClick={event => {
+                event.stopPropagation()
+                openDetail(row.original.id)
+              }}
+            >
               {row.original.name}
-            </p>
+            </button>
             {(row.original.contactName || row.original.contactPhone) && (
               <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
                 {row.original.contactName ?? "—"}
@@ -99,7 +106,7 @@ export function CustomersDesktop({ search }: CustomersDesktopProps) {
         ),
       },
     ],
-    [],
+    [openDetail],
   )
 
   const table = useReactTable({

@@ -8,6 +8,7 @@ import {
   Max,
   IsOptional,
   IsArray,
+  ArrayUnique,
   ValidateNested,
   IsNotEmpty,
   IsObject,
@@ -107,6 +108,14 @@ export class CreatePartRequest {
 
   @IsObject({ message: "常用价格必须是对象结构" })
   commonPrices!: Record<string, number>
+
+  @IsArray({ message: "关联客户必须是数组" })
+  @ArrayUnique({ message: "关联客户不能重复" })
+  @IsInt({ each: true, message: "关联客户 ID 必须是整数" })
+  @Min(1, { each: true, message: "关联客户 ID 不能小于 1" })
+  @IsOptional()
+  @Type(() => Number)
+  customerIds?: number[]
 }
 
 export class UpdatePartRequest {
@@ -125,6 +134,14 @@ export class UpdatePartRequest {
   @IsObject()
   @IsOptional()
   commonPrices?: Record<string, number>
+
+  @IsArray({ message: "关联客户必须是数组" })
+  @ArrayUnique({ message: "关联客户不能重复" })
+  @IsInt({ each: true, message: "关联客户 ID 必须是整数" })
+  @Min(1, { each: true, message: "关联客户 ID 不能小于 1" })
+  @IsOptional()
+  @Type(() => Number)
+  customerIds?: number[]
 }
 
 // ==========================================

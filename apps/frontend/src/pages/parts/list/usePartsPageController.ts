@@ -107,6 +107,7 @@ export function usePartsPageController({
       material: values.material,
       spec: values.spec,
       commonPrices: formPricesToApi(values.prices),
+      customerIds: values.customerIds,
     }
 
     if (editingPart) {

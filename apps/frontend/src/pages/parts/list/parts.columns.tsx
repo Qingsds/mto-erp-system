@@ -6,7 +6,10 @@
  */
 
 import { Link } from "@tanstack/react-router"
-import { createColumnHelper } from "@tanstack/react-table"
+import {
+  createColumnHelper,
+  type ColumnDef,
+} from "@tanstack/react-table"
 import { ExpandablePanelCell } from "@/components/common/ExpandablePanelCell"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -33,7 +36,7 @@ export function getPartsColumns(
     canManage?: boolean
   },
 ) {
-  const columns = [
+  const columns: ColumnDef<PartListItem, unknown>[] = [
     column.accessor("partNumber", {
       header: "零件编号",
       size: 120,

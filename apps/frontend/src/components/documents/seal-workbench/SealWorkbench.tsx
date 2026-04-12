@@ -325,7 +325,7 @@ export function SealWorkbench({
                 type='button'
                 size='sm'
                 variant='outline'
-                className='h-10 shrink-0 sm:h-9'
+                className='h-10 shrink-0 sm:hidden'
                 onClick={onBack}
               >
                 <i className='ri-arrow-left-line mr-1.5' />

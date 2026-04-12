@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@erp/database';
+import { Prisma, PrismaClient } from '@erp/database';
 import type { UserRoleType } from '@erp/shared-types';
 import { PrismaService } from '../prisma/prisma.service';
 import type {
@@ -15,6 +15,47 @@ import type {
 @Injectable()
 export class CustomersService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private async buildCustomerDetail(
+    client: PrismaClient | Prisma.TransactionClient,
+    id: number,
+  ) {
+    const customer = await client.customer.findUnique({
+      where: { id },
+      include: {
+        parts: {
+          include: {
+            part: {
+              select: {
+                id: true,
+                partNumber: true,
+                name: true,
+                material: true,
+                spec: true,
+                commonPrices: true,
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
+
+    if (!customer) {
+      throw new NotFoundException(`客户 ID: ${id} 不存在`);
+    }
+
+    const totalOrders = await client.order.count({
+      where: this.buildLegacyOrderWhere(customer.id, customer.name),
+    });
+
+    return {
+      ...customer,
+      _count: {
+        orders: totalOrders,
+      },
+    };
+  }
 
   private normalizeRequiredName(value: string) {
     const nextName = value.trim();
@@ -44,18 +85,25 @@ export class CustomersService {
     } satisfies Prisma.OrderWhereInput;
   }
 
-  private async syncLegacyOrdersByName(
+  private async syncOrdersForCustomerName(
     tx: Prisma.TransactionClient,
     customerId: number,
-    customerName: string,
+    previousCustomerName: string,
+    nextCustomerName: string,
   ) {
     await tx.order.updateMany({
       where: {
-        customerId: null,
-        customerName,
+        OR: [
+          { customerId },
+          {
+            customerId: null,
+            customerName: previousCustomerName,
+          },
+        ],
       },
       data: {
         customerId,
+        customerName: nextCustomerName,
       },
     });
   }
@@ -136,41 +184,7 @@ export class CustomersService {
   }
 
   async findOne(id: number) {
-    const customer = await this.prisma.client.customer.findUnique({
-      where: { id },
-      include: {
-        parts: {
-          include: {
-            part: {
-              select: {
-                id: true,
-                partNumber: true,
-                name: true,
-                material: true,
-                spec: true,
-                commonPrices: true,
-              },
-            },
-          },
-          orderBy: { createdAt: 'desc' },
-        },
-      },
-    });
-
-    if (!customer) {
-      throw new NotFoundException(`客户 ID: ${id} 不存在`);
-    }
-
-    const totalOrders = await this.prisma.client.order.count({
-      where: this.buildLegacyOrderWhere(customer.id, customer.name),
-    });
-
-    return {
-      ...customer,
-      _count: {
-        orders: totalOrders,
-      },
-    };
+    return this.buildCustomerDetail(this.prisma.client, id);
   }
 
   async create(payload: CreateCustomerRequest) {
@@ -189,9 +203,14 @@ export class CustomersService {
           },
         });
 
-        await this.syncLegacyOrdersByName(tx, created.id, created.name);
+        await this.syncOrdersForCustomerName(
+          tx,
+          created.id,
+          created.name,
+          created.name,
+        );
 
-        return created;
+        return this.buildCustomerDetail(tx, created.id);
       });
     } catch (error) {
       this.handleWriteError(error);
@@ -215,9 +234,14 @@ export class CustomersService {
           throw new NotFoundException(`客户 ID: ${id} 不存在`);
         }
 
-        await this.syncLegacyOrdersByName(tx, current.id, current.name);
+        await this.syncOrdersForCustomerName(
+          tx,
+          current.id,
+          current.name,
+          nextName ?? current.name,
+        );
 
-        return tx.customer.update({
+        await tx.customer.update({
           where: { id },
           data: {
             name: nextName,
@@ -227,6 +251,8 @@ export class CustomersService {
             invoiceInfo: this.normalizeOptionalText(payload.invoiceInfo),
           },
         });
+
+        return this.buildCustomerDetail(tx, id);
       });
     } catch (error) {
       this.handleWriteError(error);
@@ -235,10 +261,12 @@ export class CustomersService {
 
   async updateStatus(id: number, payload: UpdateCustomerStatusRequest) {
     try {
-      return await this.prisma.client.customer.update({
+      await this.prisma.client.customer.update({
         where: { id },
         data: { isActive: payload.isActive },
       });
+
+      return this.buildCustomerDetail(this.prisma.client, id);
     } catch (error) {
       this.handleWriteError(error);
     }

@@ -195,6 +195,7 @@ function PdfPreviewPage({
       context.clearRect(0, 0, canvas.width, canvas.height)
 
       const renderTask = page.render({
+        canvas,
         canvasContext: context,
         viewport: scaledViewport,
         transform: [devicePixelRatio, 0, 0, devicePixelRatio, 0, 0],

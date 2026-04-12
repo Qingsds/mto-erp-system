@@ -28,6 +28,7 @@ import { useUIStore } from "@/store/ui.store"
 interface PartPickerDialogProps {
   open: boolean
   parts: PartListItem[]
+  customerName?: string
   selectedPartId?: number
   onClose: () => void
   onSelect: (part: PartListItem) => void
@@ -43,6 +44,7 @@ function formatPrice(value: number) {
 export function PartPickerDialog({
   open,
   parts,
+  customerName,
   selectedPartId,
   onClose,
   onSelect,
@@ -89,7 +91,9 @@ export function PartPickerDialog({
             选择零件
           </DialogTitle>
           <DialogDescription className='text-xs'>
-            先按名称、编号或材质搜索，再从结果中点按选中零件。
+            {customerName
+              ? `当前客户：${customerName}。优先显示已关联零件，未关联的历史零件也会保留。`
+              : "先按名称、编号或材质搜索，再从结果中点按选中零件。"}
           </DialogDescription>
         </DialogHeader>
 

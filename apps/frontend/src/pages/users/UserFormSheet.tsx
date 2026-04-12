@@ -37,8 +37,8 @@ interface UserFormSheetProps {
   editingUser: UserListItem | null
   isSubmitting: boolean
   onOpenChange: (open: boolean) => void
-  onCreate: (payload: CreateUserRequest) => Promise<void>
-  onUpdate: (id: number, payload: UpdateUserRequest) => Promise<void>
+  onCreate: (payload: CreateUserRequest) => Promise<unknown>
+  onUpdate: (id: number, payload: UpdateUserRequest) => Promise<unknown>
 }
 
 function roleOptions(): Array<{ value: UserRoleType; label: string; description: string }> {

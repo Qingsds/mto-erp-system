@@ -16,6 +16,65 @@ export class OrdersService {
   // 依赖注入：通过构造函数，NestJS 会自动把全局的 PrismaService 塞给这个类
   constructor(private readonly prisma: PrismaService) {}
 
+  private async loadOrderParts(
+    tx: Prisma.TransactionClient,
+    partIds: number[],
+  ) {
+    const uniquePartIds = [...new Set(partIds)];
+    const parts = await tx.part.findMany({
+      where: { id: { in: uniquePartIds } },
+      select: {
+        id: true,
+        name: true,
+        commonPrices: true,
+        customers: {
+          select: {
+            customerId: true,
+          },
+        },
+      },
+    });
+
+    if (parts.length !== uniquePartIds.length) {
+      const foundIds = new Set(parts.map(part => part.id));
+      const missingIds = uniquePartIds.filter(partId => !foundIds.has(partId));
+      throw new BadRequestException(
+        `零件 ID${missingIds.join('、')} 不存在`,
+      );
+    }
+
+    return new Map(parts.map(part => [part.id, part]));
+  }
+
+  private ensurePartsAssignableToCustomer(
+    partMap: Map<
+      number,
+      {
+        id: number;
+        name: string;
+        commonPrices: Prisma.JsonValue;
+        customers: Array<{ customerId: number }>;
+      }
+    >,
+    customerId: number,
+  ) {
+    const blockedParts = [...partMap.values()].filter(part => {
+      if (part.customers.length === 0) {
+        return false;
+      }
+
+      return !part.customers.some(item => item.customerId === customerId);
+    });
+
+    if (blockedParts.length === 0) {
+      return;
+    }
+
+    throw new BadRequestException(
+      `零件「${blockedParts.map(part => part.name).join('、')}」未关联当前客户，无法创建订单`,
+    );
+  }
+
   /**
    * 将 unknown 价格值解析为 number。
    */
@@ -181,6 +240,12 @@ export class OrdersService {
           throw new BadRequestException('客户已停用，无法用于新建订单');
         }
 
+        const partMap = await this.loadOrderParts(
+          tx,
+          items.map(item => item.partId),
+        );
+        this.ensurePartsAssignableToCustomer(partMap, customer.id);
+
         // 1.创建订单主表记录
         const order = await tx.order.create({
           data: {
@@ -191,12 +256,10 @@ export class OrdersService {
         });
 
         for (const item of items) {
-          const part = await tx.part.findUnique({
-            where: { id: item.partId },
-          });
-
-          if (!part)
+          const part = partMap.get(item.partId);
+          if (!part) {
             throw new BadRequestException(`零件 ID${item.partId} 不存在`);
+          }
 
           const unitPrice = this.resolvePriceFromCommonPrices(
             part.commonPrices,

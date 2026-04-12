@@ -37,7 +37,7 @@ export function DetailPageToolbar({
           <Button
             variant='ghost'
             size='sm'
-            className='-ml-1 h-8 shrink-0 px-2 text-xs'
+            className='-ml-1 h-8 shrink-0 px-2 text-xs sm:hidden'
             onClick={onBack}
           >
             <i className='ri-arrow-left-line sm:mr-1.5' />

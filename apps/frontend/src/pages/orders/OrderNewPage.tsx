@@ -10,6 +10,7 @@ import { useNavigate } from "@tanstack/react-router"
 import { useForm } from "react-hook-form"
 import { zodResolverCompat } from "@/lib/zodResolverCompat"
 import { useGetParts } from "@/hooks/api/useParts"
+import { useGetCustomer } from "@/hooks/api/useCustomers"
 import { useCreateOrder } from "@/hooks/api/useOrders"
 import { OrderFormSchema, type OrderFormInput, type OrderFormValues } from "./orders.schema"
 import { OrderNewForm } from "./new-order/OrderNewForm"
@@ -30,6 +31,10 @@ export function OrderNewPage() {
       items: [{ partId: 0, orderedQty: 1, _displayPrice: 0 }],
     },
   })
+  const selectedCustomerId = form.watch("customerId")
+  const { data: selectedCustomer } = useGetCustomer(
+    selectedCustomerId > 0 ? selectedCustomerId : undefined,
+  )
 
   const handleSubmit = async (values: OrderFormValues) => {
     await createOrder.mutateAsync({
@@ -43,6 +48,7 @@ export function OrderNewPage() {
     <OrderNewForm
       form={form}
       parts={parts}
+      selectedCustomer={selectedCustomer}
       onSubmit={handleSubmit}
       onCancel={() => navigate({ to: "/orders" })}
     />

@@ -41,7 +41,7 @@ export function SealsListContent({
 }: SealsListContentProps) {
   return (
     <div className='flex flex-col gap-3'>
-      {(actionError || queryError) && (
+      {Boolean(actionError || queryError) && (
         <section className='border border-destructive/20 bg-destructive/5 px-3 py-3 text-sm text-destructive'>
           <div className='flex items-start justify-between gap-3'>
             <div>

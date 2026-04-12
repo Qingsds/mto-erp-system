@@ -30,6 +30,12 @@ export const FileType = {
 } as const
 export type FileType = (typeof FileType)[keyof typeof FileType]
 
+export interface PartCustomerItem {
+  id: number
+  name: string
+  isActive: boolean
+}
+
 // ─── API 响应类型（对齐 Prisma 输出，唯一定义处）─────────
 
 /** 对应 PartDrawing 表 */
@@ -51,6 +57,7 @@ export interface PartListItem {
   material:     string
   spec?:        string
   commonPrices: Record<string, number>  // {"标准价": 0.85, "批量价": 0.72}
+  customers:    PartCustomerItem[]
   createdAt:    string
   updatedAt:    string
 }
