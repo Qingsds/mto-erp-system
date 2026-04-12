@@ -96,7 +96,7 @@ describe("ui.store appearance", () => {
     expect(useUIStore.getState().fontSize).toBe(12)
     expect(useUIStore.getState().lineHeight).toBe(1.4)
     expect(useUIStore.getState().density).toBe("compact")
-    expect(documentElement.style.getPropertyValue("--erp-page-px")).toBe("16px")
+    expect(documentElement.style.getPropertyValue("--erp-page-px")).toBe("12px")
     expect(documentElement.getAttribute("data-density")).toBe("compact")
   })
 
@@ -140,7 +140,7 @@ describe("ui.store appearance", () => {
     expect(useUIStore.getState().lineHeight).toBe(1.8)
     expect(useUIStore.getState().density).toBe("comfortable")
     expect(documentElement.classList.contains("dark")).toBe(true)
-    expect(documentElement.style.getPropertyValue("--erp-page-px")).toBe("28px")
+    expect(documentElement.style.getPropertyValue("--erp-page-px")).toBe("20px")
   })
 
   it("controls settings panel open state explicitly", async () => {

@@ -5,6 +5,10 @@ import { useUIStore } from "@/store/ui.store"
 import { HeaderAccountMenu } from "./HeaderAccountMenu"
 import { getLayoutLocation, type LayoutRoutePath } from "./layoutNavigation"
 
+interface HeaderProps {
+  bordered?: boolean
+}
+
 function DesktopSearchTrigger() {
   const openCommandPalette = useUIStore(state => state.openCommandPalette)
 
@@ -66,7 +70,7 @@ function HeaderBreadcrumbs({
   )
 }
 
-export function Header() {
+export function Header({ bordered = true }: HeaderProps) {
   const pathname = useRouterState({ select: state => state.location.pathname })
   const {
     isMobile,
@@ -80,7 +84,10 @@ export function Header() {
 
   return (
     <header
-      className="shrink-0 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/90"
+      className={cn(
+        "shrink-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/90",
+        bordered && "border-b border-border",
+      )}
       style={{ height: "var(--erp-header-h, 56px)" }}
     >
       <div className="mx-auto flex h-full w-full max-w-[var(--erp-shell-max-w)] items-center gap-3 px-4 sm:px-[var(--erp-page-px)]">

@@ -145,7 +145,7 @@
   --erp-bottom-nav-safe-h:   calc(var(--erp-bottom-nav-h) + env(safe-area-inset-bottom, 0px));
   --erp-sidebar-w:           220px;
   --erp-sidebar-w-collapsed: 52px;
-  --erp-shell-max-w:         80rem;
+  --erp-shell-max-w:         96rem;
   --erp-mobile-action-offset: 104px;
 
   /* Typography (overridden by ui.store) */
@@ -155,9 +155,9 @@
   /* Density spacing (overridden by ui.store) */
   --erp-cell-pad: 10px 16px;
   --erp-card-pad: 14px 18px;
-  --erp-page-pad: 24px 20px;
+  --erp-page-pad: 24px 16px;
   --erp-page-py: 24px;
-  --erp-page-px: 20px;
+  --erp-page-px: 16px;
   --erp-gap:      12px;
 }
 

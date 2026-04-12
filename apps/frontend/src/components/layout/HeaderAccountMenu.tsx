@@ -45,7 +45,7 @@ export function HeaderAccountMenu({
             className={cn(
               "border border-transparent transition-colors hover:border-border hover:bg-muted/40",
               isSidebar
-                ? "h-auto w-full justify-start gap-3 px-3 py-3"
+                ? "h-auto w-full justify-start gap-2.5 px-2.5 py-2.5"
                 : "h-9 gap-2 px-2",
             )}
           >
