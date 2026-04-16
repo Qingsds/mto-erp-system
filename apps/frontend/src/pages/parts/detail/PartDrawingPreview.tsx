@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { PdfPreviewDocument } from "@/components/common/PdfPreviewDocument"
 import {
   downloadPartDrawingFile,
   PART_DRAWING_HELP_TEXT,
@@ -67,7 +68,7 @@ export function PartDrawingPreview({
     return (
       <PreviewShell errorMessage={resolvedError}>
         <div className='relative w-full aspect-[4/3] overflow-hidden rounded-xl border border-border bg-muted/30 sm:aspect-square'>
-          {isImage && isLoadingPreview ? (
+          {isLoadingPreview ? (
             <div className='flex h-full w-full items-center justify-center bg-muted/30 text-sm text-muted-foreground'>
               <i className='ri-loader-4-line mr-2 animate-spin' />
               图纸加载中…
@@ -86,18 +87,28 @@ export function PartDrawingPreview({
               />
             </button>
           ) : (
-            <div className='flex h-full w-full flex-col items-center justify-center gap-3 bg-white px-4 text-center'>
-              <div className='flex h-14 w-14 items-center justify-center border border-border bg-muted/20 text-muted-foreground'>
-                <i className='ri-file-pdf-2-line text-2xl' />
-              </div>
-              <div>
-                <p className='text-sm font-medium text-foreground'>
-                  PDF 图纸
-                </p>
-                <p className='mt-1 text-xs text-muted-foreground'>
-                  点击下方按钮在统一预览器中查看和下载。
-                </p>
-              </div>
+            <div className='h-full w-full overflow-hidden bg-white'>
+              {previewUrl ? (
+                <PdfPreviewDocument
+                  key={previewUrl}
+                  previewUrl={previewUrl}
+                  title={drawing.fileName}
+                />
+              ) : (
+                <div className='flex h-full w-full flex-col items-center justify-center gap-3 px-4 text-center'>
+                  <div className='flex h-14 w-14 items-center justify-center border border-border bg-muted/20 text-muted-foreground'>
+                    <i className='ri-file-pdf-2-line text-2xl' />
+                  </div>
+                  <div>
+                    <p className='text-sm font-medium text-foreground'>
+                      PDF 图纸暂不可预览
+                    </p>
+                    <p className='mt-1 text-xs text-muted-foreground'>
+                      请使用下方按钮下载原文件。
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

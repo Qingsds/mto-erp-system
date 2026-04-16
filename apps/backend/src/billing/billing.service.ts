@@ -63,7 +63,7 @@ export class BillingService {
     return fallback > 0 ? fallback : snapshot;
   }
 
-  async createBilling(payload: CreateBillingRequest) {
+  async createBilling(payload: CreateBillingRequest, createdById: number) {
     return this.prisma.client.$transaction(async tx => {
       const { customerId, deliveryItemIds, extraItems } = payload;
 
@@ -165,6 +165,7 @@ export class BillingService {
 
       return tx.billingStatement.create({
         data: {
+          createdById,
           customerName: customer.name,
           totalAmount,
           status: 'DRAFT',
@@ -192,7 +193,12 @@ export class BillingService {
         skip,
         take: Number(pageSize),
         orderBy: { createdAt: 'desc' },
-        include: { items: true },
+        include: {
+          items: true,
+          createdBy: {
+            select: { id: true, realName: true, role: true },
+          },
+        },
       }),
     ]);
 
@@ -240,6 +246,9 @@ export class BillingService {
               },
             },
           },
+        },
+        createdBy: {
+          select: { id: true, realName: true, role: true },
         },
       },
     });

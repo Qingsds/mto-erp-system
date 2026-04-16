@@ -17,9 +17,9 @@ import {
   formatDeliveryNo,
   formatOrderNo,
   useCloseShortOrder,
-  useCreateDelivery,
   useGetOrder,
 } from "@/hooks/api/useOrders"
+import { useCreateDelivery } from "@/hooks/api/useDeliveries"
 import { computeOrderStats, resolveUnitPrice } from "@/domain/orders/pricing"
 import { useCanViewMoney } from "@/lib/permissions"
 import { CreateDeliverySheet } from "./detail/CreateDeliverySheet"
@@ -72,19 +72,22 @@ export function OrderDetailPage() {
         time: order.createdAt,
         title: "订单创建",
         desc: `订单 ${formatOrderNo(order.id)} 已创建`,
+        actorName: order.createdBy?.realName ?? null,
       },
       ...order.deliveries.map(delivery => ({
         time: delivery.deliveryDate,
         title: `创建发货单 ${formatDeliveryNo(delivery.id)}`,
         desc: delivery.remark || "发货完成",
+        actorName: delivery.createdBy?.realName ?? null,
       })),
     ]
 
-    if (order.status === "CLOSED_SHORT") {
+    if (order.status === "CLOSED_SHORT" && order.closedShortAt) {
       events.push({
-        time: order.createdAt,
+        time: order.closedShortAt,
         title: "订单短交结案",
         desc: order.reason || "该订单已进入结案状态",
+        actorName: order.closedShortBy?.realName ?? null,
       })
     }
 

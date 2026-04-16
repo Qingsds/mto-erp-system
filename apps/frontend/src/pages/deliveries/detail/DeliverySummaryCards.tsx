@@ -11,25 +11,6 @@ import { formatDeliveryNo, formatOrderNo } from "@/hooks/api/useOrders"
 import type { DeliveryStatsVM } from "./types"
 import { formatDateTime } from "../deliveries.utils"
 
-interface StatCardProps {
-  /** 卡片标题。 */
-  label: string
-  /** 卡片主值。 */
-  value: string
-  /** 卡片辅助说明。 */
-  hint?: string
-}
-
-function StatCard({ label, value, hint }: StatCardProps) {
-  return (
-    <div className="border border-border bg-card px-3 py-2">
-      <p className="text-[11px] text-muted-foreground">{label}</p>
-      <p className="mt-0.5 text-sm font-semibold">{value}</p>
-      {hint && <p className="mt-0.5 text-[11px] text-muted-foreground">{hint}</p>}
-    </div>
-  )
-}
-
 interface DeliverySummaryCardsProps {
   /** 发货单详情实体。 */
   delivery: DeliveryDetail
@@ -47,31 +28,42 @@ export function DeliverySummaryCards({
   stats,
   isFetching,
 }: DeliverySummaryCardsProps) {
+  const metaItems = [
+    `发货时间 ${formatDateTime(delivery.deliveryDate)}`,
+    `已计费 ${stats.billedLineCount}/${stats.lineCount} 条`,
+    `零件 ${stats.uniquePartCount} 个`,
+    isFetching ? "刷新中…" : null,
+    delivery.createdBy?.realName ? `创建人 ${delivery.createdBy.realName}` : null,
+  ].filter(Boolean) as string[]
+
   return (
-    <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-3">
-      <StatCard
-        label="本次发货"
-        value={`${stats.totalShippedQty} 件`}
-        hint={`${stats.lineCount} 条明细 · ${stats.uniquePartCount} 个零件`}
-      />
-      <StatCard
-        label="关联订单"
-        value={formatOrderNo(delivery.orderId)}
-        hint={
-          delivery.order
-            ? `${delivery.order.customerName} · ${formatDateTime(delivery.order.createdAt)}`
-            : formatDeliveryNo(delivery.id)
-        }
-      />
-      <StatCard
-        label="当前状态"
-        value={`已完成 ${stats.completedLineCount} 条`}
-        hint={
-          isFetching
-            ? "刷新中…"
-            : `已计费 ${stats.billedLineCount}/${stats.lineCount} 条 · ${formatDateTime(delivery.deliveryDate)}`
-        }
-      />
-    </div>
+    <section className="border border-border bg-card">
+      <div className="grid grid-cols-2 gap-px bg-border">
+        <div className="bg-background px-3 py-2.5">
+          <p className="text-[11px] text-muted-foreground">本次发货</p>
+          <p className="mt-1 text-base font-semibold text-foreground">
+            {stats.totalShippedQty} 件
+          </p>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            {stats.lineCount} 条明细
+          </p>
+        </div>
+        <div className="bg-background px-3 py-2.5">
+          <p className="text-[11px] text-muted-foreground">关联订单</p>
+          <p className="mt-1 text-base font-semibold text-foreground">
+            {formatOrderNo(delivery.orderId)}
+          </p>
+          <p className="mt-1 truncate text-[11px] text-muted-foreground">
+            {delivery.order?.customerName ?? formatDeliveryNo(delivery.id)}
+          </p>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-[11px] text-muted-foreground">
+        {metaItems.map(item => (
+          <span key={item}>{item}</span>
+        ))}
+      </div>
+    </section>
   )
 }

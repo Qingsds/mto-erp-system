@@ -47,13 +47,15 @@ export function ErpSheet({
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent
           side="bottom"
-          className="h-[92vh] flex flex-col rounded-none p-0"
+          className="flex h-[92dvh] max-h-[92dvh] min-h-0 flex-col overflow-hidden rounded-none p-0"
         >
           <SheetHeader className='border-b border-border px-4 py-4'>
             <SheetTitle>{title}</SheetTitle>
             {description && <SheetDescription>{description}</SheetDescription>}
           </SheetHeader>
-          <div className="flex-1 overflow-y-auto px-4 py-4 pb-4">{children}</div>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] [webkit-overflow-scrolling:touch] touch-pan-y">
+            {children}
+          </div>
         </SheetContent>
       </Sheet>
     )
@@ -62,14 +64,14 @@ export function ErpSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
-        className="overflow-y-auto p-0 sm:max-w-none"
+        className="flex min-h-0 flex-col overflow-hidden p-0 sm:max-w-none"
         style={{ width }}
       >
         <SheetHeader className='border-b border-border px-6 py-5'>
           <SheetTitle>{title}</SheetTitle>
           {description && <SheetDescription>{description}</SheetDescription>}
         </SheetHeader>
-        <div className="px-6 py-6">{children}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">{children}</div>
       </SheetContent>
     </Sheet>
   )

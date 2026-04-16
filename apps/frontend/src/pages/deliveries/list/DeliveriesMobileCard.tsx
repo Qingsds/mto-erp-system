@@ -11,6 +11,7 @@
 
 import { formatDeliveryNo, formatOrderNo } from "@/hooks/api/useOrders"
 import type { DeliveryListItem } from "@/hooks/api/useDeliveries"
+import { UserIdentityInline } from "@/components/common/UserIdentityInline"
 import { DeliveryStatusBadge } from "../shared/DeliveryStatusBadge"
 import { formatDateTime } from "../deliveries.utils"
 
@@ -40,19 +41,21 @@ export function DeliveriesMobileCard({
         <DeliveryStatusBadge status={delivery.status} />
       </div>
 
-      <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-muted-foreground">
-        <p className="truncate">关联订单：{formatOrderNo(delivery.orderId)}</p>
-        <p className="text-right">
-          发货时间：{formatDateTime(delivery.deliveryDate)}
-        </p>
-        <p className="truncate">
-          下单时间：
-          {delivery.order?.createdAt
-            ? formatDateTime(delivery.order.createdAt)
-            : "-"}
-        </p>
-        <p className="text-right">{delivery.remark ? "有备注" : "无备注"}</p>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+        <span className="truncate">订单 {formatOrderNo(delivery.orderId)}</span>
+        <span>发货 {formatDateTime(delivery.deliveryDate)}</span>
       </div>
+
+      {delivery.createdBy && (
+        <div className='mt-2 flex items-center gap-2 text-xs text-muted-foreground'>
+          <span>创建人</span>
+          <UserIdentityInline
+            user={delivery.createdBy}
+            className='min-w-0'
+            textClassName='text-xs'
+          />
+        </div>
+      )}
 
       {delivery.remark && (
         <div className="mt-2 border border-dashed border-border px-2.5 py-2">

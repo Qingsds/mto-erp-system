@@ -13,12 +13,16 @@ function RootRouteComponent() {
     select: state => state.location.pathname,
   })
   const token = useAuthStore(state => state.token)
+  const user = useAuthStore(state => state.user)
   const hasHydrated = useAuthStore(state => state.hasHydrated)
   const isBootstrapping = useAuthStore(state => state.isBootstrapping)
+  const isSessionReady = useAuthStore(state => state.isSessionReady)
+  const hasSessionToken = Boolean(token)
+  const hasValidSession = Boolean(token && user && isSessionReady)
 
   useAuthMe(Boolean(token) && hasHydrated)
 
-  if (!hasHydrated || (token && isBootstrapping)) {
+  if (!hasHydrated || (hasSessionToken && (isBootstrapping || !isSessionReady))) {
     return (
       <div className='flex min-h-dvh items-center justify-center bg-background text-sm text-muted-foreground'>
         正在校验登录状态...
@@ -27,14 +31,14 @@ function RootRouteComponent() {
   }
 
   if (pathname === "/login") {
-    if (token) {
+    if (hasValidSession) {
       return <Navigate to='/' replace />
     }
 
     return <Outlet />
   }
 
-  if (!token) {
+  if (!hasValidSession) {
     return <Navigate to='/login' replace />
   }
 

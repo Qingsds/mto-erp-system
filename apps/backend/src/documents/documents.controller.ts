@@ -25,6 +25,17 @@ import { FileInterceptor } from '@nestjs/platform-express';
 export class DocumentsController {
   constructor(private readonly documentsService: DocumentsService) {}
 
+  private buildContentDisposition(
+    dispositionType: 'inline' | 'attachment',
+    fileName: string,
+  ) {
+    const encodedFileName = encodeURIComponent(fileName);
+    const asciiFallbackFileName =
+      fileName.replace(/[^\x20-\x7E]+/g, '_').replace(/["\\]/g, '_') ||
+      'document.pdf';
+    return `${dispositionType}; filename="${asciiFallbackFileName}"; filename*=UTF-8''${encodedFileName}`;
+  }
+
   @Roles('ADMIN')
   @Get()
   async findManagedDocuments(
@@ -69,13 +80,12 @@ export class DocumentsController {
     @Res({ passthrough: true }) response: Response,
   ) {
     const result = await this.documentsService.getBillingPreviewFile(id);
-    const encodedFileName = encodeURIComponent(result.fileName);
 
     response.setHeader('Content-Type', 'application/pdf');
     response.setHeader('Content-Length', String(result.content.byteLength));
     response.setHeader(
       'Content-Disposition',
-      `inline; filename*=UTF-8''${encodedFileName}`,
+      this.buildContentDisposition('inline', result.fileName),
     );
 
     return new StreamableFile(Buffer.from(result.content));
@@ -97,13 +107,12 @@ export class DocumentsController {
     @Res({ passthrough: true }) response: Response,
   ) {
     const result = await this.documentsService.getDocumentPreviewFile(id);
-    const encodedFileName = encodeURIComponent(result.document.fileName);
 
     response.setHeader('Content-Type', result.contentType);
     response.setHeader('Content-Length', String(result.size));
     response.setHeader(
       'Content-Disposition',
-      `inline; filename*=UTF-8''${encodedFileName}`,
+      this.buildContentDisposition('inline', result.document.fileName),
     );
 
     return new StreamableFile(result.stream);
@@ -116,13 +125,12 @@ export class DocumentsController {
     @Res({ passthrough: true }) response: Response,
   ) {
     const result = await this.documentsService.getSignedFile(id);
-    const encodedFileName = encodeURIComponent(result.document.fileName);
 
     response.setHeader('Content-Type', result.contentType);
     response.setHeader('Content-Length', String(result.size));
     response.setHeader(
       'Content-Disposition',
-      `attachment; filename*=UTF-8''${encodedFileName}`,
+      this.buildContentDisposition('attachment', result.document.fileName),
     );
 
     return new StreamableFile(result.stream);

@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UsersRouteImport } from './routes/users'
 import { Route as SealsRouteImport } from './routes/seals'
+import { Route as ProductionTasksRouteImport } from './routes/production-tasks'
 import { Route as PartsRouteImport } from './routes/parts'
 import { Route as OrdersRouteImport } from './routes/orders'
 import { Route as LoginRouteImport } from './routes/login'
@@ -20,6 +21,7 @@ import { Route as CustomersRouteImport } from './routes/customers'
 import { Route as BillingRouteImport } from './routes/billing'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PartsIdRouteImport } from './routes/parts.$id'
+import { Route as OrdersQuickRouteImport } from './routes/orders.quick'
 import { Route as OrdersNewRouteImport } from './routes/orders.new'
 import { Route as OrdersIdRouteImport } from './routes/orders.$id'
 import { Route as DocumentsSealRouteImport } from './routes/documents.seal'
@@ -39,6 +41,11 @@ const UsersRoute = UsersRouteImport.update({
 const SealsRoute = SealsRouteImport.update({
   id: '/seals',
   path: '/seals',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProductionTasksRoute = ProductionTasksRouteImport.update({
+  id: '/production-tasks',
+  path: '/production-tasks',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PartsRoute = PartsRouteImport.update({
@@ -85,6 +92,11 @@ const PartsIdRoute = PartsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
   getParentRoute: () => PartsRoute,
+} as any)
+const OrdersQuickRoute = OrdersQuickRouteImport.update({
+  id: '/quick',
+  path: '/quick',
+  getParentRoute: () => OrdersRoute,
 } as any)
 const OrdersNewRoute = OrdersNewRouteImport.update({
   id: '/new',
@@ -146,6 +158,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/orders': typeof OrdersRouteWithChildren
   '/parts': typeof PartsRouteWithChildren
+  '/production-tasks': typeof ProductionTasksRoute
   '/seals': typeof SealsRouteWithChildren
   '/users': typeof UsersRoute
   '/billing/$id': typeof BillingIdRouteWithChildren
@@ -155,6 +168,7 @@ export interface FileRoutesByFullPath {
   '/documents/seal': typeof DocumentsSealRoute
   '/orders/$id': typeof OrdersIdRoute
   '/orders/new': typeof OrdersNewRoute
+  '/orders/quick': typeof OrdersQuickRoute
   '/parts/$id': typeof PartsIdRoute
   '/billing/$id/seal': typeof BillingIdSealRoute
   '/seals/$id/logs': typeof SealsIdLogsRoute
@@ -169,6 +183,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/orders': typeof OrdersRouteWithChildren
   '/parts': typeof PartsRouteWithChildren
+  '/production-tasks': typeof ProductionTasksRoute
   '/seals': typeof SealsRouteWithChildren
   '/users': typeof UsersRoute
   '/billing/new': typeof BillingNewRoute
@@ -177,6 +192,7 @@ export interface FileRoutesByTo {
   '/documents/seal': typeof DocumentsSealRoute
   '/orders/$id': typeof OrdersIdRoute
   '/orders/new': typeof OrdersNewRoute
+  '/orders/quick': typeof OrdersQuickRoute
   '/parts/$id': typeof PartsIdRoute
   '/billing/$id/seal': typeof BillingIdSealRoute
   '/seals/$id/logs': typeof SealsIdLogsRoute
@@ -192,6 +208,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/orders': typeof OrdersRouteWithChildren
   '/parts': typeof PartsRouteWithChildren
+  '/production-tasks': typeof ProductionTasksRoute
   '/seals': typeof SealsRouteWithChildren
   '/users': typeof UsersRoute
   '/billing/$id': typeof BillingIdRouteWithChildren
@@ -201,6 +218,7 @@ export interface FileRoutesById {
   '/documents/seal': typeof DocumentsSealRoute
   '/orders/$id': typeof OrdersIdRoute
   '/orders/new': typeof OrdersNewRoute
+  '/orders/quick': typeof OrdersQuickRoute
   '/parts/$id': typeof PartsIdRoute
   '/billing/$id/seal': typeof BillingIdSealRoute
   '/seals/$id/logs': typeof SealsIdLogsRoute
@@ -217,6 +235,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/orders'
     | '/parts'
+    | '/production-tasks'
     | '/seals'
     | '/users'
     | '/billing/$id'
@@ -226,6 +245,7 @@ export interface FileRouteTypes {
     | '/documents/seal'
     | '/orders/$id'
     | '/orders/new'
+    | '/orders/quick'
     | '/parts/$id'
     | '/billing/$id/seal'
     | '/seals/$id/logs'
@@ -240,6 +260,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/orders'
     | '/parts'
+    | '/production-tasks'
     | '/seals'
     | '/users'
     | '/billing/new'
@@ -248,6 +269,7 @@ export interface FileRouteTypes {
     | '/documents/seal'
     | '/orders/$id'
     | '/orders/new'
+    | '/orders/quick'
     | '/parts/$id'
     | '/billing/$id/seal'
     | '/seals/$id/logs'
@@ -262,6 +284,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/orders'
     | '/parts'
+    | '/production-tasks'
     | '/seals'
     | '/users'
     | '/billing/$id'
@@ -271,6 +294,7 @@ export interface FileRouteTypes {
     | '/documents/seal'
     | '/orders/$id'
     | '/orders/new'
+    | '/orders/quick'
     | '/parts/$id'
     | '/billing/$id/seal'
     | '/seals/$id/logs'
@@ -286,6 +310,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   OrdersRoute: typeof OrdersRouteWithChildren
   PartsRoute: typeof PartsRouteWithChildren
+  ProductionTasksRoute: typeof ProductionTasksRoute
   SealsRoute: typeof SealsRouteWithChildren
   UsersRoute: typeof UsersRoute
 }
@@ -304,6 +329,13 @@ declare module '@tanstack/react-router' {
       path: '/seals'
       fullPath: '/seals'
       preLoaderRoute: typeof SealsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/production-tasks': {
+      id: '/production-tasks'
+      path: '/production-tasks'
+      fullPath: '/production-tasks'
+      preLoaderRoute: typeof ProductionTasksRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/parts': {
@@ -368,6 +400,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/parts/$id'
       preLoaderRoute: typeof PartsIdRouteImport
       parentRoute: typeof PartsRoute
+    }
+    '/orders/quick': {
+      id: '/orders/quick'
+      path: '/quick'
+      fullPath: '/orders/quick'
+      preLoaderRoute: typeof OrdersQuickRouteImport
+      parentRoute: typeof OrdersRoute
     }
     '/orders/new': {
       id: '/orders/new'
@@ -508,11 +547,13 @@ const DocumentsRouteWithChildren = DocumentsRoute._addFileChildren(
 interface OrdersRouteChildren {
   OrdersIdRoute: typeof OrdersIdRoute
   OrdersNewRoute: typeof OrdersNewRoute
+  OrdersQuickRoute: typeof OrdersQuickRoute
 }
 
 const OrdersRouteChildren: OrdersRouteChildren = {
   OrdersIdRoute: OrdersIdRoute,
   OrdersNewRoute: OrdersNewRoute,
+  OrdersQuickRoute: OrdersQuickRoute,
 }
 
 const OrdersRouteWithChildren =
@@ -547,6 +588,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   OrdersRoute: OrdersRouteWithChildren,
   PartsRoute: PartsRouteWithChildren,
+  ProductionTasksRoute: ProductionTasksRoute,
   SealsRoute: SealsRouteWithChildren,
   UsersRoute: UsersRoute,
 }

@@ -7,6 +7,7 @@
 
 import type { TimelineEvent } from "./types"
 import { formatDateTime } from "./utils"
+import { UserIdentityInline } from "@/components/common/UserIdentityInline"
 
 interface OrderTimelineProps {
   /** 已按时间排序的事件列表。 */
@@ -26,9 +27,19 @@ export function OrderTimeline({ timeline }: OrderTimelineProps) {
           </div>
           <div className="flex-1 pb-3">
             <p className="text-sm font-medium">{event.title}</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
-              {formatDateTime(event.time)}
-            </p>
+            <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+              <span>{formatDateTime(event.time)}</span>
+              {event.actorName && (
+                <span className="inline-flex items-center gap-1.5">
+                  <span>操作人</span>
+                  <UserIdentityInline
+                    user={{ realName: event.actorName }}
+                    className="min-w-0"
+                    textClassName="text-[11px]"
+                  />
+                </span>
+              )}
+            </div>
             <p className="text-xs text-muted-foreground mt-1">{event.desc}</p>
           </div>
         </div>

@@ -134,4 +134,35 @@ export class StorageService implements OnModuleInit {
       throw new InternalServerErrorException('文件清理失败');
     }
   }
+
+  async removeObjectSafe(key: string) {
+    try {
+      await this.removeObject(key);
+    } catch (error) {
+      this.logger.warn(`Best-effort removal failed for object: ${key}`, error as Error);
+    }
+  }
+
+  async removeObjectsSafe(keys: string[]) {
+    for (const key of [...new Set(keys.filter(Boolean))]) {
+      await this.removeObjectSafe(key);
+    }
+  }
+
+  async copyObject(params: { sourceKey: string; destinationKey: string }) {
+    try {
+      const { sourceKey, destinationKey } = params;
+      // MinIO JS SDK: copyObject(bucketName, objectName, sourceObject, conditions)
+      // sourceObject is /bucketName/sourceKey
+      await this.client.copyObject(
+        this.bucket,
+        destinationKey,
+        `/${this.bucket}/${sourceKey}`,
+        new (require('minio').CopyConditions)()
+      );
+    } catch (error) {
+      this.logger.error(`Failed to copy object from ${params.sourceKey} to ${params.destinationKey}`, error as Error);
+      throw new InternalServerErrorException('文件处理失败');
+    }
+  }
 }

@@ -9,6 +9,7 @@
 import { useMemo } from "react"
 import type { DeliveryNote } from "@/hooks/api/useOrders"
 import { formatDeliveryNo } from "@/hooks/api/useOrders"
+import { UserIdentityInline } from "@/components/common/UserIdentityInline"
 import { DeliveryStatusBadge } from "@/pages/deliveries/detail/DeliveryStatusBadge"
 import { formatDateTime } from "./utils"
 
@@ -70,23 +71,18 @@ export function DeliveryList({ deliveries, onOpenDelivery }: DeliveryListProps) 
                 </div>
               </div>
 
-              <div className='mt-3 grid grid-cols-2 gap-2 text-xs'>
-                <div className='border border-border bg-card px-3 py-2'>
-                  <p className='text-[11px] text-muted-foreground'>
-                    发货明细
-                  </p>
-                  <p className='mt-1 font-medium text-foreground'>
-                    {delivery.items?.length ?? 0} 条
-                  </p>
-                </div>
-                <div className='border border-border bg-card px-3 py-2'>
-                  <p className='text-[11px] text-muted-foreground'>
-                    备注状态
-                  </p>
-                  <p className='mt-1 font-medium text-foreground'>
-                    {delivery.remark ? "已填写" : "无备注"}
-                  </p>
-                </div>
+              <div className='mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted-foreground'>
+                <span>发货明细 {delivery.items?.length ?? 0} 条</span>
+                {delivery.createdBy && (
+                  <span className='inline-flex items-center gap-1.5'>
+                    <span>操作人</span>
+                    <UserIdentityInline
+                      user={delivery.createdBy}
+                      className='min-w-0'
+                      textClassName='text-xs'
+                    />
+                  </span>
+                )}
               </div>
 
               {delivery.remark && (

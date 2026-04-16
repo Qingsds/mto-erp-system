@@ -12,9 +12,13 @@ import { DocumentsModule } from './documents/documents.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { CustomersModule } from './customers/customers.module';
+import { ProductionTaskModule } from './production-task/production-task.module';
+import { NotificationModule } from './notification/notification.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     PrismaModule,
     AuthModule,
     UsersModule,
@@ -25,6 +29,8 @@ import { CustomersModule } from './customers/customers.module';
     BillingModule,
     SealsModule,
     DocumentsModule,
+    ProductionTaskModule,
+    NotificationModule,
   ],
   controllers: [AppController],
   providers: [AppService],

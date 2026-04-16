@@ -8,6 +8,7 @@ import {
   Max,
   IsOptional,
   IsArray,
+  ArrayMaxSize,
   ArrayUnique,
   ValidateNested,
   IsNotEmpty,
@@ -17,6 +18,7 @@ import {
   MaxLength,
 } from "class-validator"
 import { Type } from "class-transformer"
+import { FileType } from "./enums"
 
 // ==========================================
 // 0. 全局通用响应与基础类型
@@ -40,6 +42,12 @@ export interface AuthUserInfo {
 export interface AuthLoginResponse {
   accessToken: string
   user: AuthUserInfo
+}
+
+export interface UserOptionItem {
+  id: number
+  realName: string
+  role: UserRoleType
 }
 
 export class CreateUserRequest {
@@ -89,6 +97,9 @@ export type BillingStatusType = "DRAFT" | "SEALED" | "PAID"
 export type DocumentStatusType = "DRAFT" | "SIGNED"
 export type DocumentSourceType = "BILLING" | "GENERIC_UPLOAD" | "LEGACY"
 export type DocumentTargetType = "ORDER" | "DELIVERY" | "BILLING" | "DOCUMENT"
+
+export type TaskStatusType = "PENDING" | "IN_PRODUCTION" | "QUALITY_CHECK" | "COMPLETED"
+export type TaskUrgencyType = "NORMAL" | "URGENT" | "OVERDUE"
 
 // ==========================================
 // 1. 零件与字典模块 (Parts)
@@ -243,6 +254,15 @@ export class CreateOrderRequest {
   @Min(1, { message: "客户ID不能小于1" })
   customerId!: number
 
+  @IsInt({ message: "负责人必须是整数" })
+  @Min(1, { message: "负责人不能小于1" })
+  @IsOptional()
+  responsibleUserId?: number
+
+  @IsString()
+  @IsNotEmpty()
+  targetDate!: string // ISO date string
+
   @IsArray({ message: "订单明细必须是数组" })
   @ValidateNested({ each: true })
   @Type(() => OrderItemRequest)
@@ -272,6 +292,19 @@ export class DeliveryItemRequest {
   remark?: string
 }
 
+export class DeliveryPhotoUploadRequest {
+  @IsString()
+  @IsNotEmpty()
+  fileKey!: string
+
+  @IsString()
+  @IsNotEmpty()
+  fileName!: string
+
+  @IsIn([FileType.IMAGE], { message: "发货照片仅支持图片" })
+  fileType!: FileType
+}
+
 export class CreateDeliveryRequest {
   @IsInt()
   @Min(1)
@@ -285,6 +318,80 @@ export class CreateDeliveryRequest {
   @ValidateNested({ each: true })
   @Type(() => DeliveryItemRequest)
   items!: DeliveryItemRequest[]
+
+  @IsArray()
+  @ArrayMaxSize(9, { message: "发货照片最多上传 9 张" })
+  @ValidateNested({ each: true })
+  @Type(() => DeliveryPhotoUploadRequest)
+  @IsOptional()
+  photos?: DeliveryPhotoUploadRequest[]
+}
+
+// ==========================================
+// 3.5 生产任务与通知模块 (Production & Notification)
+// ==========================================
+export class QuickOrderItemRequest {
+  @IsString()
+  @IsOptional()
+  partName?: string
+
+  @IsBoolean()
+  isNewPart!: boolean
+
+  @IsInt()
+  @IsOptional()
+  existingPartId?: number
+
+  @IsNumber()
+  @Min(0)
+  unitPrice!: number
+
+  @IsInt()
+  @Min(1)
+  orderedQty!: number
+
+  @IsString()
+  @IsOptional()
+  fileKey?: string
+
+  @IsString()
+  @IsOptional()
+  fileName?: string
+
+  @IsString()
+  @IsOptional()
+  fileType?: string
+}
+
+export class CreateQuickOrderRequest {
+  @IsInt()
+  @Min(1)
+  customerId!: number
+
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  responsibleUserId?: number
+
+  @IsString()
+  @IsNotEmpty()
+  targetDate!: string // ISO date string
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => QuickOrderItemRequest)
+  items!: QuickOrderItemRequest[]
+}
+
+export class UpdateTaskStatusRequest {
+  @IsIn(["PENDING", "IN_PRODUCTION", "QUALITY_CHECK", "COMPLETED"])
+  status!: TaskStatusType
+}
+
+export class CreateTaskMessageRequest {
+  @IsString()
+  @IsNotEmpty()
+  content!: string
 }
 
 // ==========================================

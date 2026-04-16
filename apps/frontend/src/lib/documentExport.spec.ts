@@ -64,6 +64,7 @@ function createDeliveryFixture(): DeliveryDetail {
     deliveryDate: "2026-03-23T09:00:00.000Z",
     status: "SHIPPED",
     remark: "存在报废件，详见工艺记录",
+    photos: [],
     order: {
       id: 101,
       customerName: "测试客户",

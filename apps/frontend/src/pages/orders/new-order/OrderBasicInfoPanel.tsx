@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { CustomerPickerDialog } from "@/components/customers/CustomerPickerDialog"
 import { useIsAdmin } from "@/lib/permissions"
+import { useAuthStore } from "@/store/auth.store"
 import { CustomerFormSheet } from "@/pages/customers/CustomerFormSheet"
 import type {
   OrderFormInput,
@@ -26,6 +27,7 @@ export function OrderBasicInfoPanel({
   form,
 }: OrderBasicInfoPanelProps) {
   const canManageCustomers = useIsAdmin()
+  const currentUser = useAuthStore(state => state.user)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
 
@@ -48,6 +50,23 @@ export function OrderBasicInfoPanel({
           <p className='mt-1 text-xs text-muted-foreground'>
             先填写客户，再继续录入零件明细。
           </p>
+        </div>
+
+        <div className='flex flex-col gap-1.5'>
+          <Label htmlFor='targetDate'>
+            交货日期 <span className='text-destructive'>*</span>
+          </Label>
+          <Input
+            id='targetDate'
+            type='date'
+            {...register("targetDate")}
+            className={errors.targetDate ? "border-destructive" : ""}
+          />
+          {errors.targetDate && (
+            <p className='text-xs text-destructive'>
+              {errors.targetDate.message}
+            </p>
+          )}
         </div>
 
         <div className='flex flex-col gap-1.5'>
@@ -80,6 +99,22 @@ export function OrderBasicInfoPanel({
         </div>
 
         <div className='flex flex-col gap-1.5'>
+          <Label htmlFor='operatorName'>
+            操作人
+          </Label>
+          <Input
+            id='operatorName'
+            value={currentUser?.realName ?? ""}
+            readOnly
+            placeholder='当前登录用户'
+            className='bg-muted'
+          />
+          <p className='text-xs text-muted-foreground'>
+            下单后默认记录为当前登录用户。
+          </p>
+        </div>
+
+        <div className='flex flex-col gap-1.5'>
           <Label htmlFor='remark'>备注</Label>
           <textarea
             id='remark'
@@ -101,7 +136,7 @@ export function OrderBasicInfoPanel({
         }}
         onSelect={customer => {
           setValue("customerId", customer.id, { shouldValidate: true })
-          setValue("customerName", customer.name)
+          setValue("customerName", customer.name, { shouldValidate: true })
         }}
       />
 
@@ -112,7 +147,7 @@ export function OrderBasicInfoPanel({
         onSubmitted={customer => {
           setCreateOpen(false)
           setValue("customerId", customer.id, { shouldValidate: true })
-          setValue("customerName", customer.name)
+          setValue("customerName", customer.name, { shouldValidate: true })
         }}
       />
     </>

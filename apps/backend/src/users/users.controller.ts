@@ -18,6 +18,13 @@ import { UsersService } from './users.service';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
+  @Roles()
+  @Get('options')
+  async findOptions(): Promise<ApiResponse> {
+    const result = await this.usersService.findOptions();
+    return { code: 200, message: '查询成功', data: result };
+  }
+
   @Get()
   async findAll(): Promise<ApiResponse> {
     const result = await this.usersService.findAll();

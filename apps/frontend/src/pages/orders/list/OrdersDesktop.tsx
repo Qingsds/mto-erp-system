@@ -7,6 +7,7 @@
  * - 列表逻辑从页面入口拆出
  */
 
+import { useNavigate } from "@tanstack/react-router"
 import { useMemo, useState } from "react"
 import {
   getCoreRowModel,
@@ -34,6 +35,7 @@ interface OrdersDesktopProps {
 }
 
 export function OrdersDesktop({ search }: OrdersDesktopProps) {
+  const navigate = useNavigate()
   const canViewMoney = useCanViewMoney()
   const [sorting, setSorting] = useState<SortingState>([])
   const {
@@ -114,13 +116,23 @@ export function OrdersDesktop({ search }: OrdersDesktopProps) {
                 : undefined
             }
             actions={
-              <Button
-                size='sm'
-                onClick={openCreate}
-              >
-                <i className='ri-add-line mr-1.5' />
-                新建订单
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  size='sm'
+                  variant='outline'
+                  onClick={() => navigate({ to: '/orders/quick' })}
+                >
+                  <i className='ri-file-upload-line mr-1.5' />
+                  快捷图纸建单
+                </Button>
+                <Button
+                  size='sm'
+                  onClick={openCreate}
+                >
+                  <i className='ri-add-line mr-1.5' />
+                  新建订单
+                </Button>
+              </div>
             }
           />
         }

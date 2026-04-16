@@ -3,6 +3,7 @@ import type {
   ApiResponse,
   CreateUserRequest,
   UpdateUserRequest,
+  UserOptionItem,
   UserRoleType,
 } from "@erp/shared-types"
 import request from "@/lib/utils/request"
@@ -18,6 +19,7 @@ export interface UserListItem {
 
 const USER_KEYS = {
   list: () => ["users"] as const,
+  options: () => ["users", "options"] as const,
 }
 
 export function useGetUsers() {
@@ -26,6 +28,16 @@ export function useGetUsers() {
     queryFn: () =>
       request
         .get<unknown, ApiResponse<UserListItem[]>>("/api/users")
+        .then(res => res.data ?? []),
+  })
+}
+
+export function useGetUserOptions() {
+  return useQuery({
+    queryKey: USER_KEYS.options(),
+    queryFn: () =>
+      request
+        .get<unknown, ApiResponse<UserOptionItem[]>>("/api/users/options")
         .then(res => res.data ?? []),
   })
 }

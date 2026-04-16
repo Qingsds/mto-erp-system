@@ -50,6 +50,11 @@ export function BillingDetailSummary({
         ? stats.latestDocument.fileName
         : "盖章后生成归档记录",
     },
+    {
+      label: "创建人",
+      value: billing.createdBy?.realName ?? "--",
+      hint: billing.createdAt ? `创建于 ${formatDateLabel(billing.createdAt)}` : "旧数据未记录",
+    },
   ]
 
   return (

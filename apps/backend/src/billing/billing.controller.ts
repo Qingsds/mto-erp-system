@@ -7,6 +7,7 @@ import {
   Patch,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
 import { BillingService } from './billing.service';
 import {
@@ -16,6 +17,7 @@ import {
   BillingStatusType,
 } from '@erp/shared-types';
 import { Roles } from '../auth/roles.decorator';
+import type { AuthenticatedRequest } from '../auth/auth-request';
 
 @Roles('ADMIN')
 @Controller('api/billing')
@@ -25,8 +27,12 @@ export class BillingController {
   @Post()
   async createBilling(
     @Body() requestBody: CreateBillingRequest,
+    @Req() request: AuthenticatedRequest,
   ): Promise<ApiResponse> {
-    const result = await this.billingService.createBilling(requestBody);
+    const result = await this.billingService.createBilling(
+      requestBody,
+      request.user.id,
+    );
     return { code: 200, message: '财务对账单生成成功', data: result };
   }
 

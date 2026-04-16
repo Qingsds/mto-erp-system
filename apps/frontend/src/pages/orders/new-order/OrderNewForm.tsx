@@ -168,7 +168,9 @@ export function OrderNewForm({
           <form onSubmit={submitForm}>
             <div className='flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-8'>
               <aside className='flex w-full shrink-0 flex-col gap-4 lg:sticky lg:top-20 lg:w-72 xl:w-80'>
-                <OrderBasicInfoPanel form={form} />
+                <OrderBasicInfoPanel
+                  form={form}
+                />
                 <OrderDraftSummaryCard
                   itemCount={fields.length}
                   estimatedTotal={estimatedTotal}

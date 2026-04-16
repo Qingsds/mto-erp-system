@@ -12,6 +12,7 @@ import { zodResolverCompat } from "@/lib/zodResolverCompat"
 import { useGetParts } from "@/hooks/api/useParts"
 import { useGetCustomer } from "@/hooks/api/useCustomers"
 import { useCreateOrder } from "@/hooks/api/useOrders"
+import { useAuthStore } from "@/store/auth.store"
 import { OrderFormSchema, type OrderFormInput, type OrderFormValues } from "./orders.schema"
 import { OrderNewForm } from "./new-order/OrderNewForm"
 
@@ -20,6 +21,7 @@ export function OrderNewPage() {
 
   const { data: partsData } = useGetParts({ page: 1, pageSize: 500 })
   const parts = partsData?.data ?? []
+  const currentUser = useAuthStore(state => state.user)
   const createOrder = useCreateOrder()
 
   const form = useForm<OrderFormInput, unknown, OrderFormValues>({
@@ -27,6 +29,7 @@ export function OrderNewPage() {
     defaultValues: {
       customerId: 0,
       customerName: "",
+      targetDate: new Date(Date.now() + 15 * 86400000).toISOString().slice(0, 10),
       remark: "",
       items: [{ partId: 0, orderedQty: 1, _displayPrice: 0 }],
     },
@@ -39,6 +42,8 @@ export function OrderNewPage() {
   const handleSubmit = async (values: OrderFormValues) => {
     await createOrder.mutateAsync({
       customerId: values.customerId,
+      responsibleUserId: currentUser?.id,
+      targetDate: new Date(values.targetDate).toISOString(),
       items: values.items.map(({ partId, orderedQty }) => ({ partId, orderedQty })),
     })
     navigate({ to: "/orders" })

@@ -74,6 +74,7 @@ export const OrderItemFormSchema = z.object({
 export const OrderFormSchema = z.object({
   customerId:   z.number({ error: "请选择客户" }).min(1, "请选择客户"),
   customerName: z.string().max(100).optional(),
+  targetDate:   z.string().min(1, "请选择交货日期"),
   remark:       z.string().max(500).optional(),
   items:        z.array(OrderItemFormSchema).min(1, "至少添加一个零件"),
 })

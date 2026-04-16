@@ -79,12 +79,15 @@ export class PartsController {
     const dispositionType =
       download === '1' || download === 'true' ? 'attachment' : 'inline';
     const encodedFileName = encodeURIComponent(result.drawing.fileName);
+    const asciiFallbackFileName = result.drawing.fileName
+      .replace(/[^\x20-\x7E]+/g, '_')
+      .replace(/["\\]/g, '_') || 'drawing';
 
     response.setHeader('Content-Type', result.contentType);
     response.setHeader('Content-Length', String(result.size));
     response.setHeader(
       'Content-Disposition',
-      `${dispositionType}; filename*=UTF-8''${encodedFileName}`,
+      `${dispositionType}; filename="${asciiFallbackFileName}"; filename*=UTF-8''${encodedFileName}`,
     );
 
     return new StreamableFile(result.stream);
@@ -107,6 +110,42 @@ export class PartsController {
   ): Promise<ApiResponse> {
     const result = await this.partsService.deletePart(id);
     return { code: 200, message: '零件删除成功', data: result };
+  }
+
+  /**
+   * 暂存图纸，用于快捷建单时提前上传
+   */
+  @Roles('ADMIN')
+  @Post('drawings/stash')
+  @UseInterceptors(FileInterceptor('file'))
+  async stashDrawing(
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<ApiResponse> {
+    if (!file) {
+      throw new BadRequestException('请通过表单的 file 字段上传文件');
+    }
+    const result = await this.partsService.stashDrawing(file);
+    return {
+      code: 200,
+      message: '图纸暂存成功',
+      data: result,
+    };
+  }
+
+  @Roles('ADMIN')
+  @Delete('drawings/stash')
+  async removeStashedDrawing(
+    @Query('fileKey') fileKey?: string,
+  ): Promise<ApiResponse> {
+    if (!fileKey) {
+      throw new BadRequestException('缺少 fileKey');
+    }
+    const result = await this.partsService.removeStashedDrawing(fileKey);
+    return {
+      code: 200,
+      message: '临时图纸已清理',
+      data: result,
+    };
   }
 
   /**

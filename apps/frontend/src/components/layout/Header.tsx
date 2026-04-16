@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils"
 import { useUIStore } from "@/store/ui.store"
 import { HeaderAccountMenu } from "./HeaderAccountMenu"
 import { getLayoutLocation, type LayoutRoutePath } from "./layoutNavigation"
+import { NotificationBell } from "./NotificationBell"
 
 interface HeaderProps {
   bordered?: boolean
@@ -144,6 +145,8 @@ export function Header({ bordered = true }: HeaderProps) {
           >
             <i className="ri-equalizer-2-line text-base" />
           </Button>
+
+          <NotificationBell />
 
           {isMobile && <HeaderAccountMenu compact />}
         </div>

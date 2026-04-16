@@ -34,24 +34,32 @@ function MetaRow({
 export function DeliveryMetaSection({
   delivery,
 }: DeliveryMetaSectionProps) {
+  const rows = [
+    delivery.order?.customerName ? { label: "客户", value: delivery.order.customerName } : null,
+    delivery.createdBy?.realName ? { label: "创建人", value: delivery.createdBy.realName } : null,
+    delivery.order?.createdAt
+      ? { label: "下单时间", value: formatDateTime(delivery.order.createdAt) }
+      : null,
+    delivery.orderId ? { label: "订单号", value: formatOrderNo(delivery.orderId) } : null,
+  ].filter(Boolean) as Array<{ label: string; value: ReactNode }>
+
+  if (!delivery.remark && rows.length === 0) {
+    return null
+  }
+
   return (
     <div className='flex flex-col gap-2.5 text-xs'>
-      <MetaRow label='订单号' value={formatOrderNo(delivery.orderId)} />
-      <MetaRow label='客户' value={delivery.order?.customerName || "-"} />
-      <MetaRow
-        label='下单时间'
-        value={
-          delivery.order?.createdAt
-            ? formatDateTime(delivery.order.createdAt)
-            : "-"
-        }
-      />
-      <div className='border-t border-dashed border-border pt-2'>
-        <p className='mb-1 text-xs text-muted-foreground'>发货备注</p>
-        <p className='text-xs text-foreground whitespace-pre-wrap break-words'>
-          {delivery.remark || "无"}
-        </p>
-      </div>
+      {rows.map(row => (
+        <MetaRow key={row.label} label={row.label} value={row.value} />
+      ))}
+      {delivery.remark && (
+        <div className='border-t border-dashed border-border pt-2'>
+          <p className='mb-1 text-xs text-muted-foreground'>发货备注</p>
+          <p className='text-xs text-foreground whitespace-pre-wrap break-words'>
+            {delivery.remark}
+          </p>
+        </div>
+      )}
     </div>
   )
 }

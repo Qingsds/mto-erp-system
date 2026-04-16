@@ -8,6 +8,7 @@ import type { OrderListItem } from "@/hooks/api/useOrders"
 import { formatOrderNo } from "@/hooks/api/useOrders"
 import { computeListOrderAmount } from "@/domain/orders/pricing"
 import { useCanViewMoney } from "@/lib/permissions"
+import { UserIdentityInline } from "@/components/common/UserIdentityInline"
 import { OrderStatusBadge } from "../shared/OrderStatusBadge"
 
 interface OrdersMobileCardProps {
@@ -45,6 +46,14 @@ export function OrdersMobileCard({
         <div className='min-w-0 text-xs text-muted-foreground'>
           <p>{order.items.length} 项零件</p>
           <p className='mt-0.5 font-mono'>{order.createdAt.slice(0, 10)}</p>
+          <div className='mt-2 flex items-center gap-2'>
+            <span>创建人</span>
+            <UserIdentityInline
+              user={order.createdBy}
+              className='min-w-0'
+              textClassName='text-xs'
+            />
+          </div>
         </div>
 
         {canViewMoney && (

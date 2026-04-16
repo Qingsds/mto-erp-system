@@ -37,7 +37,7 @@ export function useLogin() {
 
 export function useAuthMe(enabled: boolean) {
   const setSession = useAuthStore(state => state.setSession)
-  const clearSession = useAuthStore(state => state.clearSession)
+  const resetSession = useAuthStore(state => state.resetSession)
   const token = useAuthStore(state => state.token)
   const setBootstrapping = useAuthStore(state => state.setBootstrapping)
 
@@ -65,15 +65,15 @@ export function useAuthMe(enabled: boolean) {
     }
 
     if (query.isError) {
-      clearSession()
+      resetSession()
     }
   }, [
-    clearSession,
     enabled,
     query.data,
     query.isError,
     query.isPending,
     query.isSuccess,
+    resetSession,
     setBootstrapping,
     setSession,
     token,
@@ -97,10 +97,10 @@ export function useChangePassword() {
 export function useLogout() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const clearSession = useAuthStore(state => state.clearSession)
+  const resetSession = useAuthStore(state => state.resetSession)
 
   return (options?: { silent?: boolean }) => {
-    clearSession()
+    resetSession()
     queryClient.clear()
     if (!options?.silent) {
       toast.success("已退出登录")

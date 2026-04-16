@@ -26,12 +26,8 @@ export function DeliveryDetailMobileActions({
     <MobileActionBar
       summary={
         <div className='flex items-center justify-between gap-3 text-xs'>
-          <span className='text-muted-foreground'>
-            本次发货 {totalShippedQty} 件
-          </span>
-          <span className='font-mono text-foreground'>
-            {formatOrderNo(orderId)}
-          </span>
+          <span className='text-muted-foreground'>本次发货 {totalShippedQty} 件</span>
+          <span className='font-mono text-foreground'>{formatOrderNo(orderId)}</span>
         </div>
       }
     >

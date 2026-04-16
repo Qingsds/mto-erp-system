@@ -6,14 +6,20 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './auth.guard';
 
-const DEFAULT_JWT_SECRET = 'mto-erp-local-dev-jwt-secret';
+function readRequiredEnv(name: string) {
+  const value = process.env[name]?.trim();
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
+}
 
 @Module({
   imports: [
     PrismaModule,
     JwtModule.register({
       global: true,
-      secret: process.env.JWT_SECRET?.trim() || DEFAULT_JWT_SECRET,
+      secret: readRequiredEnv('JWT_SECRET'),
       signOptions: {
         expiresIn: '7d',
       },

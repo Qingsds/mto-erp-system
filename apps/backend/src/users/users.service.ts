@@ -3,7 +3,11 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { CreateUserRequest, UpdateUserRequest } from '@erp/shared-types';
+import {
+  CreateUserRequest,
+  UpdateUserRequest,
+  type UserOptionItem,
+} from '@erp/shared-types';
 import type { AuthenticatedUser } from '../auth/auth-request';
 import { hashPassword } from '../auth/password.util';
 import { PrismaService } from '../prisma/prisma.service';
@@ -21,6 +25,18 @@ export class UsersService {
         realName: true,
         role: true,
         isActive: true,
+      },
+    });
+  }
+
+  async findOptions(): Promise<UserOptionItem[]> {
+    return this.prisma.client.user.findMany({
+      where: { isActive: true },
+      orderBy: [{ role: 'asc' }, { realName: 'asc' }, { id: 'asc' }],
+      select: {
+        id: true,
+        realName: true,
+        role: true,
       },
     });
   }

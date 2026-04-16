@@ -14,11 +14,6 @@ interface DeliveryItemsTableProps {
   lines: DeliveryLineVM[]
 }
 
-function getProgressPercent(shippedQty: number, orderedQty: number) {
-  if (orderedQty <= 0) return 0
-  return Math.min((shippedQty / orderedQty) * 100, 100)
-}
-
 /**
  * 发货明细列表。
  */
@@ -28,7 +23,7 @@ export function DeliveryItemsTable({ lines }: DeliveryItemsTableProps) {
       {lines.map(line => (
         <div
           key={line.id}
-          className="border border-border bg-background px-3 py-2.5"
+          className="border border-border bg-background px-3 py-2"
         >
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
@@ -71,35 +66,6 @@ export function DeliveryItemsTable({ lines }: DeliveryItemsTableProps) {
             >
               {line.billingItem ? "已计费" : "待开票"}
             </span>
-          </div>
-
-          <div className="mt-2">
-            <div className="mb-1 flex items-center justify-between text-[11px] text-muted-foreground">
-              <span>订单发货进度</span>
-              <span className="font-mono">
-                {Math.round(
-                  getProgressPercent(
-                    line.orderItem.shippedQty,
-                    line.orderItem.orderedQty,
-                  ),
-                )}
-                %
-              </span>
-            </div>
-            <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-              <div
-                className={cn(
-                  "h-full rounded-full",
-                  line.pendingQty > 0 ? "bg-primary" : "bg-emerald-500",
-                )}
-                style={{
-                  width: `${getProgressPercent(
-                    line.orderItem.shippedQty,
-                    line.orderItem.orderedQty,
-                  )}%`,
-                }}
-              />
-            </div>
           </div>
 
           {line.remark && (

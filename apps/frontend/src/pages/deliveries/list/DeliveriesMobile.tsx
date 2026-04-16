@@ -9,8 +9,6 @@
 
 import { useEffect, useState } from "react"
 import { StatusFilterBar } from "@/components/common/TableToolbar"
-import { TopLevelPageHeaderWrapper } from "@/components/common/TopLevelPageHeaderWrapper"
-import { TopLevelPageTitle } from "@/components/common/TopLevelPageTitle"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -62,20 +60,13 @@ export function DeliveriesMobile({ search }: DeliveriesMobileProps) {
 
   return (
     <div className="flex flex-col h-full">
-      <TopLevelPageHeaderWrapper
-        inset="page"
-        bodyClassName="items-end justify-between"
-        padding="mobile"
-      >
-        <TopLevelPageTitle
-          title="发货管理"
-          subtitle={isFetching && !isLoading ? "加载中…" : `共 ${totalCount} 张发货单`}
-          titleClassName="text-base"
-        />
-      </TopLevelPageHeaderWrapper>
+      <div className="shrink-0 border-b border-border bg-background px-4 py-3">
+        <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
+          <span>{isFetching && !isLoading ? "加载中…" : `共 ${totalCount} 张发货单`}</span>
+          {hasActiveFilters && <span>已启用筛选</span>}
+        </div>
 
-      <div className="shrink-0 border-b border-border bg-background px-4 pb-3">
-        <div className="mt-2 flex items-center gap-2 h-9 px-3 bg-muted border border-input">
+        <div className="flex items-center gap-2 h-9 px-3 bg-muted border border-input">
           <i className="ri-search-line text-sm text-muted-foreground shrink-0" />
           <input
             value={draftFilters.keyword}

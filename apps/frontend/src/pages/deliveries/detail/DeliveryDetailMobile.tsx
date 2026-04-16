@@ -9,6 +9,7 @@
 import type { DeliveryDetail } from "@/hooks/api/useDeliveries"
 import { DeliveryItemsTable } from "./DeliveryItemsTable"
 import { DeliveryMetaSection } from "./DeliveryMetaSection"
+import { DeliveryPhotosSection } from "./DeliveryPhotosSection"
 import { DeliverySummaryCards } from "./DeliverySummaryCards"
 import type { DeliveryStatsVM } from "./types"
 
@@ -29,8 +30,14 @@ export function DeliveryDetailMobile({
   stats,
   isFetching,
 }: DeliveryDetailMobileProps) {
+  const shouldShowMeta =
+    !!delivery.remark ||
+    !!delivery.createdBy?.realName ||
+    !!delivery.order?.customerName ||
+    !!delivery.order?.createdAt
+
   return (
-    <div className='flex min-h-full flex-col gap-3 sm:gap-4'>
+    <div className='flex min-h-full flex-col gap-3'>
       <DeliverySummaryCards
         delivery={delivery}
         stats={stats}
@@ -50,9 +57,13 @@ export function DeliveryDetailMobile({
         <DeliveryItemsTable lines={stats.lines} />
       </section>
 
-      <section className='border border-border bg-card p-3'>
-        <DeliveryMetaSection delivery={delivery} />
-      </section>
+      {shouldShowMeta && (
+        <section className='border border-border bg-card p-3'>
+          <DeliveryMetaSection delivery={delivery} />
+        </section>
+      )}
+
+      <DeliveryPhotosSection delivery={delivery} />
     </div>
   )
 }

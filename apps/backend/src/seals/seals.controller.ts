@@ -30,6 +30,13 @@ import { Roles } from '../auth/roles.decorator';
 export class SealsController {
   constructor(private readonly sealsService: SealsService) {}
 
+  private buildInlineDisposition(fileName: string) {
+    const encodedFileName = encodeURIComponent(fileName);
+    const asciiFallbackFileName =
+      fileName.replace(/[^\x20-\x7E]+/g, '_').replace(/["\\]/g, '_') || 'seal';
+    return `inline; filename="${asciiFallbackFileName}"; filename*=UTF-8''${encodedFileName}`;
+  }
+
   @Post()
   async createSeal(
     @Body() requestBody: CreateSealRequest,
@@ -80,13 +87,12 @@ export class SealsController {
     @Res({ passthrough: true }) response: Response,
   ) {
     const result = await this.sealsService.getSealFile(id);
-    const encodedFileName = encodeURIComponent(result.seal.fileName);
 
     response.setHeader('Content-Type', result.contentType);
     response.setHeader('Content-Length', String(result.size));
     response.setHeader(
       'Content-Disposition',
-      `inline; filename*=UTF-8''${encodedFileName}`,
+      this.buildInlineDisposition(result.seal.fileName),
     );
 
     return new StreamableFile(result.stream);

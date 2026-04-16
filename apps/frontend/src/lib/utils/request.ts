@@ -58,7 +58,7 @@ request.interceptors.response.use(
       typeof window !== "undefined" &&
       !requestUrl.includes("/api/auth/login")
     ) {
-      useAuthStore.getState().clearSession()
+      useAuthStore.getState().resetSession()
 
       if (window.location.pathname !== "/login") {
         window.location.replace("/login")

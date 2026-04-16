@@ -16,13 +16,19 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import type {
   ApiResponse,
-  CreateDeliveryRequest,
   OrderStatusType,
+  CreateQuickOrderRequest,
 } from "@erp/shared-types"
 import request  from "@/lib/utils/request"
 import { toast } from "@/lib/toast"
 
 // ─── API 响应类型（对齐 Prisma output，非自创）────────────
+
+export interface UserRef {
+  id: number
+  realName: string
+  role: string
+}
 
 /** 对应 OrderItem + include: { part } 的形态 */
 export interface OrderItemWithPart {
@@ -40,6 +46,14 @@ export interface OrderItemWithPart {
     spec?:        string
     commonPrices: Record<string, number>
   }
+  productionTask?: {
+    id: number
+    status: string
+    targetDate: string
+    urgency?: string
+    lastStatusUpdatedAt?: string | null
+    lastStatusUpdatedBy?: UserRef | null
+  }
 }
 
 /** 对应 Order + include: { items: true } 的形态（列表页） */
@@ -50,6 +64,8 @@ export interface OrderListItem {
   status:       OrderStatusType
   reason?:      string
   createdAt:    string
+  responsibleUser?: UserRef | null
+  createdBy?: UserRef | null
   /** 后端聚合总金额（兼容旧快照数据回退计算）。 */
   totalAmount?: number
   items: {
@@ -89,6 +105,7 @@ export interface DeliveryNote {
   status:       string
   /** 发货单备注。 */
   remark?:      string
+  createdBy?:   UserRef | null
   /** 发货明细集合（列表接口可能不带）。 */
   items?:       DeliveryNoteItem[]
 }
@@ -99,6 +116,10 @@ export interface OrderDetail {
   status:       OrderStatusType
   reason?:      string
   createdAt:    string
+  closedShortAt?: string | null
+  responsibleUser?: UserRef | null
+  createdBy?: UserRef | null
+  closedShortBy?: UserRef | null
   items:        OrderItemWithPart[]
   deliveries:   DeliveryNote[]
 }
@@ -150,18 +171,37 @@ export function useGetOrder(id?: number) {
   })
 }
 
-/** 创建订单（对齐 CreateOrderRequest：customerId + items[{partId, orderedQty}]） */
+/** 创建订单（对齐 CreateOrderRequest：customerId + targetDate + items[{partId, orderedQty}]） */
 export function useCreateOrder() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (payload: {
       customerId: number
+      responsibleUserId?: number
+      targetDate: string
       items: { partId: number; orderedQty: number }[]
     }) =>
       request.post<unknown, ApiResponse<OrderListItem>>("/api/orders", payload),
     onSuccess: () => {
       toast.success("订单创建成功")
       qc.invalidateQueries({ queryKey: ["orders"] })
+      qc.invalidateQueries({ queryKey: ["production-tasks"] })
+    },
+    onError: (e: Error) => toast.error(`创建失败：${e.message}`),
+  })
+}
+
+/** 创建快捷订单 */
+export function useCreateQuickOrder() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: CreateQuickOrderRequest) =>
+      request.post<unknown, ApiResponse<OrderListItem>>("/api/orders/quick", payload),
+    onSuccess: () => {
+      toast.success("快捷订单创建成功")
+      qc.invalidateQueries({ queryKey: ["orders"] })
+      qc.invalidateQueries({ queryKey: ["parts"] })
+      qc.invalidateQueries({ queryKey: ["production-tasks"] })
     },
     onError: (e: Error) => toast.error(`创建失败：${e.message}`),
   })
@@ -182,22 +222,6 @@ export function useCloseShortOrder() {
       qc.invalidateQueries({ queryKey: ORDERS_KEYS.detail(vars.id) })
     },
     onError: (e: Error) => toast.error(`操作失败：${e.message}`),
-  })
-}
-
-/** 创建发货单（联动更新订单 shippedQty + status） */
-export function useCreateDelivery() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (payload: CreateDeliveryRequest) =>
-      request.post<unknown, ApiResponse<DeliveryNote>>("/api/deliveries", payload),
-    onSuccess: (_, vars) => {
-      toast.success("发货单创建成功")
-      qc.invalidateQueries({ queryKey: ["orders"] })
-      qc.invalidateQueries({ queryKey: ["deliveries"] })
-      qc.invalidateQueries({ queryKey: ORDERS_KEYS.detail(vars.orderId) })
-    },
-    onError: (e: Error) => toast.error(`创建发货单失败：${e.message}`),
   })
 }
 

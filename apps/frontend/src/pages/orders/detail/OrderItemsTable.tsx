@@ -10,6 +10,10 @@ import { cn } from "@/lib/utils"
 import { useMemo, useState } from "react"
 import { resolveUnitPrice } from "@/domain/orders/pricing"
 import type { OrderLineVM } from "./types"
+import { TaskStatusBadge, TaskUrgencyBadge } from "../shared/TaskBadge"
+import { Button } from "@/components/ui/button"
+import { ErpSheet } from "@/components/common/ErpSheet"
+import { TaskDetailPanel } from "./TaskDetailPanel"
 
 interface OrderItemsTableProps {
   /** 已加工过的订单行视图模型列表。 */
@@ -37,6 +41,7 @@ function resolveProgress(line: OrderLineVM) {
 
 export function OrderItemsTable({ lines, canViewMoney }: OrderItemsTableProps) {
   const [filter, setFilter] = useState<BomFilter>("all")
+  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null)
 
   const filterTabs = useMemo(() => [
     {
@@ -95,7 +100,7 @@ export function OrderItemsTable({ lines, canViewMoney }: OrderItemsTableProps) {
       ) : filteredLines.map(line => (
         <section
           key={line.id}
-          className="border border-border bg-background px-3 py-3"
+          className="border border-border bg-background px-3 py-2.5"
         >
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
@@ -120,57 +125,54 @@ export function OrderItemsTable({ lines, canViewMoney }: OrderItemsTableProps) {
             )}
           </div>
 
-          <div className="mt-3">
-            <div className="flex items-center justify-between gap-3 text-[11px] text-muted-foreground">
-              <span>发货进度</span>
-              <span>{resolveProgress(line)}%</span>
-            </div>
-            <div className="mt-1.5 h-2 overflow-hidden bg-muted">
-              <div
-                className={cn(
-                  "h-full transition-[width] duration-300",
-                  line.pendingQty > 0 ? "bg-primary" : "bg-emerald-600",
-                )}
-                style={{ width: `${resolveProgress(line)}%` }}
-              />
-            </div>
-          </div>
-
-          <div className="mt-3 grid grid-cols-3 gap-2">
-            <div className="border border-border bg-card px-3 py-2">
-              <p className="text-[11px] text-muted-foreground">
-                需求
-              </p>
-              <p className="mt-1 text-sm font-semibold text-foreground">
-                {line.orderedQty}
-              </p>
-            </div>
-            <div className="border border-border bg-card px-3 py-2">
-              <p className="text-[11px] text-muted-foreground">
-                已发
-              </p>
-              <p className="mt-1 text-sm font-semibold text-primary">
-                {line.shippedQty}
-              </p>
-            </div>
-            <div
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+            <span className="px-2 py-0.5 bg-muted text-muted-foreground">
+              需求 {line.orderedQty}
+            </span>
+            <span className="px-2 py-0.5 bg-primary/10 text-primary">
+              已发 {line.shippedQty}
+            </span>
+            <span
               className={cn(
-                "border px-3 py-2",
+                "px-2 py-0.5",
                 line.pendingQty > 0
-                  ? "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200"
-                  : "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200",
+                  ? "bg-amber-50 text-amber-800 dark:bg-amber-950/30 dark:text-amber-200"
+                  : "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200",
               )}
             >
-              <p className="text-[11px] opacity-80">
-                待发
-              </p>
-              <p className="mt-1 text-sm font-semibold">
-                {line.pendingQty}
-              </p>
-            </div>
+              待发 {line.pendingQty}
+            </span>
+            <span className="text-[11px] text-muted-foreground">
+              进度 {resolveProgress(line)}%
+            </span>
           </div>
+
+          {line.productionTask && (
+            <div className="mt-2 border-t border-border pt-2 flex items-center justify-between gap-3">
+              <div className="min-w-0 flex flex-wrap items-center gap-2">
+                <span className="text-[11px] text-muted-foreground">生产任务:</span>
+                <TaskStatusBadge status={line.productionTask.status as any} />
+                <TaskUrgencyBadge urgency={line.productionTask.urgency as any} />
+                <span className="text-[11px] text-muted-foreground">
+                  交期 {new Date(line.productionTask.targetDate).toLocaleDateString()}
+                </span>
+              </div>
+              <Button variant="ghost" size="sm" className="h-7 text-[11px]" onClick={() => setSelectedTaskId(line.productionTask!.id)}>
+                任务详情/沟通
+              </Button>
+            </div>
+          )}
         </section>
       ))}
+
+      <ErpSheet
+        open={!!selectedTaskId}
+        onOpenChange={(o) => !o && setSelectedTaskId(null)}
+        title="生产任务详情"
+        description="查看状态与业务沟通留言"
+      >
+        {selectedTaskId && <TaskDetailPanel taskId={selectedTaskId} />}
+      </ErpSheet>
     </div>
   )
 }

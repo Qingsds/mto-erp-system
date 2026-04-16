@@ -49,26 +49,43 @@ export function OrderSummaryCards({
   isFetching,
   canViewMoney,
 }: OrderSummaryCardsProps) {
+  const summaryCards = [
+    {
+      label: "客户",
+      value: order.customerName,
+      hint: formatDateTime(order.createdAt),
+    },
+    ...(canViewMoney
+      ? [
+          {
+            label: "金额总计",
+            value: `¥${stats.totalAmount.toLocaleString("zh-CN", { minimumFractionDigits: 2 })}`,
+            hint: `${order.items.length} 项零件`,
+          },
+        ]
+      : []),
+    {
+      label: "发货进度",
+      value: `${stats.totalShippedQty} / ${stats.totalOrderedQty}`,
+      hint: stats.totalPendingQty > 0 ? `待发 ${stats.totalPendingQty}` : "已全部发完",
+    },
+    {
+      label: "负责人 / 创建人",
+      value: `${order.responsibleUser?.realName ?? "--"} / ${order.createdBy?.realName ?? "--"}`,
+      hint: isFetching ? "刷新中…" : `${order.deliveries.length} 张发货单`,
+    },
+  ]
+
   return (
     <div className={`grid grid-cols-2 gap-3 ${canViewMoney ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>
-      <StatCard label="客户" value={order.customerName} hint={formatDateTime(order.createdAt)} />
-      {canViewMoney && (
+      {summaryCards.map(card => (
         <StatCard
-          label="金额总计"
-          value={`¥${stats.totalAmount.toLocaleString("zh-CN", { minimumFractionDigits: 2 })}`}
-          hint={`${order.items.length} 项零件`}
+          key={card.label}
+          label={card.label}
+          value={card.value}
+          hint={card.hint}
         />
-      )}
-      <StatCard
-        label="发货进度"
-        value={`${stats.totalShippedQty} / ${stats.totalOrderedQty}`}
-        hint={stats.totalPendingQty > 0 ? `待发 ${stats.totalPendingQty}` : "已全部发完"}
-      />
-      <StatCard
-        label="发货单"
-        value={`${order.deliveries.length} 张`}
-        hint={isFetching ? "刷新中…" : "按发货日期倒序"}
-      />
+      ))}
     </div>
   )
 }

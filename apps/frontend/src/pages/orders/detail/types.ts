@@ -42,4 +42,6 @@ export interface TimelineEvent {
   title: string
   /** 事件描述。 */
   desc: string
+  /** 操作人。 */
+  actorName?: string | null
 }

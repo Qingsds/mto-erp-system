@@ -14,6 +14,7 @@ import {
   ApiResponse,
   CloseShortOrderRequest,
   CreateOrderRequest,
+  CreateQuickOrderRequest,
 } from '@erp/shared-types';
 import { OrderStatus } from '@erp/database';
 import type { AuthenticatedRequest } from '../auth/auth-request';
@@ -25,10 +26,20 @@ export class OrdersController {
   @Post()
   async createController(
     @Body() requestBody: CreateOrderRequest,
+    @Req() request: AuthenticatedRequest,
   ): Promise<ApiResponse> {
-    const result = await this.ordersService.createOrder(requestBody);
+    const result = await this.ordersService.createOrder(requestBody, request.user.id);
 
     return { code: 200, data: result, message: '订单创建成功' };
+  }
+
+  @Post('quick')
+  async createQuickOrder(
+    @Body() body: CreateQuickOrderRequest,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    const data = await this.ordersService.createQuickOrder(body, request.user.id);
+    return { code: 200, message: 'success', data };
   }
 
   /**
@@ -38,8 +49,13 @@ export class OrdersController {
   async closeShortOrder(
     @Param('id', ParseIntPipe) id: number,
     @Body() requestBody: CloseShortOrderRequest,
+    @Req() request: AuthenticatedRequest,
   ): Promise<ApiResponse> {
-    const result = await this.ordersService.closeShortOrder(id, requestBody);
+    const result = await this.ordersService.closeShortOrder(
+      id,
+      requestBody,
+      request.user.id,
+    );
 
     return {
       code: 200,

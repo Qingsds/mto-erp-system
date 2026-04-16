@@ -1,6 +1,7 @@
 import { createColumnHelper } from "@tanstack/react-table"
 import { Button }             from "@/components/ui/button"
 import { ExpandablePanelCell } from "@/components/common/ExpandablePanelCell"
+import { UserIdentityInline } from "@/components/common/UserIdentityInline"
 import type { OrderListItem }    from "@/hooks/api/useOrders"
 import { formatOrderNo }         from "@/hooks/api/useOrders"
 import { computeListOrderAmount } from "@/domain/orders/pricing"
@@ -108,6 +109,15 @@ export function getOrdersColumns(
         <span className="font-mono text-xs text-muted-foreground whitespace-nowrap">
           {i.getValue().slice(0, 10)}
         </span>
+      ),
+    }),
+
+    col.display({
+      id: "createdBy",
+      header: "创建人",
+      size: 150,
+      cell: info => (
+        <UserIdentityInline user={info.row.original.createdBy} />
       ),
     }),
 

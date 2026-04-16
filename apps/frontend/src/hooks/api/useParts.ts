@@ -58,6 +58,7 @@ export interface PartListItem {
   spec?:        string
   commonPrices: Record<string, number>  // {"标准价": 0.85, "批量价": 0.72}
   customers:    PartCustomerItem[]
+  drawings?:    Array<{ uploadedAt: string }>
   createdAt:    string
   updatedAt:    string
 }
@@ -163,7 +164,7 @@ export function usePartDrawingPreviewUrl(drawing?: PartDrawing) {
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
-    if (!drawing || drawing.fileType !== FileType.IMAGE) {
+    if (!drawing) {
       setPreviewUrl(null)
       setPreviewError(null)
       setIsLoading(false)

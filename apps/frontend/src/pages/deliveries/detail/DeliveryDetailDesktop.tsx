@@ -9,6 +9,7 @@
 import type { DeliveryDetail } from "@/hooks/api/useDeliveries"
 import { DeliveryItemsTable } from "./DeliveryItemsTable"
 import { DeliveryInfoPanel } from "./DeliveryInfoPanel"
+import { DeliveryPhotosSection } from "./DeliveryPhotosSection"
 import { DeliverySummaryCards } from "./DeliverySummaryCards"
 import type { DeliveryStatsVM } from "./types"
 
@@ -43,6 +44,8 @@ export function DeliveryDetailDesktop({
           </div>
           <DeliveryItemsTable lines={stats.lines} />
         </section>
+
+        <DeliveryPhotosSection delivery={delivery} />
 
         <aside className="lg:sticky lg:top-4">
           <DeliveryInfoPanel delivery={delivery} />

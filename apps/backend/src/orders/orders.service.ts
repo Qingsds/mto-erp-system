@@ -7,14 +7,20 @@ import { PrismaService } from '../prisma/prisma.service';
 import {
   CloseShortOrderRequest,
   CreateOrderRequest,
+  CreateQuickOrderRequest,
   UserRoleType,
 } from '@erp/shared-types';
 import { OrderStatus, Prisma } from '@erp/database';
+import { ProductionTaskService } from '../production-task/production-task.service';
+import { StorageService } from '../storage/storage.service';
 
 @Injectable()
 export class OrdersService {
   // 依赖注入：通过构造函数，NestJS 会自动把全局的 PrismaService 塞给这个类
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: StorageService,
+  ) {}
 
   private async loadOrderParts(
     tx: Prisma.TransactionClient,
@@ -171,6 +177,8 @@ export class OrdersService {
   }
 
   private sanitizeListItemForUser(order: {
+    responsibleUser?: unknown;
+    createdBy?: unknown;
     totalAmount?: number;
     items: {
       unitPrice: Prisma.Decimal | string | number;
@@ -178,9 +186,11 @@ export class OrdersService {
     }[];
     [key: string]: unknown;
   }) {
-    const { totalAmount, items, ...rest } = order;
+    const { totalAmount, items, responsibleUser, createdBy, ...rest } = order;
     return {
       ...rest,
+      responsibleUser,
+      createdBy,
       items: items.map(item => ({
         ...item,
         unitPrice: '0',
@@ -189,6 +199,8 @@ export class OrdersService {
   }
 
   private sanitizeDetailForUser(order: {
+    responsibleUser?: unknown;
+    createdBy?: unknown;
     items: {
       unitPrice: Prisma.Decimal | string | number;
       part: {
@@ -217,8 +229,9 @@ export class OrdersService {
    * @param payload
    * @Qingsds
    */
-  async createOrder(payload: CreateOrderRequest) {
-    const { customerId, items } = payload;
+  async createOrder(payload: CreateOrderRequest, createdById: number) {
+    const { customerId, targetDate, items } = payload;
+    const responsibleUserId = payload.responsibleUserId ?? createdById;
 
     if (!items || items.length === 0) {
       // 遇到不合法的业务请求，直接抛出异常，NestJS 会自动将其转化为 HTTP 400 响应
@@ -240,6 +253,14 @@ export class OrdersService {
           throw new BadRequestException('客户已停用，无法用于新建订单');
         }
 
+        const responsibleUser = await tx.user.findUnique({
+          where: { id: responsibleUserId },
+          select: { id: true, isActive: true },
+        });
+        if (!responsibleUser || !responsibleUser.isActive) {
+          throw new BadRequestException('订单负责人无效或已停用');
+        }
+
         const partMap = await this.loadOrderParts(
           tx,
           items.map(item => item.partId),
@@ -250,6 +271,8 @@ export class OrdersService {
         const order = await tx.order.create({
           data: {
             customerId: customer.id,
+            responsibleUserId: responsibleUser.id,
+            createdById,
             customerName: customer.name,
             status: 'PENDING', // 默认订单状态为待处理
           },
@@ -265,12 +288,20 @@ export class OrdersService {
             part.commonPrices,
           );
 
-          await tx.orderItem.create({
+          const orderItem = await tx.orderItem.create({
             data: {
               orderId: order.id,
               partId: item.partId,
               orderedQty: item.orderedQty,
               unitPrice: unitPrice, // 【防篡改机制】：价格一旦写入这里，后续零件字典怎么改价，都不会影响本订单
+            },
+          });
+
+          await tx.productionTask.create({
+            data: {
+              orderItemId: orderItem.id,
+              targetDate: new Date(targetDate),
+              status: 'PENDING',
             },
           });
         }
@@ -279,7 +310,15 @@ export class OrdersService {
           where: {
             id: order.id,
           },
-          include: { items: true },
+          include: {
+            responsibleUser: {
+              select: { id: true, realName: true, role: true },
+            },
+            createdBy: {
+              select: { id: true, realName: true, role: true },
+            },
+            items: true,
+          },
         });
       },
     );
@@ -287,10 +326,174 @@ export class OrdersService {
   }
 
   /**
+   * 快捷建单
+   */
+  async createQuickOrder(payload: CreateQuickOrderRequest, createdById: number) {
+    const { customerId, targetDate, items } = payload;
+    const responsibleUserId = payload.responsibleUserId ?? createdById;
+    if (!items || items.length === 0) {
+      throw new BadRequestException('订单明细不能为空');
+    }
+
+    const copiedFinalKeys: string[] = [];
+    const tempKeys = items
+      .map(item => item.fileKey)
+      .filter((key): key is string => Boolean(key));
+
+    try {
+      const result = await this.prisma.client.$transaction(async (tx: Prisma.TransactionClient) => {
+        const customer = await tx.customer.findUnique({
+          where: { id: customerId },
+          select: { id: true, name: true, isActive: true },
+        });
+        if (!customer || !customer.isActive) {
+          throw new BadRequestException('客户无效或已停用');
+        }
+
+        const responsibleUser = await tx.user.findUnique({
+          where: { id: responsibleUserId },
+          select: { id: true, isActive: true },
+        });
+        if (!responsibleUser || !responsibleUser.isActive) {
+          throw new BadRequestException('订单负责人无效或已停用');
+        }
+
+        const existingPartIds = items
+          .filter(item => !item.isNewPart)
+          .map(item => item.existingPartId)
+          .filter((id): id is number => Number.isInteger(id));
+
+        if (existingPartIds.length > 0) {
+          const existingPartMap = await this.loadOrderParts(tx, existingPartIds);
+          this.ensurePartsAssignableToCustomer(existingPartMap, customer.id);
+        }
+
+        const order = await tx.order.create({
+          data: {
+            customerId: customer.id,
+            customerName: customer.name,
+            responsibleUserId: responsibleUser.id,
+            createdById,
+            status: 'PENDING',
+          },
+        });
+
+        for (const [index, item] of items.entries()) {
+          let partId = item.existingPartId;
+          if (item.isNewPart) {
+            if (!item.partName?.trim()) {
+              throw new BadRequestException('新零件必须提供名称');
+            }
+
+            const now = new Date();
+            const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
+            const msStr = (now.getTime() + index).toString().slice(-6);
+            const partNumber = `PN-${dateStr}-${msStr}-${index}`;
+
+            const newPart = await tx.part.create({
+              data: {
+                partNumber,
+                name: item.partName.trim(),
+                material: '未知材质',
+                commonPrices: { 标准价: item.unitPrice },
+              },
+            });
+            partId = newPart.id;
+
+            await tx.customerPart.create({
+              data: { customerId: customer.id, partId },
+            });
+
+            if (item.fileKey && item.fileName && item.fileType) {
+              const finalFileKey = `drawings/part-${partId}/${Date.now()}-${item.fileKey.split('/').pop()}`;
+              await this.storage.copyObject({
+                sourceKey: item.fileKey,
+                destinationKey: finalFileKey,
+              });
+              copiedFinalKeys.push(finalFileKey);
+
+              const newDrawing = await tx.partDrawing.create({
+                data: {
+                  partId,
+                  fileName: item.fileName,
+                  fileKey: finalFileKey,
+                  fileType: item.fileType,
+                  isLatest: true,
+                },
+              });
+
+              await tx.partDrawing.updateMany({
+                where: {
+                  partId,
+                  id: { not: newDrawing.id },
+                },
+                data: { isLatest: false },
+              });
+            }
+          } else if (!partId) {
+            throw new BadRequestException('复用零件时必须提供 existingPartId');
+          }
+
+          if (!partId) {
+            throw new BadRequestException('必须提供零件ID');
+          }
+
+          const orderItem = await tx.orderItem.create({
+            data: {
+              orderId: order.id,
+              partId,
+              orderedQty: item.orderedQty,
+              unitPrice: item.unitPrice,
+            },
+          });
+
+          await tx.productionTask.create({
+            data: {
+              orderItemId: orderItem.id,
+              targetDate: new Date(targetDate),
+              status: 'PENDING',
+            },
+          });
+        }
+
+        return tx.order.findUnique({
+          where: { id: order.id },
+          include: {
+            responsibleUser: {
+              select: { id: true, realName: true, role: true },
+            },
+            createdBy: {
+              select: { id: true, realName: true, role: true },
+            },
+            items: {
+              include: {
+                productionTask: true,
+                part: true,
+              },
+            },
+          },
+        });
+      });
+
+      await this.storage.removeObjectsSafe(tempKeys);
+
+      return result;
+    } catch (error) {
+      await this.storage.removeObjectsSafe(copiedFinalKeys);
+      await this.storage.removeObjectsSafe(tempKeys);
+      throw error;
+    }
+  }
+
+  /**
    * 订单短交结案close short
    * 强行终止尚未发完的订单，阻断后续排产与发货
    */
-  async closeShortOrder(orderId: number, payload: CloseShortOrderRequest) {
+  async closeShortOrder(
+    orderId: number,
+    payload: CloseShortOrderRequest,
+    closedShortById: number,
+  ) {
     const order = await this.prisma.client.order.findUnique({
       where: { id: orderId },
     });
@@ -312,6 +515,13 @@ export class OrdersService {
       data: {
         reason: payload.reason,
         status: 'CLOSED_SHORT',
+        closedShortById,
+        closedShortAt: new Date(),
+      },
+      include: {
+        closedShortBy: {
+          select: { id: true, realName: true, role: true },
+        },
       },
     });
 
@@ -361,6 +571,12 @@ export class OrdersService {
               },
             },
           },
+          responsibleUser: {
+            select: { id: true, realName: true, role: true },
+          },
+          createdBy: {
+            select: { id: true, realName: true, role: true },
+          },
         },
       }),
     ]);
@@ -403,15 +619,49 @@ export class OrdersService {
       where: { id },
       include: {
         items: {
-          include: { part: true }, // 深度联表：带出明细对应的零件基础信息
+          include: {
+            part: true,
+            productionTask: {
+              include: {
+                lastStatusUpdatedBy: {
+                  select: { id: true, realName: true, role: true },
+                },
+              },
+            },
+          }, // 深度联表：带出明细对应的零件基础信息及生产任务
         },
-        deliveries: true, // 带出该订单名下的所有发货记录
+        deliveries: {
+          include: {
+            createdBy: {
+              select: { id: true, realName: true, role: true },
+            },
+          },
+        },
+        responsibleUser: {
+          select: { id: true, realName: true, role: true },
+        },
+        createdBy: {
+          select: { id: true, realName: true, role: true },
+        },
+        closedShortBy: {
+          select: { id: true, realName: true, role: true },
+        },
       },
     });
 
     if (!order) {
       throw new NotFoundException(`订单 ID: ${id} 不存在`);
     }
+
+    // 计算任务紧急度
+    if (order.items) {
+      for (const item of order.items) {
+        if (item.productionTask) {
+          (item.productionTask as any).urgency = ProductionTaskService.calculateUrgency(item.productionTask.targetDate);
+        }
+      }
+    }
+
     return role === 'ADMIN' ? order : this.sanitizeDetailForUser(order);
   }
 }

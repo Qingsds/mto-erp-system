@@ -7,6 +7,7 @@
 
 import { createColumnHelper } from "@tanstack/react-table"
 import { Button } from "@/components/ui/button"
+import { UserIdentityInline } from "@/components/common/UserIdentityInline"
 import type { DeliveryListItem } from "@/hooks/api/useDeliveries"
 import { formatDeliveryNo, formatOrderNo } from "@/hooks/api/useOrders"
 import { formatDateTime } from "./deliveries.utils"
@@ -79,6 +80,15 @@ export function getDeliveriesColumns(
           </span>
         )
       },
+    }),
+
+    col.display({
+      id: "createdBy",
+      header: "创建人",
+      size: 150,
+      cell: info => (
+        <UserIdentityInline user={info.row.original.createdBy} />
+      ),
     }),
 
     col.display({

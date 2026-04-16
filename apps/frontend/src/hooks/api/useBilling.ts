@@ -23,6 +23,11 @@ export interface BillingListItem {
   totalAmount: string | number
   status: BillingStatusType
   createdAt: string
+  createdBy?: {
+    id: number
+    realName: string
+    role: string
+  } | null
   items: BillingItem[]
 }
 
@@ -95,6 +100,11 @@ export interface BillingDetail {
   totalAmount: string | number
   status: BillingStatusType
   createdAt: string
+  createdBy?: {
+    id: number
+    realName: string
+    role: string
+  } | null
   items: BillingDetailItem[]
   documents: BillingDocument[]
 }

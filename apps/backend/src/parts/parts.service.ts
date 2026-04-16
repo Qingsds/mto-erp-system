@@ -43,6 +43,50 @@ export class PartsService {
     private readonly storage: StorageService,
   ) {}
 
+  private hasCjk(value: string) {
+    return /[\u3400-\u9FFF\uF900-\uFAFF]/u.test(value);
+  }
+
+  private looksLikeLatin1Mojibake(value: string) {
+    return /[\u00C0-\u00FF]/u.test(value) && !this.hasCjk(value);
+  }
+
+  private decodeUploadedFileName(fileName: string) {
+    const trimmedName = fileName.trim();
+    if (!trimmedName) {
+      return fileName;
+    }
+
+    if (
+      /^[\x00-\x7F]+$/.test(trimmedName) ||
+      !this.looksLikeLatin1Mojibake(trimmedName)
+    ) {
+      return trimmedName;
+    }
+
+    const decodedName = Buffer.from(trimmedName, 'latin1').toString('utf8').trim();
+    if (
+      !decodedName ||
+      decodedName.includes('\uFFFD') ||
+      !this.hasCjk(decodedName)
+    ) {
+      return trimmedName;
+    }
+
+    return decodedName;
+  }
+
+  private normalizeDrawingFileName(fileName: string) {
+    return this.decodeUploadedFileName(fileName).trim() || '未命名图纸';
+  }
+
+  private normalizeDrawingRecord<T extends { fileName: string }>(drawing: T): T {
+    return {
+      ...drawing,
+      fileName: this.normalizeDrawingFileName(drawing.fileName),
+    };
+  }
+
   private sanitizePartForUser<T extends { commonPrices: unknown }>(part: T) {
     return {
       ...part,
@@ -197,6 +241,13 @@ export class PartsService {
         take: Number(pageSize),
         orderBy: { createdAt: 'desc' }, // 按创建时间倒序
         include: {
+          drawings: {
+            where: { isLatest: true },
+            select: {
+              uploadedAt: true,
+            },
+            take: 1,
+          },
           customers: {
             include: {
               customer: {
@@ -250,7 +301,16 @@ export class PartsService {
     }
 
     const formatted = this.formatPartRecord(part);
-    return role === 'ADMIN' ? formatted : this.sanitizePartForUser(formatted);
+    const normalized = {
+      ...formatted,
+      drawings: formatted.drawings.map(drawing =>
+        this.normalizeDrawingRecord(drawing),
+      ),
+    };
+
+    return role === 'ADMIN'
+      ? normalized
+      : this.sanitizePartForUser(normalized);
   }
 
   // 4. 修改零件信息
@@ -345,6 +405,44 @@ export class PartsService {
   }
 
   /**
+   * 暂存图纸并返回 key
+   */
+  async stashDrawing(file: Express.Multer.File) {
+    if (!file.buffer?.length) {
+      throw new BadRequestException('上传文件内容为空');
+    }
+    if (file.size > MAX_DRAWING_SIZE_BYTES) {
+      throw new BadRequestException('图纸文件不能超过 10MB');
+    }
+
+    const fileType = resolveDrawingFileType(file);
+    const fileKey = `temp/drawings/${Date.now()}-${randomUUID()}${resolveFileExtension(file)}`;
+    const normalizedFileName = this.normalizeDrawingFileName(file.originalname);
+
+    await this.storage.uploadObject({
+      key: fileKey,
+      body: file.buffer,
+      size: file.size,
+      contentType: file.mimetype,
+    });
+
+    return { fileKey, fileName: normalizedFileName, fileType };
+  }
+
+  async removeStashedDrawing(fileKey: string) {
+    const normalizedKey = fileKey.trim();
+    if (!normalizedKey) {
+      throw new BadRequestException('缺少待清理的临时文件 key');
+    }
+    if (!normalizedKey.startsWith('temp/drawings/')) {
+      throw new BadRequestException('只允许清理快捷建单临时图纸');
+    }
+
+    await this.storage.removeObjectSafe(normalizedKey);
+    return { removed: true, fileKey: normalizedKey };
+  }
+
+  /**
    * 上传零件工程图纸
    */
   async uploadDrawing(partId: number, file: Express.Multer.File) {
@@ -365,6 +463,7 @@ export class PartsService {
 
     const fileType = resolveDrawingFileType(file);
     const fileKey = `drawings/part-${partId}/${Date.now()}-${randomUUID()}${resolveFileExtension(file)}`;
+    const normalizedFileName = this.normalizeDrawingFileName(file.originalname);
 
     await this.storage.uploadObject({
       key: fileKey,
@@ -378,7 +477,7 @@ export class PartsService {
       const newDrawing = await tx.partDrawing.create({
         data: {
           partId: partId,
-          fileName: file.originalname,
+          fileName: normalizedFileName,
           fileKey: fileKey,
           fileType: fileType,
           isLatest: true,
@@ -393,7 +492,7 @@ export class PartsService {
         data: { isLatest: false },
       });
 
-      return newDrawing;
+      return this.normalizeDrawingRecord(newDrawing);
     });
   }
 
@@ -440,7 +539,7 @@ export class PartsService {
           : 'application/octet-stream';
 
     return {
-      drawing,
+      drawing: this.normalizeDrawingRecord(drawing),
       stream,
       size: stat.size,
       contentType,

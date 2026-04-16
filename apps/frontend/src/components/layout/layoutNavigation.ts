@@ -95,6 +95,18 @@ export const LAYOUT_NAV_SECTIONS: LayoutNavSection[] = [
         searchable: true,
       },
       {
+        to: "/production-tasks",
+        label: "生产任务",
+        shortLabel: "生产",
+        description: "跟进生产进度、反馈质量与逾期情况。",
+        icon: "ri-hammer-line",
+        iconActive: "ri-hammer-fill",
+        aliases: ["生产", "任务", "production", "task"],
+        showInSidebar: true,
+        showInBottomNav: true,
+        searchable: true,
+      },
+      {
         to: "/deliveries",
         label: "发货管理",
         shortLabel: "发货",
@@ -314,6 +326,14 @@ export function getLayoutLocation(pathname: string): LayoutLocation {
         { label: "订单管理", to: "/orders" },
         { label: "订单详情" },
       ],
+    }
+  }
+
+  if (pathname === "/production-tasks") {
+    return {
+      pageLabel: "生产任务",
+      mobileLabel: "生产任务",
+      breadcrumbs: [{ label: "生产任务", to: "/production-tasks" }],
     }
   }
 

@@ -53,6 +53,14 @@ export class DocumentsService {
     private readonly storage: StorageService,
   ) {}
 
+  private hasCjk(value: string) {
+    return /[\u3400-\u9FFF\uF900-\uFAFF]/u.test(value);
+  }
+
+  private looksLikeLatin1Mojibake(value: string) {
+    return /[\u00C0-\u00FF]/u.test(value) && !this.hasCjk(value);
+  }
+
   private formatBillingNo(id: number): string {
     return `BIL-${String(id).padStart(6, '0')}`;
   }
@@ -83,15 +91,20 @@ export class DocumentsService {
       return fileName;
     }
 
-    // multipart/form-data 的 filename 常被服务端按 latin1 接收，
-    // 中文文件名会表现为 "ä¸­æ.pdf" 这类乱码，这里统一尝试还原回 UTF-8。
-    if (/^[\x00-\x7F]+$/.test(trimmedName)) {
+    if (
+      /^[\x00-\x7F]+$/.test(trimmedName) ||
+      !this.looksLikeLatin1Mojibake(trimmedName)
+    ) {
       return trimmedName;
     }
 
     const decodedName = Buffer.from(trimmedName, 'latin1').toString('utf8').trim();
 
-    if (!decodedName || decodedName.includes('\uFFFD')) {
+    if (
+      !decodedName ||
+      decodedName.includes('\uFFFD') ||
+      !this.hasCjk(decodedName)
+    ) {
       return trimmedName;
     }
 
