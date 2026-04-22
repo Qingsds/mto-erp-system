@@ -21,6 +21,7 @@ const { spawn } = require("node:child_process")
 const {
   backendRoot,
   databaseEnvPath,
+  ensureDatabaseBuilt,
   ensureSharedTypesBuilt,
   prepareDatabaseEnv,
 } = require("../../../scripts/dev-utils.cjs")
@@ -46,6 +47,8 @@ async function run() {
   if (!args.includes("--skip-db-sync")) {
     await syncPrismaDatabase()
   }
+
+  await ensureDatabaseBuilt()
 
   // 从 backend 工作区内部解析 Nest CLI，避免依赖外部 PATH，
   // 也避免再次经过 `pnpm exec` 这一层。

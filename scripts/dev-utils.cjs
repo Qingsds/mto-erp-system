@@ -70,6 +70,11 @@ const sharedTypesDistRoot = path.resolve(sharedTypesRoot, "dist")
  */
 const sharedTypesTsconfigPath = path.resolve(sharedTypesRoot, "tsconfig.json")
 
+const databaseSrcRoot = path.resolve(databaseRoot, "src")
+const databaseDistRoot = path.resolve(databaseRoot, "dist")
+const databaseTsconfigPath = path.resolve(databaseRoot, "tsconfig.json")
+const databaseIndexDtsPath = path.resolve(databaseDistRoot, "index.d.ts")
+
 /**
  * 缓存解析后的 pnpm 命令路径。
  * 一次启动过程中只需要解析一次，避免反复扫描 PATH / where.exe。
@@ -516,6 +521,43 @@ function isSharedTypesBuildCurrent() {
   return getNewestMtimeMs(sharedTypesDistRoot) >= newestSourceTime
 }
 
+function isDatabaseBuildCurrent() {
+  if (!isExistingFile(databaseIndexDtsPath)) {
+    return false
+  }
+
+  const newestSourceTime = Math.max(
+    getNewestMtimeMs(databaseSrcRoot),
+    getNewestMtimeMs(databaseTsconfigPath),
+    getNewestMtimeMs(generatedClientPath),
+  )
+
+  return getNewestMtimeMs(databaseIndexDtsPath) >= newestSourceTime
+}
+
+async function ensureDatabaseBuilt() {
+  if (isDatabaseBuildCurrent()) {
+    console.log("[types-sync] @erp/database is up to date, skipping build")
+    return
+  }
+
+  if (!hasFiles(generatedClientPath)) {
+    throw new Error(
+      `[types-sync] Prisma Client output not found at ${generatedClientPath}. Run prisma sync/generate first.`,
+    )
+  }
+
+  const tscBinPath = require.resolve("typescript/bin/tsc", {
+    paths: [databaseRoot],
+  })
+
+  console.log("[types-sync] building @erp/database")
+  await runCommand(process.execPath, [tscBinPath, "-p", databaseTsconfigPath], {
+    cwd: databaseRoot,
+    env: process.env,
+  })
+}
+
 /**
  * 启动前自动确保 shared-types 已经构建。
  * 这样 backend / frontend 都不会再因为消费到过期 dist 而报类型缺失。
@@ -544,6 +586,7 @@ module.exports = {
   databaseEnvPath,
   databaseEnvExamplePath,
   databaseRoot,
+  ensureDatabaseBuilt,
   ensureSharedTypesBuilt,
   generatedClientPath,
   getPnpmCommand,

@@ -16,6 +16,7 @@
  * 4. 并行拉起 backend 和 frontend 的 watch/dev 进程
  */
 const {
+  ensureDatabaseBuilt,
   ensureSharedTypesBuilt,
   getPnpmCommand,
   prepareDatabaseEnv,
@@ -52,6 +53,7 @@ async function run() {
   prepareDatabaseEnv()
   await ensureSharedTypesBuilt()
   await syncPrismaDatabase()
+  await ensureDatabaseBuilt()
 
   /** @type {boolean} 是否已经进入统一收口流程 */
   let shuttingDown = false
