@@ -38,6 +38,12 @@ function parseBoolean(value: string): boolean {
   return value.trim().toLowerCase() === 'true';
 }
 
+function maskAccessKey(value: string): string {
+  const trimmed = value.trim();
+  if (trimmed.length <= 4) return '*'.repeat(trimmed.length);
+  return `${trimmed.slice(0, 2)}${'*'.repeat(trimmed.length - 4)}${trimmed.slice(-2)}`;
+}
+
 function isMinioNotFoundError(error: unknown): boolean {
   if (!error || typeof error !== 'object') {
     return false;
@@ -57,23 +63,47 @@ function isMinioNotFoundError(error: unknown): boolean {
 export class StorageService implements OnModuleInit {
   private readonly logger = new Logger(StorageService.name);
   private readonly bucket = readRequiredEnv('MINIO_BUCKET');
+  private readonly endPoint = readRequiredEnv('MINIO_ENDPOINT');
+  private readonly port = parsePort(readRequiredEnv('MINIO_PORT'));
+  private readonly useSSL = parseBoolean(process.env.MINIO_USE_SSL?.trim() ?? 'false');
+  private readonly accessKey = readRequiredEnv('MINIO_ACCESS_KEY');
+  private readonly secretKey = readRequiredEnv('MINIO_SECRET_KEY');
+  private readonly skipValidation = parseBoolean(
+    process.env.MINIO_SKIP_VALIDATE?.trim() ?? 'false',
+  );
   private readonly client = new Client({
-    endPoint: readRequiredEnv('MINIO_ENDPOINT'),
-    port: parsePort(readRequiredEnv('MINIO_PORT')),
-    useSSL: parseBoolean(process.env.MINIO_USE_SSL?.trim() ?? 'false'),
-    accessKey: readRequiredEnv('MINIO_ACCESS_KEY'),
-    secretKey: readRequiredEnv('MINIO_SECRET_KEY'),
+    endPoint: this.endPoint,
+    port: this.port,
+    useSSL: this.useSSL,
+    accessKey: this.accessKey,
+    secretKey: this.secretKey,
   });
 
   async onModuleInit() {
+    if (this.skipValidation) {
+      this.logger.warn(
+        `MinIO validation skipped (MINIO_SKIP_VALIDATE=true): ${this.endPoint}:${this.port}/${this.bucket}`,
+      );
+      return;
+    }
+
     try {
       const exists = await this.client.bucketExists(this.bucket);
       if (!exists) {
         throw new Error(`MinIO bucket "${this.bucket}" does not exist`);
       }
     } catch (error) {
-      this.logger.error('MinIO bucket validation failed', error as Error);
-      throw error;
+      const errorCode =
+        error && typeof error === 'object' && 'code' in error
+          ? String((error as { code?: unknown }).code)
+          : '';
+      const baseMessage = `MinIO initialization failed for ${this.endPoint}:${this.port}/${this.bucket} (accessKey=${maskAccessKey(this.accessKey)})`;
+      const message = errorCode ? `${baseMessage} code=${errorCode}` : baseMessage;
+      this.logger.error(message, error as Error);
+      throw new Error(
+        `${message}. Check MINIO_ACCESS_KEY/MINIO_SECRET_KEY and bucket existence. Set MINIO_SKIP_VALIDATE=true to bypass validation.`,
+        { cause: error as Error },
+      );
     }
   }
 

@@ -6,10 +6,11 @@ import { validateCustomersPageSearch } from "@/pages/customers/list/search"
 function CustomersRouteComponent() {
   const pathname = useRouterState({ select: state => state.location.pathname })
   const isChildRoute = pathname !== "/customers" && pathname.startsWith("/customers/")
+  const search = Route.useSearch()
 
   return (
     <AdminRouteGuard>
-      {isChildRoute ? <Outlet /> : <CustomersPage search={Route.useSearch()} />}
+      {isChildRoute ? <Outlet /> : <CustomersPage search={search} />}
     </AdminRouteGuard>
   )
 }
