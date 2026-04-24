@@ -890,14 +890,12 @@ export class OrdersService {
           .map(item => ({ item, id: this.normalizeOptionalId(item.id) }))
           .filter((entry): entry is { item: (typeof itemsInput)[number]; id: number } => typeof entry.id === 'number');
 
-        await Promise.all(
-          itemsToUpdate.map(entry =>
-            tx.orderDraftItem.update({
-              where: { id: entry.id },
-              data: updateDataByItem(entry.item),
-            }),
-          ),
-        );
+        for (const entry of itemsToUpdate) {
+          await tx.orderDraftItem.update({
+            where: { id: entry.id },
+            data: updateDataByItem(entry.item),
+          });
+        }
 
         const itemsToCreate = itemsInput
           .filter(item => this.normalizeOptionalId(item.id) === undefined);
