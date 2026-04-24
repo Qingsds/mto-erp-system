@@ -31,6 +31,7 @@ import { Route as BillingNewRouteImport } from './routes/billing.new'
 import { Route as BillingIdRouteImport } from './routes/billing.$id'
 import { Route as BillingIdIndexRouteImport } from './routes/billing.$id.index'
 import { Route as SealsIdLogsRouteImport } from './routes/seals.$id.logs'
+import { Route as OrdersDraftsIdRouteImport } from './routes/orders.drafts.$id'
 import { Route as BillingIdSealRouteImport } from './routes/billing.$id.seal'
 
 const UsersRoute = UsersRouteImport.update({
@@ -143,6 +144,11 @@ const SealsIdLogsRoute = SealsIdLogsRouteImport.update({
   path: '/$id/logs',
   getParentRoute: () => SealsRoute,
 } as any)
+const OrdersDraftsIdRoute = OrdersDraftsIdRouteImport.update({
+  id: '/drafts/$id',
+  path: '/drafts/$id',
+  getParentRoute: () => OrdersRoute,
+} as any)
 const BillingIdSealRoute = BillingIdSealRouteImport.update({
   id: '/seal',
   path: '/seal',
@@ -171,6 +177,7 @@ export interface FileRoutesByFullPath {
   '/orders/quick': typeof OrdersQuickRoute
   '/parts/$id': typeof PartsIdRoute
   '/billing/$id/seal': typeof BillingIdSealRoute
+  '/orders/drafts/$id': typeof OrdersDraftsIdRoute
   '/seals/$id/logs': typeof SealsIdLogsRoute
   '/billing/$id/': typeof BillingIdIndexRoute
 }
@@ -195,6 +202,7 @@ export interface FileRoutesByTo {
   '/orders/quick': typeof OrdersQuickRoute
   '/parts/$id': typeof PartsIdRoute
   '/billing/$id/seal': typeof BillingIdSealRoute
+  '/orders/drafts/$id': typeof OrdersDraftsIdRoute
   '/seals/$id/logs': typeof SealsIdLogsRoute
   '/billing/$id': typeof BillingIdIndexRoute
 }
@@ -221,6 +229,7 @@ export interface FileRoutesById {
   '/orders/quick': typeof OrdersQuickRoute
   '/parts/$id': typeof PartsIdRoute
   '/billing/$id/seal': typeof BillingIdSealRoute
+  '/orders/drafts/$id': typeof OrdersDraftsIdRoute
   '/seals/$id/logs': typeof SealsIdLogsRoute
   '/billing/$id/': typeof BillingIdIndexRoute
 }
@@ -248,6 +257,7 @@ export interface FileRouteTypes {
     | '/orders/quick'
     | '/parts/$id'
     | '/billing/$id/seal'
+    | '/orders/drafts/$id'
     | '/seals/$id/logs'
     | '/billing/$id/'
   fileRoutesByTo: FileRoutesByTo
@@ -272,6 +282,7 @@ export interface FileRouteTypes {
     | '/orders/quick'
     | '/parts/$id'
     | '/billing/$id/seal'
+    | '/orders/drafts/$id'
     | '/seals/$id/logs'
     | '/billing/$id'
   id:
@@ -297,6 +308,7 @@ export interface FileRouteTypes {
     | '/orders/quick'
     | '/parts/$id'
     | '/billing/$id/seal'
+    | '/orders/drafts/$id'
     | '/seals/$id/logs'
     | '/billing/$id/'
   fileRoutesById: FileRoutesById
@@ -471,6 +483,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SealsIdLogsRouteImport
       parentRoute: typeof SealsRoute
     }
+    '/orders/drafts/$id': {
+      id: '/orders/drafts/$id'
+      path: '/drafts/$id'
+      fullPath: '/orders/drafts/$id'
+      preLoaderRoute: typeof OrdersDraftsIdRouteImport
+      parentRoute: typeof OrdersRoute
+    }
     '/billing/$id/seal': {
       id: '/billing/$id/seal'
       path: '/seal'
@@ -548,12 +567,14 @@ interface OrdersRouteChildren {
   OrdersIdRoute: typeof OrdersIdRoute
   OrdersNewRoute: typeof OrdersNewRoute
   OrdersQuickRoute: typeof OrdersQuickRoute
+  OrdersDraftsIdRoute: typeof OrdersDraftsIdRoute
 }
 
 const OrdersRouteChildren: OrdersRouteChildren = {
   OrdersIdRoute: OrdersIdRoute,
   OrdersNewRoute: OrdersNewRoute,
   OrdersQuickRoute: OrdersQuickRoute,
+  OrdersDraftsIdRoute: OrdersDraftsIdRoute,
 }
 
 const OrdersRouteWithChildren =

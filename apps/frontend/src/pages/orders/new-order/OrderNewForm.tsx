@@ -18,7 +18,6 @@ import { useCanViewMoney } from "@/lib/permissions"
 import { useUIStore } from "@/store/ui.store"
 import type {
   OrderFormInput,
-  OrderFormValues,
 } from "../orders.schema"
 import { BomRow } from "./BomRow"
 import { OrderBasicInfoPanel } from "./OrderBasicInfoPanel"
@@ -28,11 +27,15 @@ import { OrderNewToolbar } from "./OrderNewToolbar"
 import { PartPicker } from "./PartPicker"
 
 interface OrderNewFormProps {
-  form: UseFormReturn<OrderFormInput, unknown, OrderFormValues>
+  form: UseFormReturn<OrderFormInput>
   parts: PartListItem[]
   selectedCustomer?: Pick<CustomerDetail, "id" | "name"> | null
-  onSubmit: (values: OrderFormValues) => Promise<void>
+  onSubmit: (values: OrderFormInput) => Promise<void>
+  onSaveDraft?: () => void
+  onDeleteDraft?: () => void
   onCancel: () => void
+  toolbarTitle?: string
+  submitLabel?: string
 }
 
 export function OrderNewForm({
@@ -40,7 +43,11 @@ export function OrderNewForm({
   parts,
   selectedCustomer,
   onSubmit,
+  onSaveDraft,
+  onDeleteDraft,
   onCancel,
+  toolbarTitle,
+  submitLabel,
 }: OrderNewFormProps) {
   const { isMobile } = useUIStore()
   const canViewMoney = useCanViewMoney()
@@ -129,13 +136,14 @@ export function OrderNewForm({
     if (pickerIndex === null) return
     const prices = apiPricesToForm(part.commonPrices)
     const stdPrice =
-      prices.find(price => price.label === "标准价")?.value ??
-      prices[0]?.value ??
-      0
+      prices.find(price => price.label === "标准价") ??
+      prices[0] ??
+      { label: "", value: 0 }
     setValue(`items.${pickerIndex}.partId`, part.id, {
       shouldValidate: true,
     })
-    setValue(`items.${pickerIndex}._displayPrice`, stdPrice)
+    setValue(`items.${pickerIndex}._displayPrice`, stdPrice.value)
+    setValue(`items.${pickerIndex}.priceLabel`, stdPrice.label)
     setPickerIndex(null)
   }
 
@@ -157,11 +165,15 @@ export function OrderNewForm({
     <>
       <div className='flex flex-col flex-1 overflow-hidden'>
         <OrderNewToolbar
+          title={toolbarTitle}
           itemCount={fields.length}
           isSubmitting={isSubmitting}
           onCancel={onCancel}
           onSubmit={() => { void submitForm() }}
+          onSaveDraft={onSaveDraft}
+          onDeleteDraft={onDeleteDraft}
           showQuickActions={!isMobile}
+          submitLabel={submitLabel}
         />
 
         <PageContentWrapper withMobileBottomInset={isMobile}>
@@ -267,6 +279,7 @@ export function OrderNewForm({
               isSubmitting={isSubmitting}
               onAppendItem={appendEmptyItem}
               onSubmit={() => { void submitForm() }}
+              submitLabel={submitLabel}
             />
           )}
         </PageContentWrapper>

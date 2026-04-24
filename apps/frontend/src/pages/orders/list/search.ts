@@ -9,9 +9,11 @@
 import type { OrderStatusType } from "@erp/shared-types"
 
 export type OrderStatusFilter = OrderStatusType | "all"
+export type OrdersTab = "orders" | "drafts"
 
 export interface OrdersPageSearch {
   keyword?: string
+  tab?: OrdersTab
   status?: OrderStatusType
   page?: number
 }
@@ -23,6 +25,8 @@ const ORDER_STATUS_SET = new Set<OrderStatusType>([
   "CLOSED_SHORT",
 ])
 
+const ORDERS_TAB_SET = new Set<OrdersTab>(["orders", "drafts"])
+
 function normalizeKeyword(value: unknown): string | undefined {
   if (typeof value !== "string") {
     return undefined
@@ -30,6 +34,12 @@ function normalizeKeyword(value: unknown): string | undefined {
 
   const keyword = value.trim()
   return keyword ? keyword : undefined
+}
+
+function normalizeTab(value: unknown): OrdersTab | undefined {
+  return typeof value === "string" && ORDERS_TAB_SET.has(value as OrdersTab)
+    ? (value as OrdersTab)
+    : undefined
 }
 
 function normalizeStatus(value: unknown): OrderStatusType | undefined {
@@ -50,11 +60,13 @@ export function validateOrdersPageSearch(
   search: Record<string, unknown>,
 ): OrdersPageSearch {
   const keyword = normalizeKeyword(search.keyword)
-  const status = normalizeStatus(search.status)
+  const tab = normalizeTab(search.tab)
+  const status = tab === "drafts" ? undefined : normalizeStatus(search.status)
   const page = normalizePage(search.page)
 
   return {
     ...(keyword ? { keyword } : {}),
+    ...(tab ? { tab } : {}),
     ...(status ? { status } : {}),
     ...(page ? { page } : {}),
   }
@@ -63,6 +75,7 @@ export function validateOrdersPageSearch(
 export function getOrdersSearchState(search: OrdersPageSearch) {
   return {
     keyword: search.keyword ?? "",
+    tab: search.tab ?? "orders",
     status: (search.status ?? "all") as OrderStatusFilter,
     page: search.page ?? 1,
   }
@@ -70,6 +83,7 @@ export function getOrdersSearchState(search: OrdersPageSearch) {
 
 export function buildOrdersPageSearch(input: {
   keyword: string
+  tab: OrdersTab
   status: OrderStatusFilter
   page: number
 }): OrdersPageSearch {
@@ -77,7 +91,8 @@ export function buildOrdersPageSearch(input: {
 
   return {
     ...(keyword ? { keyword } : {}),
-    ...(input.status !== "all" ? { status: input.status } : {}),
+    ...(input.tab !== "orders" ? { tab: input.tab } : {}),
+    ...(input.tab === "orders" && input.status !== "all" ? { status: input.status } : {}),
     ...(input.page > 1 ? { page: input.page } : {}),
   }
 }

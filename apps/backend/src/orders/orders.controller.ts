@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseIntPipe,
@@ -14,7 +15,12 @@ import {
   ApiResponse,
   CloseShortOrderRequest,
   CreateOrderRequest,
+  CreateOrderDraftRequest,
   CreateQuickOrderRequest,
+  PaginatedOrderDrafts,
+  OrderDraftDetail,
+  SubmitOrderDraftResponse,
+  UpdateOrderDraftRequest,
 } from '@erp/shared-types';
 import { OrderStatus } from '@erp/database';
 import type { AuthenticatedRequest } from '../auth/auth-request';
@@ -40,6 +46,69 @@ export class OrdersController {
   ) {
     const data = await this.ordersService.createQuickOrder(body, request.user.id);
     return { code: 200, message: 'success', data };
+  }
+
+  @Get('drafts')
+  async listDrafts(
+    @Query('page') page: number = 1,
+    @Query('pageSize') pageSize: number = 20,
+    @Query('keyword') keyword?: string,
+    @Req() request?: AuthenticatedRequest,
+  ): Promise<ApiResponse<PaginatedOrderDrafts>> {
+    const result = await this.ordersService.listDrafts(
+      page,
+      pageSize,
+      keyword,
+      request!.user.id,
+      request!.user.role,
+    );
+    return { code: 200, message: '查询成功', data: result };
+  }
+
+  @Get('drafts/:id')
+  async getDraft(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<ApiResponse<OrderDraftDetail>> {
+    const result = await this.ordersService.getDraft(id, request.user.id, request.user.role);
+    return { code: 200, message: '查询成功', data: result };
+  }
+
+  @Post('drafts')
+  async createDraft(
+    @Body() body: CreateOrderDraftRequest,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<ApiResponse<OrderDraftDetail>> {
+    const result = await this.ordersService.createDraft(body, request.user.id);
+    return { code: 200, message: '保存成功', data: result };
+  }
+
+  @Patch('drafts/:id')
+  async updateDraft(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: UpdateOrderDraftRequest,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<ApiResponse<OrderDraftDetail>> {
+    const result = await this.ordersService.updateDraft(id, body, request.user.id, request.user.role);
+    return { code: 200, message: '保存成功', data: result };
+  }
+
+  @Delete('drafts/:id')
+  async deleteDraft(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<ApiResponse<{ ok: true }>> {
+    await this.ordersService.deleteDraft(id, request.user.id, request.user.role);
+    return { code: 200, message: '删除成功', data: { ok: true } };
+  }
+
+  @Post('drafts/:id/submit')
+  async submitDraft(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<ApiResponse<SubmitOrderDraftResponse>> {
+    const result = await this.ordersService.submitDraft(id, request.user.id, request.user.role);
+    return { code: 200, message: '提交成功', data: result };
   }
 
   /**

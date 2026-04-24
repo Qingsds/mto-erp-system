@@ -69,11 +69,13 @@ export const OrderItemFormSchema = z.object({
   orderedQty: z.coerce.number().int("数量必须为整数").positive("数量必须大于 0"),
   // 仅 UI 侧显示用，不提交后端
   _displayPrice: z.number().optional(),
+  priceLabel: z.string().max(50).optional(),
 })
 
 export const OrderFormSchema = z.object({
   customerId:   z.number({ error: "请选择客户" }).min(1, "请选择客户"),
   customerName: z.string().max(100).optional(),
+  responsibleUserId: z.number().int().optional(),
   targetDate:   z.string().min(1, "请选择交货日期"),
   remark:       z.string().max(500).optional(),
   items:        z.array(OrderItemFormSchema).min(1, "至少添加一个零件"),

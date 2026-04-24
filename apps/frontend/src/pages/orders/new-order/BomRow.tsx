@@ -12,16 +12,16 @@ import { PartSelectTrigger } from "@/components/parts/PartSelectTrigger"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { apiPricesToForm, type PartListItem } from "@/hooks/api/useParts"
-import type { OrderFormInput, OrderFormValues } from "../orders.schema"
+import type { OrderFormInput } from "../orders.schema"
 
 interface BomRowProps {
   index: number
   selectedPart: PartListItem | undefined
   watchedItem: OrderFormInput["items"][number]
-  errors: UseFormReturn<OrderFormInput, unknown, OrderFormValues>["formState"]["errors"]
-  register: UseFormReturn<OrderFormInput, unknown, OrderFormValues>["register"]
-  control: UseFormReturn<OrderFormInput, unknown, OrderFormValues>["control"]
-  setValue: UseFormReturn<OrderFormInput, unknown, OrderFormValues>["setValue"]
+  errors: UseFormReturn<OrderFormInput>["formState"]["errors"]
+  register: UseFormReturn<OrderFormInput>["register"]
+  control: UseFormReturn<OrderFormInput>["control"]
+  setValue: UseFormReturn<OrderFormInput>["setValue"]
   canViewMoney: boolean
   canRemove: boolean
   onOpenPicker: () => void
@@ -133,9 +133,10 @@ export function BomRow({
           <PartPriceOptionGroup
             prices={prices}
             activeValue={price}
-            onChange={nextPrice =>
-              setValue(`items.${index}._displayPrice`, nextPrice)
-            }
+            onChange={nextPrice => {
+              setValue(`items.${index}._displayPrice`, nextPrice.value)
+              setValue(`items.${index}.priceLabel`, nextPrice.label)
+            }}
           />
         ) : (
           <div className="flex flex-col gap-1.5">

@@ -6,21 +6,21 @@
  */
 
 import { useState } from "react"
-import type { UseFormReturn } from "react-hook-form"
+import { Controller, type UseFormReturn } from "react-hook-form"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { CustomerPickerDialog } from "@/components/customers/CustomerPickerDialog"
+import { useGetUserOptions } from "@/hooks/api/useUsers"
 import { useIsAdmin } from "@/lib/permissions"
 import { useAuthStore } from "@/store/auth.store"
 import { CustomerFormSheet } from "@/pages/customers/CustomerFormSheet"
 import type {
   OrderFormInput,
-  OrderFormValues,
 } from "../orders.schema"
 
 interface OrderBasicInfoPanelProps {
-  form: UseFormReturn<OrderFormInput, unknown, OrderFormValues>
+  form: UseFormReturn<OrderFormInput>
 }
 
 export function OrderBasicInfoPanel({
@@ -28,6 +28,7 @@ export function OrderBasicInfoPanel({
 }: OrderBasicInfoPanelProps) {
   const canManageCustomers = useIsAdmin()
   const currentUser = useAuthStore(state => state.user)
+  const { data: userOptions } = useGetUserOptions()
   const [pickerOpen, setPickerOpen] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
 
@@ -35,6 +36,7 @@ export function OrderBasicInfoPanel({
     register,
     watch,
     setValue,
+    control,
     formState: { errors },
   } = form
 
@@ -111,6 +113,39 @@ export function OrderBasicInfoPanel({
           />
           <p className='text-xs text-muted-foreground'>
             下单后默认记录为当前登录用户。
+          </p>
+        </div>
+
+        <div className='flex flex-col gap-1.5'>
+          <Label htmlFor='responsibleUserId'>
+            负责人
+          </Label>
+          <Controller
+            control={control}
+            name='responsibleUserId'
+            render={({ field }) => (
+              <select
+                id='responsibleUserId'
+                value={field.value ?? ""}
+                onChange={event => {
+                  const value = event.target.value
+                  field.onChange(value ? Number(value) : undefined)
+                }}
+                className="h-10 border border-input bg-background px-3 text-sm"
+              >
+                <option value="">
+                  默认（{currentUser?.realName ?? "当前用户"}）
+                </option>
+                {(userOptions ?? []).map(option => (
+                  <option key={option.id} value={option.id}>
+                    {option.realName}（{option.role === "ADMIN" ? "管理员" : "用户"}）
+                  </option>
+                ))}
+              </select>
+            )}
+          />
+          <p className='text-xs text-muted-foreground'>
+            提交为订单后将作为订单负责人写入，并用于生产任务分配参考。
           </p>
         </div>
 

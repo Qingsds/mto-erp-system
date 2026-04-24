@@ -39,6 +39,10 @@ model User {
   createdOrders Order[] @relation("OrderCreatedByUser")
   /// 关联：执行短交结案的订单
   closedShortOrders Order[] @relation("OrderClosedShortByUser")
+  /// 关联：草稿订单负责人
+  responsibleOrderDrafts OrderDraft[] @relation("OrderDraftResponsibleUser")
+  /// 关联：创建的订单草稿
+  createdOrderDrafts OrderDraft[] @relation("OrderDraftCreatedByUser")
   /// 关联：创建的发货单
   createdDeliveries DeliveryNote[]
   /// 关联：创建的对账单
@@ -77,6 +81,8 @@ model Part {
   drawings   PartDrawing[]
   /// 关联：所有包含此零件的订单明细
   orderItems OrderItem[]
+  /// 关联：草稿中的订单明细（可为空）
+  orderDraftItems OrderDraftItem[]
   /// 关联：客户-零件多对多映射
   customers  CustomerPart[]
 
@@ -126,6 +132,8 @@ model Customer {
 
   /// 关联：该客户名下的订单（新数据使用 customerId 外键关联）
   orders Order[]
+  /// 关联：该客户名下的订单草稿（可为空）
+  orderDrafts OrderDraft[]
   /// 关联：客户与零件多对多映射表
   parts CustomerPart[]
 
@@ -183,6 +191,45 @@ model Order {
   @@index([createdById])
   @@index([closedShortById])
   @@map("order")
+}
+
+model OrderDraft {
+  id        Int      @id @default(autoincrement())
+  customerId Int?    @map("customer_id")
+  customerName String? @map("customer_name") @db.VarChar(100)
+  responsibleUserId Int? @map("responsible_user_id")
+  targetDate DateTime? @map("target_date")
+  remark    String?  @db.VarChar(500)
+  createdById Int    @map("created_by_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  customer Customer? @relation(fields: [customerId], references: [id])
+  responsibleUser User? @relation("OrderDraftResponsibleUser", fields: [responsibleUserId], references: [id])
+  createdBy User @relation("OrderDraftCreatedByUser", fields: [createdById], references: [id])
+  items OrderDraftItem[]
+
+  @@index([customerId])
+  @@index([responsibleUserId])
+  @@index([createdById])
+  @@index([updatedAt])
+  @@map("order_draft")
+}
+
+model OrderDraftItem {
+  id        Int     @id @default(autoincrement())
+  draftId   Int     @map("draft_id")
+  partId    Int?    @map("part_id")
+  orderedQty Int?   @map("ordered_qty")
+  unitPrice Decimal? @map("unit_price") @db.Decimal(10, 2)
+  priceLabel String? @map("price_label") @db.VarChar(50)
+
+  draft     OrderDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  part      Part?      @relation(fields: [partId], references: [id])
+
+  @@index([draftId])
+  @@index([partId])
+  @@map("order_draft_item")
 }
 
 enum OrderStatus {

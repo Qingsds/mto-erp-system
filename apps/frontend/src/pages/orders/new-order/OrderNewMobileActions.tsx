@@ -15,6 +15,7 @@ interface OrderNewMobileActionsProps {
   isSubmitting: boolean
   onAppendItem: () => void
   onSubmit: () => void
+  submitLabel?: string
 }
 
 function formatCurrency(value: number) {
@@ -31,6 +32,7 @@ export function OrderNewMobileActions({
   isSubmitting,
   onAppendItem,
   onSubmit,
+  submitLabel = "创建订单",
 }: OrderNewMobileActionsProps) {
   return (
     <MobileActionBar
@@ -70,7 +72,7 @@ export function OrderNewMobileActions({
         ) : (
           <>
             <i className='ri-check-line mr-1.5' />
-            创建订单
+            {submitLabel}
           </>
         )}
       </Button>

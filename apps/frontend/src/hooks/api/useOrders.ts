@@ -16,8 +16,13 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import type {
   ApiResponse,
+  CreateOrderDraftRequest,
   OrderStatusType,
   CreateQuickOrderRequest,
+  OrderDraftDetail,
+  PaginatedOrderDrafts,
+  SubmitOrderDraftResponse,
+  UpdateOrderDraftRequest,
 } from "@erp/shared-types"
 import request  from "@/lib/utils/request"
 import { toast } from "@/lib/toast"
@@ -137,6 +142,11 @@ export const ORDERS_KEYS = {
   detail: (id: number)      => ["order",  id] as const,
 }
 
+export const ORDER_DRAFT_KEYS = {
+  list:   (p: OrderDraftsParams) => ["order-drafts", p] as const,
+  detail: (id: number)           => ["order-draft",  id] as const,
+}
+
 export interface OrdersParams {
   page?:         number
   pageSize?:     number
@@ -145,10 +155,22 @@ export interface OrdersParams {
   customerName?: string
 }
 
+export interface OrderDraftsParams {
+  page?: number
+  pageSize?: number
+  keyword?: string
+}
+
+export type OrderDraftItemInput = NonNullable<CreateOrderDraftRequest["items"]>[number]
+
+export type OrderDraftUpsertPayload = Omit<CreateOrderDraftRequest, "items"> & {
+  items?: OrderDraftItemInput[]
+}
+
 // ─── Hooks ────────────────────────────────────────────────
 
 /** 分页列表（支持状态 + 客户名过滤） */
-export function useGetOrders(params: OrdersParams) {
+export function useGetOrders(params: OrdersParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ORDERS_KEYS.list(params),
     queryFn:  () =>
@@ -156,6 +178,7 @@ export function useGetOrders(params: OrdersParams) {
         .get<unknown, ApiResponse<PaginatedOrders>>("/api/orders", { params })
         .then(res => res.data!),
     placeholderData: prev => prev,
+    enabled: options?.enabled,
   })
 }
 
@@ -222,6 +245,85 @@ export function useCloseShortOrder() {
       qc.invalidateQueries({ queryKey: ORDERS_KEYS.detail(vars.id) })
     },
     onError: (e: Error) => toast.error(`操作失败：${e.message}`),
+  })
+}
+
+export function useGetOrderDrafts(params: OrderDraftsParams, options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: ORDER_DRAFT_KEYS.list(params),
+    queryFn: () =>
+      request
+        .get<unknown, ApiResponse<PaginatedOrderDrafts>>("/api/orders/drafts", { params })
+        .then(res => res.data!),
+    placeholderData: prev => prev,
+    enabled: options?.enabled,
+  })
+}
+
+export function useGetOrderDraft(id?: number) {
+  return useQuery({
+    queryKey: ORDER_DRAFT_KEYS.detail(id!),
+    queryFn: () =>
+      request
+        .get<unknown, ApiResponse<OrderDraftDetail>>(`/api/orders/drafts/${id}`)
+        .then(res => res.data!),
+    enabled: !!id,
+  })
+}
+
+export function useCreateOrderDraft() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: OrderDraftUpsertPayload) =>
+      request.post<unknown, ApiResponse<OrderDraftDetail>>("/api/orders/drafts", payload),
+    onSuccess: () => {
+      toast.success("草稿已保存")
+      qc.invalidateQueries({ queryKey: ["order-drafts"] })
+    },
+    onError: (e: Error) => toast.error(`保存失败：${e.message}`),
+  })
+}
+
+export function useUpdateOrderDraft() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: number; payload: UpdateOrderDraftRequest }) =>
+      request.patch<unknown, ApiResponse<OrderDraftDetail>>(`/api/orders/drafts/${id}`, payload),
+    onSuccess: (_, vars) => {
+      toast.success("草稿已保存")
+      qc.invalidateQueries({ queryKey: ["order-drafts"] })
+      qc.invalidateQueries({ queryKey: ORDER_DRAFT_KEYS.detail(vars.id) })
+    },
+    onError: (e: Error) => toast.error(`保存失败：${e.message}`),
+  })
+}
+
+export function useDeleteOrderDraft() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) =>
+      request.delete<unknown, ApiResponse<{ ok: true }>>(`/api/orders/drafts/${id}`),
+    onSuccess: () => {
+      toast.success("草稿已删除")
+      qc.invalidateQueries({ queryKey: ["order-drafts"] })
+    },
+    onError: (e: Error) => toast.error(`删除失败：${e.message}`),
+  })
+}
+
+export function useSubmitOrderDraft() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) =>
+      request.post<unknown, ApiResponse<SubmitOrderDraftResponse>>(`/api/orders/drafts/${id}/submit`),
+    onSuccess: (_, id) => {
+      toast.success("已提交为订单")
+      qc.invalidateQueries({ queryKey: ["order-drafts"] })
+      qc.invalidateQueries({ queryKey: ["orders"] })
+      qc.invalidateQueries({ queryKey: ["production-tasks"] })
+      qc.invalidateQueries({ queryKey: ORDER_DRAFT_KEYS.detail(id) })
+    },
+    onError: (e: Error) => toast.error(`提交失败：${e.message}`),
   })
 }
 

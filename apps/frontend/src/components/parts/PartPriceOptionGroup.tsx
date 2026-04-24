@@ -14,7 +14,7 @@ interface PartPriceOption {
 interface PartPriceOptionGroupProps {
   prices: PartPriceOption[]
   activeValue: number
-  onChange: (value: number) => void
+  onChange: (price: PartPriceOption) => void
 }
 
 function formatPrice(value: number) {
@@ -66,7 +66,7 @@ export function PartPriceOptionGroup({
             <button
               key={price.label}
               type='button'
-              onClick={() => onChange(price.value)}
+              onClick={() => onChange(price)}
               className={cn(
                 "inline-flex items-center gap-1.5 border px-2.5 py-1 text-xs transition-colors cursor-pointer",
                 isActive

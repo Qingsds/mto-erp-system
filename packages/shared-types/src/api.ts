@@ -275,6 +275,97 @@ export class CloseShortOrderRequest {
   reason?: string
 }
 
+export class OrderDraftItemRequest {
+  @IsInt({ message: "零件ID必须是整数" })
+  @Min(0, { message: "零件ID不能小于0" })
+  @IsOptional()
+  partId?: number
+
+  @IsInt({ message: "订购数量必须是整数" })
+  @Min(1, { message: "订购数量必须大于0" })
+  @IsOptional()
+  orderedQty?: number
+
+  @IsNumber({}, { message: "单价必须是数字" })
+  @Min(0, { message: "单价不能小于0" })
+  @IsOptional()
+  unitPrice?: number
+
+  @IsString()
+  @MaxLength(50)
+  @IsOptional()
+  priceLabel?: string
+}
+
+export class CreateOrderDraftRequest {
+  @IsInt({ message: "客户ID必须是整数" })
+  @Min(0, { message: "客户ID不能小于0" })
+  @IsOptional()
+  customerId?: number
+
+  @IsInt({ message: "负责人必须是整数" })
+  @Min(0, { message: "负责人不能小于0" })
+  @IsOptional()
+  responsibleUserId?: number
+
+  @IsString()
+  @IsOptional()
+  targetDate?: string
+
+  @IsString()
+  @MaxLength(500)
+  @IsOptional()
+  remark?: string
+
+  @IsArray({ message: "草稿明细必须是数组" })
+  @ValidateNested({ each: true })
+  @Type(() => OrderDraftItemRequest)
+  @IsOptional()
+  items?: OrderDraftItemRequest[]
+}
+
+export class UpdateOrderDraftRequest extends CreateOrderDraftRequest {}
+
+export interface OrderDraftListItem {
+  id: number
+  customerId?: number | null
+  customerName?: string | null
+  targetDate?: string | null
+  updatedAt: string
+  itemCount: number
+}
+
+export interface OrderDraftItemDetail {
+  id: number
+  partId?: number | null
+  orderedQty?: number | null
+  unitPrice?: string | null
+  priceLabel?: string | null
+}
+
+export interface OrderDraftDetail {
+  id: number
+  customerId?: number | null
+  customerName?: string | null
+  responsibleUserId?: number | null
+  targetDate?: string | null
+  remark?: string | null
+  createdAt: string
+  updatedAt: string
+  items: OrderDraftItemDetail[]
+}
+
+export interface PaginatedOrderDrafts {
+  total: number
+  data: OrderDraftListItem[]
+  page: number
+  pageSize: number
+}
+
+export interface SubmitOrderDraftResponse {
+  orderId: number
+}
+
 // ==========================================
 // 3. 发货管理模块 (Deliveries)
 // ==========================================

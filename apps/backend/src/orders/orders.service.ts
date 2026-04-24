@@ -7,7 +7,12 @@ import { PrismaService } from '../prisma/prisma.service';
 import {
   CloseShortOrderRequest,
   CreateOrderRequest,
+  CreateOrderDraftRequest,
   CreateQuickOrderRequest,
+  OrderDraftDetail,
+  PaginatedOrderDrafts,
+  SubmitOrderDraftResponse,
+  UpdateOrderDraftRequest,
   UserRoleType,
 } from '@erp/shared-types';
 import { OrderStatus, Prisma } from '@erp/database';
@@ -139,6 +144,67 @@ export class OrdersService {
 
     const fallback = this.resolvePriceFromCommonPrices(fallbackCommonPrices);
     return fallback > 0 ? fallback : snapshot;
+  }
+
+  private normalizeOptionalId(value?: number): number | undefined {
+    return typeof value === 'number' && Number.isInteger(value) && value > 0
+      ? value
+      : undefined;
+  }
+
+  private toDateOrUndefined(value?: string): Date | undefined {
+    if (typeof value !== 'string') {
+      return undefined;
+    }
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return undefined;
+    }
+    const date = new Date(trimmed);
+    if (Number.isNaN(date.getTime())) {
+      throw new BadRequestException('交货日期格式不合法');
+    }
+    return date;
+  }
+
+  private canAccessDraft(createdById: number, userId: number, role: UserRoleType) {
+    return role === 'ADMIN' || createdById === userId;
+  }
+
+  private mapDraftDetail(draft: {
+    id: number;
+    customerId: number | null;
+    customerName: string | null;
+    responsibleUserId: number | null;
+    targetDate: Date | null;
+    remark: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+    items: Array<{
+      id: number;
+      partId: number | null;
+      orderedQty: number | null;
+      unitPrice: Prisma.Decimal | null;
+      priceLabel: string | null;
+    }>;
+  }): OrderDraftDetail {
+    return {
+      id: draft.id,
+      customerId: draft.customerId,
+      customerName: draft.customerName,
+      responsibleUserId: draft.responsibleUserId,
+      targetDate: draft.targetDate ? draft.targetDate.toISOString() : null,
+      remark: draft.remark,
+      createdAt: draft.createdAt.toISOString(),
+      updatedAt: draft.updatedAt.toISOString(),
+      items: draft.items.map(item => ({
+        id: item.id,
+        partId: item.partId,
+        orderedQty: item.orderedQty,
+        unitPrice: item.unitPrice ? item.unitPrice.toString() : null,
+        priceLabel: item.priceLabel,
+      })),
+    };
   }
 
   private async buildCustomerFilters(
@@ -526,6 +592,423 @@ export class OrdersService {
     });
 
     return updatedOrder;
+  }
+
+  async listDrafts(
+    page: number = 1,
+    pageSize: number = 20,
+    keyword: string | undefined,
+    userId: number,
+    role: UserRoleType = 'ADMIN',
+  ): Promise<PaginatedOrderDrafts> {
+    const safePage = Math.max(1, Number(page) || 1);
+    const safePageSize = Math.min(100, Math.max(1, Number(pageSize) || 20));
+    const skip = (safePage - 1) * safePageSize;
+
+    const where: Prisma.OrderDraftWhereInput = role === 'ADMIN'
+      ? {}
+      : { createdById: userId };
+
+    const trimmedKeyword = typeof keyword === 'string' ? keyword.trim() : '';
+    if (trimmedKeyword) {
+      where.OR = [
+        { customerName: { contains: trimmedKeyword, mode: 'insensitive' } },
+        { remark: { contains: trimmedKeyword, mode: 'insensitive' } },
+      ];
+    }
+
+    const [total, drafts] = await this.prisma.client.$transaction([
+      this.prisma.client.orderDraft.count({ where }),
+      this.prisma.client.orderDraft.findMany({
+        where,
+        orderBy: { updatedAt: 'desc' },
+        skip,
+        take: safePageSize,
+        select: {
+          id: true,
+          customerId: true,
+          customerName: true,
+          targetDate: true,
+          updatedAt: true,
+          _count: { select: { items: true } },
+        },
+      }),
+    ]);
+
+    return {
+      total,
+      page: safePage,
+      pageSize: safePageSize,
+      data: drafts.map(draft => ({
+        id: draft.id,
+        customerId: draft.customerId,
+        customerName: draft.customerName,
+        targetDate: draft.targetDate ? draft.targetDate.toISOString() : null,
+        updatedAt: draft.updatedAt.toISOString(),
+        itemCount: draft._count.items,
+      })),
+    };
+  }
+
+  async getDraft(
+    id: number,
+    userId: number,
+    role: UserRoleType = 'ADMIN',
+  ): Promise<OrderDraftDetail> {
+    const draft = await this.prisma.client.orderDraft.findUnique({
+      where: { id },
+      include: {
+        items: { orderBy: { id: 'asc' } },
+      },
+    });
+
+    if (!draft || !this.canAccessDraft(draft.createdById, userId, role)) {
+      throw new NotFoundException(`订单草稿 ID: ${id} 不存在`);
+    }
+
+    return this.mapDraftDetail(draft);
+  }
+
+  async createDraft(
+    payload: CreateOrderDraftRequest,
+    userId: number,
+  ): Promise<OrderDraftDetail> {
+    const customerId = this.normalizeOptionalId(payload.customerId);
+    const responsibleUserId = this.normalizeOptionalId(payload.responsibleUserId);
+    const targetDate = this.toDateOrUndefined(payload.targetDate);
+    const remark = typeof payload.remark === 'string' && payload.remark.trim()
+      ? payload.remark.trim()
+      : undefined;
+
+    return this.prisma.client.$transaction(async (tx: Prisma.TransactionClient) => {
+      let customerName: string | undefined;
+      if (customerId) {
+        const customer = await tx.customer.findUnique({
+          where: { id: customerId },
+          select: { id: true, name: true, isActive: true },
+        });
+        if (!customer) {
+          throw new BadRequestException(`客户 ID${customerId} 不存在`);
+        }
+        if (!customer.isActive) {
+          throw new BadRequestException('客户已停用，无法用于保存草稿');
+        }
+        customerName = customer.name;
+      }
+
+      if (responsibleUserId) {
+        const responsibleUser = await tx.user.findUnique({
+          where: { id: responsibleUserId },
+          select: { id: true, isActive: true },
+        });
+        if (!responsibleUser || !responsibleUser.isActive) {
+          throw new BadRequestException('订单负责人无效或已停用');
+        }
+      }
+
+      const itemsInput = Array.isArray(payload.items) ? payload.items : [];
+      const partIds = itemsInput
+        .map(item => this.normalizeOptionalId(item.partId))
+        .filter((id): id is number => typeof id === 'number');
+
+      const partMap = partIds.length > 0
+        ? await this.loadOrderParts(tx, partIds)
+        : new Map<number, { commonPrices: unknown }>();
+      if (customerId && partIds.length > 0) {
+        this.ensurePartsAssignableToCustomer(partMap as any, customerId);
+      }
+
+      const draft = await tx.orderDraft.create({
+        data: {
+          customerId: customerId ?? null,
+          customerName: customerName ?? null,
+          responsibleUserId: responsibleUserId ?? null,
+          targetDate: targetDate ?? null,
+          remark: remark ?? null,
+          createdById: userId,
+          items: itemsInput.length > 0
+            ? {
+                create: itemsInput.map(item => {
+                  const partId = this.normalizeOptionalId(item.partId);
+                  const orderedQty = typeof item.orderedQty === 'number' && Number.isInteger(item.orderedQty) && item.orderedQty > 0
+                    ? item.orderedQty
+                    : null;
+                  const explicitUnitPrice = typeof item.unitPrice === 'number' && Number.isFinite(item.unitPrice) && item.unitPrice >= 0
+                    ? item.unitPrice
+                    : undefined;
+
+                  const fallbackUnitPrice = partId
+                    ? this.resolvePriceFromCommonPrices((partMap as any).get(partId)?.commonPrices)
+                    : 0;
+                  const unitPrice = partId
+                    ? (explicitUnitPrice ?? fallbackUnitPrice)
+                    : null;
+
+                  const priceLabel = typeof item.priceLabel === 'string' && item.priceLabel.trim()
+                    ? item.priceLabel.trim().slice(0, 50)
+                    : null;
+
+                  return {
+                    partId: partId ?? null,
+                    orderedQty,
+                    unitPrice,
+                    priceLabel,
+                  };
+                }),
+              }
+            : undefined,
+        },
+        include: { items: { orderBy: { id: 'asc' } } },
+      });
+
+      return this.mapDraftDetail(draft);
+    });
+  }
+
+  async updateDraft(
+    id: number,
+    payload: UpdateOrderDraftRequest,
+    userId: number,
+    role: UserRoleType = 'ADMIN',
+  ): Promise<OrderDraftDetail> {
+    const nextCustomerId = payload.customerId === undefined
+      ? undefined
+      : this.normalizeOptionalId(payload.customerId);
+    const nextResponsibleUserId = payload.responsibleUserId === undefined
+      ? undefined
+      : this.normalizeOptionalId(payload.responsibleUserId);
+    const nextTargetDate = payload.targetDate === undefined
+      ? undefined
+      : this.toDateOrUndefined(payload.targetDate);
+    const nextRemark = payload.remark === undefined
+      ? undefined
+      : (typeof payload.remark === 'string' && payload.remark.trim()
+          ? payload.remark.trim()
+          : null);
+
+    return this.prisma.client.$transaction(async (tx: Prisma.TransactionClient) => {
+      const existing = await tx.orderDraft.findUnique({ where: { id } });
+      if (!existing || !this.canAccessDraft(existing.createdById, userId, role)) {
+        throw new NotFoundException(`订单草稿 ID: ${id} 不存在`);
+      }
+
+      let customerName: string | null | undefined;
+      if (payload.customerId !== undefined) {
+        if (nextCustomerId) {
+          const customer = await tx.customer.findUnique({
+            where: { id: nextCustomerId },
+            select: { id: true, name: true, isActive: true },
+          });
+          if (!customer) {
+            throw new BadRequestException(`客户 ID${nextCustomerId} 不存在`);
+          }
+          if (!customer.isActive) {
+            throw new BadRequestException('客户已停用，无法用于保存草稿');
+          }
+          customerName = customer.name;
+        } else {
+          customerName = null;
+        }
+      }
+
+      if (payload.responsibleUserId !== undefined && nextResponsibleUserId) {
+        const responsibleUser = await tx.user.findUnique({
+          where: { id: nextResponsibleUserId },
+          select: { id: true, isActive: true },
+        });
+        if (!responsibleUser || !responsibleUser.isActive) {
+          throw new BadRequestException('订单负责人无效或已停用');
+        }
+      }
+
+      if (payload.items !== undefined) {
+        await tx.orderDraftItem.deleteMany({ where: { draftId: id } });
+
+        const itemsInput = Array.isArray(payload.items) ? payload.items : [];
+        const partIds = itemsInput
+          .map(item => this.normalizeOptionalId(item.partId))
+          .filter((pid): pid is number => typeof pid === 'number');
+
+        const partMap = partIds.length > 0
+          ? await this.loadOrderParts(tx, partIds)
+          : new Map<number, { commonPrices: unknown }>();
+
+        const effectiveCustomerId = payload.customerId !== undefined
+          ? nextCustomerId
+          : this.normalizeOptionalId(existing.customerId ?? undefined);
+        if (effectiveCustomerId && partIds.length > 0) {
+          this.ensurePartsAssignableToCustomer(partMap as any, effectiveCustomerId);
+        }
+
+        if (itemsInput.length > 0) {
+          await tx.orderDraftItem.createMany({
+            data: itemsInput.map(item => {
+              const partId = this.normalizeOptionalId(item.partId);
+              const orderedQty = typeof item.orderedQty === 'number' && Number.isInteger(item.orderedQty) && item.orderedQty > 0
+                ? item.orderedQty
+                : null;
+              const explicitUnitPrice = typeof item.unitPrice === 'number' && Number.isFinite(item.unitPrice) && item.unitPrice >= 0
+                ? item.unitPrice
+                : undefined;
+              const fallbackUnitPrice = partId
+                ? this.resolvePriceFromCommonPrices((partMap as any).get(partId)?.commonPrices)
+                : 0;
+              const unitPrice = partId
+                ? (explicitUnitPrice ?? fallbackUnitPrice)
+                : null;
+              const priceLabel = typeof item.priceLabel === 'string' && item.priceLabel.trim()
+                ? item.priceLabel.trim().slice(0, 50)
+                : null;
+              return {
+                draftId: id,
+                partId: partId ?? null,
+                orderedQty,
+                unitPrice,
+                priceLabel,
+              };
+            }),
+          });
+        }
+      }
+
+      const updated = await tx.orderDraft.update({
+        where: { id },
+        data: {
+          ...(payload.customerId !== undefined
+            ? { customerId: nextCustomerId ?? null, customerName: customerName ?? null }
+            : {}),
+          ...(payload.responsibleUserId !== undefined
+            ? { responsibleUserId: nextResponsibleUserId ?? null }
+            : {}),
+          ...(payload.targetDate !== undefined
+            ? { targetDate: nextTargetDate ?? null }
+            : {}),
+          ...(payload.remark !== undefined ? { remark: nextRemark } : {}),
+        },
+        include: { items: { orderBy: { id: 'asc' } } },
+      });
+
+      return this.mapDraftDetail(updated);
+    });
+  }
+
+  async deleteDraft(
+    id: number,
+    userId: number,
+    role: UserRoleType = 'ADMIN',
+  ) {
+    return this.prisma.client.$transaction(async (tx: Prisma.TransactionClient) => {
+      const existing = await tx.orderDraft.findUnique({ where: { id } });
+      if (!existing || !this.canAccessDraft(existing.createdById, userId, role)) {
+        throw new NotFoundException(`订单草稿 ID: ${id} 不存在`);
+      }
+      await tx.orderDraft.delete({ where: { id } });
+    });
+  }
+
+  async submitDraft(
+    id: number,
+    userId: number,
+    role: UserRoleType = 'ADMIN',
+  ): Promise<SubmitOrderDraftResponse> {
+    return this.prisma.client.$transaction(async (tx: Prisma.TransactionClient) => {
+      const draft = await tx.orderDraft.findUnique({
+        where: { id },
+        include: { items: { orderBy: { id: 'asc' } } },
+      });
+      if (!draft || !this.canAccessDraft(draft.createdById, userId, role)) {
+        throw new NotFoundException(`订单草稿 ID: ${id} 不存在`);
+      }
+
+      const customerId = this.normalizeOptionalId(draft.customerId ?? undefined);
+      if (!customerId) {
+        throw new BadRequestException('请选择客户后再提交');
+      }
+
+      if (!draft.targetDate) {
+        throw new BadRequestException('请选择交货日期后再提交');
+      }
+
+      const completeItems = draft.items.map((item, index) => {
+        const partId = this.normalizeOptionalId(item.partId ?? undefined);
+        const orderedQty = typeof item.orderedQty === 'number' ? item.orderedQty : null;
+
+        if (!partId || !orderedQty || orderedQty <= 0) {
+          throw new BadRequestException(`请补全第 ${index + 1} 项零件明细后再提交`);
+        }
+
+        return { ...item, partId, orderedQty };
+      });
+
+      if (completeItems.length === 0) {
+        throw new BadRequestException('订单明细不能为空');
+      }
+
+      const customer = await tx.customer.findUnique({
+        where: { id: customerId },
+        select: { id: true, name: true, isActive: true },
+      });
+      if (!customer) {
+        throw new BadRequestException(`客户 ID${customerId} 不存在`);
+      }
+      if (!customer.isActive) {
+        throw new BadRequestException('客户已停用，无法用于提交订单');
+      }
+
+      const responsibleUserId = this.normalizeOptionalId(draft.responsibleUserId ?? undefined) ?? userId;
+      const responsibleUser = await tx.user.findUnique({
+        where: { id: responsibleUserId },
+        select: { id: true, isActive: true },
+      });
+      if (!responsibleUser || !responsibleUser.isActive) {
+        throw new BadRequestException('订单负责人无效或已停用');
+      }
+
+      const partMap = await this.loadOrderParts(
+        tx,
+        completeItems.map(item => item.partId),
+      );
+      this.ensurePartsAssignableToCustomer(partMap, customer.id);
+
+      const order = await tx.order.create({
+        data: {
+          customerId: customer.id,
+          responsibleUserId: responsibleUser.id,
+          createdById: userId,
+          customerName: customer.name,
+          status: 'PENDING',
+        },
+      });
+
+      for (const item of completeItems) {
+        const part = partMap.get(item.partId);
+        const unitPrice = this.resolveOrderItemUnitPrice(
+          item.unitPrice ?? 0,
+          part?.commonPrices,
+        );
+
+        const orderItem = await tx.orderItem.create({
+          data: {
+            orderId: order.id,
+            partId: item.partId,
+            orderedQty: item.orderedQty,
+            unitPrice,
+          },
+        });
+
+        await tx.productionTask.create({
+          data: {
+            orderItemId: orderItem.id,
+            targetDate: draft.targetDate,
+            status: 'PENDING',
+          },
+        });
+      }
+
+      await tx.orderDraft.delete({ where: { id: draft.id } });
+
+      return { orderId: order.id };
+    });
   }
 
   // 1. 分页查询订单列表

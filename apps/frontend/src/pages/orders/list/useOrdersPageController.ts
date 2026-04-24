@@ -10,13 +10,14 @@
 import { useCallback, useEffect, useMemo } from "react"
 import { useNavigate } from "@tanstack/react-router"
 import { useDebouncedValue } from "@/hooks/useDebouncedValue"
-import { useGetOrders } from "@/hooks/api/useOrders"
+import { useGetOrderDrafts, useGetOrders } from "@/hooks/api/useOrders"
 import { STATUS_LABEL } from "../orders.schema"
 import {
   buildOrdersPageSearch,
   getOrdersSearchState,
   type OrdersPageSearch,
   type OrderStatusFilter,
+  type OrdersTab,
 } from "./search"
 
 interface UseOrdersPageControllerOptions {
@@ -32,20 +33,31 @@ export function useOrdersPageController({
   const state = getOrdersSearchState(search)
   const debouncedKeyword = useDebouncedValue(state.keyword.trim(), 300)
 
-  const { data, isLoading, isFetching } = useGetOrders({
+  const ordersQuery = useGetOrders({
     page: state.page,
     pageSize,
     status: state.status === "all" ? undefined : state.status,
     customerName: debouncedKeyword || undefined,
-  })
+  }, { enabled: state.tab === "orders" })
 
-  const orders = data?.data ?? []
-  const totalCount = data?.total ?? 0
+  const draftsQuery = useGetOrderDrafts({
+    page: state.page,
+    pageSize,
+    keyword: debouncedKeyword || undefined,
+  }, { enabled: state.tab === "drafts" })
+
+  const orders = state.tab === "orders"
+    ? (ordersQuery.data?.data ?? [])
+    : []
+  const totalCount = state.tab === "orders"
+    ? (ordersQuery.data?.total ?? 0)
+    : (draftsQuery.data?.total ?? 0)
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
   const hasActiveFilters = state.keyword.length > 0 || state.status !== "all"
 
   const commitSearch = useCallback((next: {
     keyword?: string
+    tab?: OrdersTab
     status?: OrderStatusFilter
     page?: number
   }) => {
@@ -54,20 +66,24 @@ export function useOrdersPageController({
       replace: true,
       search: buildOrdersPageSearch({
         keyword: next.keyword ?? state.keyword,
+        tab: next.tab ?? state.tab,
         status: next.status ?? state.status,
         page: next.page ?? state.page,
       }),
     })
-  }, [navigate, state.keyword, state.page, state.status])
+  }, [navigate, state.keyword, state.page, state.status, state.tab])
 
   useEffect(() => {
-    if (data && state.page > totalPages) {
+    if ((ordersQuery.data || draftsQuery.data) && state.page > totalPages) {
       commitSearch({ page: totalPages })
     }
-  }, [commitSearch, data, state.page, totalPages])
+  }, [commitSearch, draftsQuery.data, ordersQuery.data, state.page, totalPages])
+
+  const viewFilter = state.tab === "drafts" ? "drafts" : state.status
 
   const statusTabs = useMemo(
     () => [
+      { value: "drafts" as const, label: "草稿" },
       { value: "all" as const, label: "全部" },
       { value: "PENDING" as const, label: STATUS_LABEL.PENDING },
       {
@@ -85,19 +101,26 @@ export function useOrdersPageController({
 
   return {
     keyword: state.keyword,
-    statusFilter: state.status,
+    tab: state.tab,
+    statusFilter: viewFilter as OrderStatusFilter | "drafts",
     page: state.page,
     orders,
+    drafts: state.tab === "drafts" ? (draftsQuery.data?.data ?? []) : [],
     totalCount,
     totalPages,
     statusTabs,
     hasActiveFilters,
-    isLoading,
-    isFetching,
+    isLoading: state.tab === "orders" ? ordersQuery.isLoading : draftsQuery.isLoading,
+    isFetching: state.tab === "orders" ? ordersQuery.isFetching : draftsQuery.isFetching,
     setKeyword: (keyword: string) =>
       commitSearch({ keyword, page: 1 }),
-    setStatusFilter: (status: OrderStatusFilter) =>
-      commitSearch({ status, page: 1 }),
+    setStatusFilter: (filter: OrderStatusFilter | "drafts") => {
+      if (filter === "drafts") {
+        commitSearch({ tab: "drafts", page: 1, status: "all" })
+        return
+      }
+      commitSearch({ tab: "orders", status: filter, page: 1 })
+    },
     setPage: (page: number) =>
       commitSearch({ page: Math.max(1, page) }),
     resetFilters: () =>
@@ -106,6 +129,12 @@ export function useOrdersPageController({
       void navigate({
         to: "/orders/$id",
         params: { id: String(orderId) },
+      })
+    },
+    openDraft: (draftId: number) => {
+      void navigate({
+        to: "/orders/drafts/$id",
+        params: { id: String(draftId) },
       })
     },
     openCreate: () => {
