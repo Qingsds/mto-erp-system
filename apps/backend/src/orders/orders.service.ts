@@ -297,7 +297,7 @@ export class OrdersService {
    */
   async createOrder(payload: CreateOrderRequest, createdById: number) {
     const { customerId, targetDate, items } = payload;
-    const responsibleUserId = payload.responsibleUserId ?? createdById;
+    const responsibleUserId = this.normalizeOptionalId(payload.responsibleUserId) ?? createdById;
 
     if (!items || items.length === 0) {
       // 遇到不合法的业务请求，直接抛出异常，NestJS 会自动将其转化为 HTTP 400 响应
@@ -396,7 +396,7 @@ export class OrdersService {
    */
   async createQuickOrder(payload: CreateQuickOrderRequest, createdById: number) {
     const { customerId, targetDate, items } = payload;
-    const responsibleUserId = payload.responsibleUserId ?? createdById;
+    const responsibleUserId = this.normalizeOptionalId(payload.responsibleUserId) ?? createdById;
     if (!items || items.length === 0) {
       throw new BadRequestException('订单明细不能为空');
     }
@@ -696,7 +696,7 @@ export class OrdersService {
         customerName = customer.name;
       }
 
-      if (responsibleUserId) {
+      if (responsibleUserId !== undefined) {
         const responsibleUser = await tx.user.findUnique({
           where: { id: responsibleUserId },
           select: { id: true, isActive: true },
@@ -811,7 +811,7 @@ export class OrdersService {
         }
       }
 
-      if (payload.responsibleUserId !== undefined && nextResponsibleUserId) {
+      if (payload.responsibleUserId !== undefined && nextResponsibleUserId !== undefined) {
         const responsibleUser = await tx.user.findUnique({
           where: { id: nextResponsibleUserId },
           select: { id: true, isActive: true },
