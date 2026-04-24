@@ -55,6 +55,7 @@ export function OrderDraftEditPage() {
       remark: draft.remark ?? "",
       items: draft.items.length > 0
         ? draft.items.map(item => ({
+            id: item.id,
             partId: item.partId ?? 0,
             orderedQty: item.orderedQty ?? 1,
             _displayPrice: item.unitPrice ? Number(item.unitPrice) : 0,
@@ -81,6 +82,7 @@ export function OrderDraftEditPage() {
         : "",
       remark: values.remark?.trim() ? values.remark.trim() : "",
       items: values.items.map(item => ({
+        id: item.id,
         partId: item.partId,
         orderedQty: Number(item.orderedQty) || undefined,
         unitPrice: item._displayPrice,

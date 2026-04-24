@@ -65,6 +65,7 @@ export const STATUS_ICON: Record<OrderStatusType, string> = {
 // 后端自动从 part.commonPrices['标准价'] 取价格快照
 
 export const OrderItemFormSchema = z.object({
+  id: z.number().int().optional(),
   partId:     z.number({ error: "请选择零件" }).min(1, "请选择零件"),
   orderedQty: z.coerce.number().int("数量必须为整数").positive("数量必须大于 0"),
   // 仅 UI 侧显示用，不提交后端

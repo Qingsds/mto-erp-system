@@ -276,6 +276,11 @@ export class CloseShortOrderRequest {
 }
 
 export class OrderDraftItemRequest {
+  @IsInt({ message: "草稿明细ID必须是整数" })
+  @Min(1, { message: "草稿明细ID不能小于1" })
+  @IsOptional()
+  id?: number
+
   @IsInt({ message: "零件ID必须是整数" })
   @Min(0, { message: "零件ID不能小于0" })
   @IsOptional()

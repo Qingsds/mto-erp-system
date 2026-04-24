@@ -822,9 +822,23 @@ export class OrdersService {
       }
 
       if (payload.items !== undefined) {
-        await tx.orderDraftItem.deleteMany({ where: { draftId: id } });
-
         const itemsInput = Array.isArray(payload.items) ? payload.items : [];
+        const existingItems = await tx.orderDraftItem.findMany({
+          where: { draftId: id },
+          select: { id: true },
+        });
+        const existingItemIdSet = new Set(existingItems.map(item => item.id));
+
+        const incomingExistingIds = itemsInput
+          .map(item => this.normalizeOptionalId(item.id))
+          .filter((itemId): itemId is number => typeof itemId === 'number');
+        const incomingExistingIdSet = new Set(incomingExistingIds);
+
+        const unknownIds = incomingExistingIds.filter(itemId => !existingItemIdSet.has(itemId));
+        if (unknownIds.length > 0) {
+          throw new BadRequestException(`草稿明细 ID 不存在：${unknownIds.join(', ')}`);
+        }
+
         const partIds = itemsInput
           .map(item => this.normalizeOptionalId(item.partId))
           .filter((pid): pid is number => typeof pid === 'number');
@@ -840,33 +854,59 @@ export class OrdersService {
           this.ensurePartsAssignableToCustomer(partMap as any, effectiveCustomerId);
         }
 
-        if (itemsInput.length > 0) {
-          await tx.orderDraftItem.createMany({
-            data: itemsInput.map(item => {
-              const partId = this.normalizeOptionalId(item.partId);
-              const orderedQty = typeof item.orderedQty === 'number' && Number.isInteger(item.orderedQty) && item.orderedQty > 0
-                ? item.orderedQty
-                : null;
-              const explicitUnitPrice = typeof item.unitPrice === 'number' && Number.isFinite(item.unitPrice) && item.unitPrice >= 0
-                ? item.unitPrice
-                : undefined;
-              const fallbackUnitPrice = partId
-                ? this.resolvePriceFromCommonPrices((partMap as any).get(partId)?.commonPrices)
-                : 0;
-              const unitPrice = partId
-                ? (explicitUnitPrice ?? fallbackUnitPrice)
-                : null;
-              const priceLabel = typeof item.priceLabel === 'string' && item.priceLabel.trim()
-                ? item.priceLabel.trim().slice(0, 50)
-                : null;
-              return {
-                draftId: id,
-                partId: partId ?? null,
-                orderedQty,
-                unitPrice,
-                priceLabel,
-              };
+        const updateDataByItem = (item: (typeof itemsInput)[number]) => {
+          const partId = this.normalizeOptionalId(item.partId);
+          const orderedQty = typeof item.orderedQty === 'number' && Number.isInteger(item.orderedQty) && item.orderedQty > 0
+            ? item.orderedQty
+            : null;
+          const explicitUnitPrice = typeof item.unitPrice === 'number' && Number.isFinite(item.unitPrice) && item.unitPrice >= 0
+            ? item.unitPrice
+            : undefined;
+          const fallbackUnitPrice = partId
+            ? this.resolvePriceFromCommonPrices((partMap as any).get(partId)?.commonPrices)
+            : 0;
+          const unitPrice = partId
+            ? (explicitUnitPrice ?? fallbackUnitPrice)
+            : null;
+          const priceLabel = typeof item.priceLabel === 'string' && item.priceLabel.trim()
+            ? item.priceLabel.trim().slice(0, 50)
+            : null;
+          return {
+            partId: partId ?? null,
+            orderedQty,
+            unitPrice,
+            priceLabel,
+          };
+        };
+
+        const idsToDelete = existingItems
+          .map(item => item.id)
+          .filter(itemId => !incomingExistingIdSet.has(itemId));
+        if (idsToDelete.length > 0) {
+          await tx.orderDraftItem.deleteMany({ where: { draftId: id, id: { in: idsToDelete } } });
+        }
+
+        const itemsToUpdate = itemsInput
+          .map(item => ({ item, id: this.normalizeOptionalId(item.id) }))
+          .filter((entry): entry is { item: (typeof itemsInput)[number]; id: number } => typeof entry.id === 'number');
+
+        await Promise.all(
+          itemsToUpdate.map(entry =>
+            tx.orderDraftItem.update({
+              where: { id: entry.id },
+              data: updateDataByItem(entry.item),
             }),
+          ),
+        );
+
+        const itemsToCreate = itemsInput
+          .filter(item => this.normalizeOptionalId(item.id) === undefined);
+        if (itemsToCreate.length > 0) {
+          await tx.orderDraftItem.createMany({
+            data: itemsToCreate.map(item => ({
+              draftId: id,
+              ...updateDataByItem(item),
+            })),
           });
         }
       }
