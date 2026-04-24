@@ -890,11 +890,57 @@ export class OrdersService {
           .map(item => ({ item, id: this.normalizeOptionalId(item.id) }))
           .filter((entry): entry is { item: (typeof itemsInput)[number]; id: number } => typeof entry.id === 'number');
 
-        for (const entry of itemsToUpdate) {
-          await tx.orderDraftItem.update({
-            where: { id: entry.id },
+        if (itemsToUpdate.length > 0) {
+          const updates = itemsToUpdate.map(entry => ({
+            id: entry.id,
             data: updateDataByItem(entry.item),
-          });
+          }));
+
+          await tx.$executeRaw(
+            Prisma.sql`
+              UPDATE "order_draft_item"
+              SET
+                "part_id" = CASE "id"
+                  ${Prisma.join(
+                    updates.map(update =>
+                      Prisma.sql`WHEN ${update.id} THEN ${update.data.partId}`,
+                    ),
+                    ' ',
+                  )}
+                  ELSE "part_id"
+                END,
+                "ordered_qty" = CASE "id"
+                  ${Prisma.join(
+                    updates.map(update =>
+                      Prisma.sql`WHEN ${update.id} THEN ${update.data.orderedQty}`,
+                    ),
+                    ' ',
+                  )}
+                  ELSE "ordered_qty"
+                END,
+                "unit_price" = CASE "id"
+                  ${Prisma.join(
+                    updates.map(update =>
+                      Prisma.sql`WHEN ${update.id} THEN ${update.data.unitPrice}`,
+                    ),
+                    ' ',
+                  )}
+                  ELSE "unit_price"
+                END,
+                "price_label" = CASE "id"
+                  ${Prisma.join(
+                    updates.map(update =>
+                      Prisma.sql`WHEN ${update.id} THEN ${update.data.priceLabel}`,
+                    ),
+                    ' ',
+                  )}
+                  ELSE "price_label"
+                END
+              WHERE
+                "draft_id" = ${id}
+                AND "id" IN (${Prisma.join(updates.map(update => update.id))})
+            `,
+          );
         }
 
         const itemsToCreate = itemsInput
