@@ -163,6 +163,15 @@ export function exportOrderPriceSheet(
     payload.minColWidths,
     payload.contentStartRow,
   )
+  const ws = wb.Sheets[payload.sheetName]
+  if (ws) {
+    ws["!pageSetup"] = {
+      paperSize: 9,
+      orientation: "portrait",
+      fitToWidth: 1,
+      fitToHeight: 0,
+    }
+  }
   XLSX.writeFile(wb, payload.filename)
   return payload.filename
 }
@@ -181,8 +190,9 @@ export function exportDeliveryNote(
   const ws = wb.Sheets[payload.sheetName]
   if (ws) {
     ws["!pageSetup"] = {
-      scale: 100,
-      fitToWidth: 0,
+      paperSize: 9,
+      orientation: "portrait",
+      fitToWidth: 1,
       fitToHeight: 0,
     }
   }
