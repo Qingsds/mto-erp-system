@@ -47,6 +47,25 @@ export function ExportPreviewDialog({
 }: ExportPreviewDialogProps) {
   const previewRows = preview?.rows ?? []
   const hasMoreRows = (preview?.totalRows ?? 0) > previewRows.length
+  const handleSelectAll = () =>
+    onChangeConfig({
+      ...config,
+      showOrderNo: true,
+      showCustomer: true,
+      showPreparedAt: true,
+      showStatus: true,
+      showRemarks: true,
+    })
+
+  const handleInvertSelection = () =>
+    onChangeConfig({
+      ...config,
+      showOrderNo: !config.showOrderNo,
+      showCustomer: !config.showCustomer,
+      showPreparedAt: !config.showPreparedAt,
+      showStatus: !config.showStatus,
+      showRemarks: !config.showRemarks,
+    })
 
   return (
     <DocumentDialogShell
@@ -83,6 +102,27 @@ export function ExportPreviewDialog({
         )}
 
         <div className='grid grid-cols-1 gap-3 border border-border bg-muted/20 p-3 sm:grid-cols-2 lg:grid-cols-3'>
+            <div className='flex flex-wrap items-center justify-between gap-2 text-sm sm:col-span-2 lg:col-span-3'>
+              <span className='text-muted-foreground'>字段显示</span>
+              <div className='flex items-center gap-1'>
+                <Button
+                  type='button'
+                  variant='ghost'
+                  size='xs'
+                  onClick={handleSelectAll}
+                >
+                  全选
+                </Button>
+                <Button
+                  type='button'
+                  variant='ghost'
+                  size='xs'
+                  onClick={handleInvertSelection}
+                >
+                  反选
+                </Button>
+              </div>
+            </div>
             <label className='inline-flex items-center gap-2 text-sm'>
               <input
                 type='checkbox'
