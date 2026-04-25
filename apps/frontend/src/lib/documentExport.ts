@@ -178,6 +178,14 @@ export function exportDeliveryNote(
     payload.minColWidths,
     payload.contentStartRow,
   )
+  const ws = wb.Sheets[payload.sheetName]
+  if (ws) {
+    ws["!pageSetup"] = {
+      scale: 100,
+      fitToWidth: 0,
+      fitToHeight: 0,
+    }
+  }
   XLSX.writeFile(wb, payload.filename)
   return payload.filename
 }
