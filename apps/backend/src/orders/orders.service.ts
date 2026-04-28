@@ -19,6 +19,39 @@ import { OrderStatus, Prisma } from '@erp/database';
 import { ProductionTaskService } from '../production-task/production-task.service';
 import { StorageService } from '../storage/storage.service';
 
+type OrderPartRecord = {
+  id: number;
+  name: string;
+  commonPrices: Prisma.JsonValue;
+  customers: Array<{ customerId: number }>;
+};
+
+type DraftPartPriceRecord = {
+  commonPrices: unknown;
+};
+
+type DraftNormalizedItem = {
+  partId: number | null;
+  orderedQty: number | null;
+  unitPrice: number | null;
+  priceLabel: string | null;
+};
+
+type OrderWriteItemInput = {
+  partId: number;
+  orderedQty: number;
+  unitPrice: number;
+};
+
+type OrderWriteInput = {
+  customerId: number;
+  customerName: string;
+  responsibleUserId: number;
+  createdById: number;
+  targetDate: Date;
+  items: OrderWriteItemInput[];
+};
+
 @Injectable()
 export class OrdersService {
   // 依赖注入：通过构造函数，NestJS 会自动把全局的 PrismaService 塞给这个类
@@ -58,15 +91,7 @@ export class OrdersService {
   }
 
   private ensurePartsAssignableToCustomer(
-    partMap: Map<
-      number,
-      {
-        id: number;
-        name: string;
-        commonPrices: Prisma.JsonValue;
-        customers: Array<{ customerId: number }>;
-      }
-    >,
+    partMap: Map<number, OrderPartRecord>,
     customerId: number,
   ) {
     const blockedParts = [...partMap.values()].filter(part => {
@@ -152,6 +177,41 @@ export class OrdersService {
       : undefined;
   }
 
+  private async loadActiveCustomer(
+    tx: Prisma.TransactionClient,
+    customerId: number,
+    messages: {
+      missing: string;
+      inactive: string;
+    },
+  ) {
+    const customer = await tx.customer.findUnique({
+      where: { id: customerId },
+      select: { id: true, name: true, isActive: true },
+    });
+    if (!customer) {
+      throw new BadRequestException(messages.missing);
+    }
+    if (!customer.isActive) {
+      throw new BadRequestException(messages.inactive);
+    }
+    return customer;
+  }
+
+  private async loadActiveResponsibleUser(
+    tx: Prisma.TransactionClient,
+    responsibleUserId: number,
+  ) {
+    const responsibleUser = await tx.user.findUnique({
+      where: { id: responsibleUserId },
+      select: { id: true, isActive: true },
+    });
+    if (!responsibleUser || !responsibleUser.isActive) {
+      throw new BadRequestException('订单负责人无效或已停用');
+    }
+    return responsibleUser;
+  }
+
   private toDateOrUndefined(value?: string): Date | undefined {
     if (typeof value !== 'string') {
       return undefined;
@@ -169,6 +229,90 @@ export class OrdersService {
 
   private canAccessDraft(createdById: number, userId: number, role: UserRoleType) {
     return role === 'ADMIN' || createdById === userId;
+  }
+
+  private normalizeDraftItem(
+    item: {
+      partId?: number | null;
+      orderedQty?: number | null;
+      unitPrice?: number | null;
+      priceLabel?: string | null;
+    },
+    partMap: Map<number, DraftPartPriceRecord>,
+  ): DraftNormalizedItem {
+    const partId = this.normalizeOptionalId(item.partId ?? undefined);
+    const orderedQty = typeof item.orderedQty === 'number'
+      && Number.isInteger(item.orderedQty)
+      && item.orderedQty > 0
+      ? item.orderedQty
+      : null;
+    const explicitUnitPrice = typeof item.unitPrice === 'number'
+      && Number.isFinite(item.unitPrice)
+      && item.unitPrice >= 0
+      ? item.unitPrice
+      : undefined;
+    const fallbackUnitPrice = partId
+      ? this.resolvePriceFromCommonPrices(partMap.get(partId)?.commonPrices)
+      : 0;
+    const unitPrice = partId
+      ? (explicitUnitPrice ?? fallbackUnitPrice)
+      : null;
+    const priceLabel = typeof item.priceLabel === 'string' && item.priceLabel.trim()
+      ? item.priceLabel.trim().slice(0, 50)
+      : null;
+
+    return {
+      partId: partId ?? null,
+      orderedQty,
+      unitPrice,
+      priceLabel,
+    };
+  }
+
+  private async writeOrderWithTasks<TInclude extends Prisma.OrderInclude>(
+    tx: Prisma.TransactionClient,
+    input: OrderWriteInput,
+    include: TInclude,
+  ): Promise<Prisma.OrderGetPayload<{ include: TInclude }>> {
+    const order = await tx.order.create({
+      data: {
+        customerId: input.customerId,
+        responsibleUserId: input.responsibleUserId,
+        createdById: input.createdById,
+        customerName: input.customerName,
+        status: 'PENDING',
+      },
+    });
+
+    for (const item of input.items) {
+      const orderItem = await tx.orderItem.create({
+        data: {
+          orderId: order.id,
+          partId: item.partId,
+          orderedQty: item.orderedQty,
+          unitPrice: item.unitPrice,
+        },
+      });
+
+      await tx.productionTask.create({
+        data: {
+          orderItemId: orderItem.id,
+          targetDate: input.targetDate,
+          status: 'PENDING',
+        },
+      });
+    }
+
+    const createdOrder = await tx.order.findUnique({
+      where: { id: order.id },
+      include,
+    });
+
+    if (!createdOrder) {
+      throw new NotFoundException(`订单 ID: ${order.id} 不存在`);
+    }
+
+    return createdOrder;
   }
 
   private mapDraftDetail(draft: {
@@ -308,24 +452,11 @@ export class OrdersService {
     // 保证订单主表和所有明细表要么同时创建成功，要么同时回滚失败，防止出现脏数据
     const newOrder = await this.prisma.client.$transaction(
       async (tx: Prisma.TransactionClient) => {
-        const customer = await tx.customer.findUnique({
-          where: { id: customerId },
-          select: { id: true, name: true, isActive: true },
+        const customer = await this.loadActiveCustomer(tx, customerId, {
+          missing: `客户 ID${customerId} 不存在`,
+          inactive: '客户已停用，无法用于新建订单',
         });
-        if (!customer) {
-          throw new BadRequestException(`客户 ID${customerId} 不存在`);
-        }
-        if (!customer.isActive) {
-          throw new BadRequestException('客户已停用，无法用于新建订单');
-        }
-
-        const responsibleUser = await tx.user.findUnique({
-          where: { id: responsibleUserId },
-          select: { id: true, isActive: true },
-        });
-        if (!responsibleUser || !responsibleUser.isActive) {
-          throw new BadRequestException('订单负责人无效或已停用');
-        }
+        const responsibleUser = await this.loadActiveResponsibleUser(tx, responsibleUserId);
 
         const partMap = await this.loadOrderParts(
           tx,
@@ -333,58 +464,32 @@ export class OrdersService {
         );
         this.ensurePartsAssignableToCustomer(partMap, customer.id);
 
-        // 1.创建订单主表记录
-        const order = await tx.order.create({
-          data: {
-            customerId: customer.id,
-            responsibleUserId: responsibleUser.id,
-            createdById,
-            customerName: customer.name,
-            status: 'PENDING', // 默认订单状态为待处理
-          },
-        });
-
-        for (const item of items) {
-          const part = partMap.get(item.partId);
-          if (!part) {
-            throw new BadRequestException(`零件 ID${item.partId} 不存在`);
-          }
-
-          const unitPrice = this.resolvePriceFromCommonPrices(
-            part.commonPrices,
-          );
-
-          const orderItem = await tx.orderItem.create({
-            data: {
-              orderId: order.id,
+        return this.writeOrderWithTasks(tx, {
+          customerId: customer.id,
+          customerName: customer.name,
+          responsibleUserId: responsibleUser.id,
+          createdById,
+          targetDate: new Date(targetDate),
+          items: items.map(item => {
+            const part = partMap.get(item.partId);
+            if (!part) {
+              throw new BadRequestException(`零件 ID${item.partId} 不存在`);
+            }
+            return {
               partId: item.partId,
               orderedQty: item.orderedQty,
-              unitPrice: unitPrice, // 【防篡改机制】：价格一旦写入这里，后续零件字典怎么改价，都不会影响本订单
-            },
-          });
-
-          await tx.productionTask.create({
-            data: {
-              orderItemId: orderItem.id,
-              targetDate: new Date(targetDate),
-              status: 'PENDING',
-            },
-          });
-        }
-        // 返回订单信息
-        return tx.order.findUnique({
-          where: {
-            id: order.id,
+              // 价格一旦写入订单行，后续零件字典改价不影响本订单
+              unitPrice: this.resolvePriceFromCommonPrices(part.commonPrices),
+            };
+          }),
+        }, {
+          responsibleUser: {
+            select: { id: true, realName: true, role: true },
           },
-          include: {
-            responsibleUser: {
-              select: { id: true, realName: true, role: true },
-            },
-            createdBy: {
-              select: { id: true, realName: true, role: true },
-            },
-            items: true,
+          createdBy: {
+            select: { id: true, realName: true, role: true },
           },
+          items: true,
         });
       },
     );
@@ -408,21 +513,11 @@ export class OrdersService {
 
     try {
       const result = await this.prisma.client.$transaction(async (tx: Prisma.TransactionClient) => {
-        const customer = await tx.customer.findUnique({
-          where: { id: customerId },
-          select: { id: true, name: true, isActive: true },
+        const customer = await this.loadActiveCustomer(tx, customerId, {
+          missing: '客户无效或已停用',
+          inactive: '客户无效或已停用',
         });
-        if (!customer || !customer.isActive) {
-          throw new BadRequestException('客户无效或已停用');
-        }
-
-        const responsibleUser = await tx.user.findUnique({
-          where: { id: responsibleUserId },
-          select: { id: true, isActive: true },
-        });
-        if (!responsibleUser || !responsibleUser.isActive) {
-          throw new BadRequestException('订单负责人无效或已停用');
-        }
+        const responsibleUser = await this.loadActiveResponsibleUser(tx, responsibleUserId);
 
         const existingPartIds = items
           .filter(item => !item.isNewPart)
@@ -434,15 +529,7 @@ export class OrdersService {
           this.ensurePartsAssignableToCustomer(existingPartMap, customer.id);
         }
 
-        const order = await tx.order.create({
-          data: {
-            customerId: customer.id,
-            customerName: customer.name,
-            responsibleUserId: responsibleUser.id,
-            createdById,
-            status: 'PENDING',
-          },
-        });
+        const orderItems: OrderWriteItemInput[] = [];
 
         for (const [index, item] of items.entries()) {
           let partId = item.existingPartId;
@@ -504,38 +591,31 @@ export class OrdersService {
             throw new BadRequestException('必须提供零件ID');
           }
 
-          const orderItem = await tx.orderItem.create({
-            data: {
-              orderId: order.id,
-              partId,
-              orderedQty: item.orderedQty,
-              unitPrice: item.unitPrice,
-            },
-          });
-
-          await tx.productionTask.create({
-            data: {
-              orderItemId: orderItem.id,
-              targetDate: new Date(targetDate),
-              status: 'PENDING',
-            },
+          orderItems.push({
+            partId,
+            orderedQty: item.orderedQty,
+            unitPrice: item.unitPrice,
           });
         }
 
-        return tx.order.findUnique({
-          where: { id: order.id },
-          include: {
-            responsibleUser: {
-              select: { id: true, realName: true, role: true },
-            },
-            createdBy: {
-              select: { id: true, realName: true, role: true },
-            },
-            items: {
-              include: {
-                productionTask: true,
-                part: true,
-              },
+        return this.writeOrderWithTasks(tx, {
+          customerId: customer.id,
+          customerName: customer.name,
+          responsibleUserId: responsibleUser.id,
+          createdById,
+          targetDate: new Date(targetDate),
+          items: orderItems,
+        }, {
+          responsibleUser: {
+            select: { id: true, realName: true, role: true },
+          },
+          createdBy: {
+            select: { id: true, realName: true, role: true },
+          },
+          items: {
+            include: {
+              productionTask: true,
+              part: true,
             },
           },
         });
@@ -713,9 +793,9 @@ export class OrdersService {
 
       const partMap = partIds.length > 0
         ? await this.loadOrderParts(tx, partIds)
-        : new Map<number, { commonPrices: unknown }>();
+        : new Map<number, OrderPartRecord>();
       if (customerId && partIds.length > 0) {
-        this.ensurePartsAssignableToCustomer(partMap as any, customerId);
+        this.ensurePartsAssignableToCustomer(partMap, customerId);
       }
 
       const draft = await tx.orderDraft.create({
@@ -728,33 +808,7 @@ export class OrdersService {
           createdById: userId,
           items: itemsInput.length > 0
             ? {
-                create: itemsInput.map(item => {
-                  const partId = this.normalizeOptionalId(item.partId);
-                  const orderedQty = typeof item.orderedQty === 'number' && Number.isInteger(item.orderedQty) && item.orderedQty > 0
-                    ? item.orderedQty
-                    : null;
-                  const explicitUnitPrice = typeof item.unitPrice === 'number' && Number.isFinite(item.unitPrice) && item.unitPrice >= 0
-                    ? item.unitPrice
-                    : undefined;
-
-                  const fallbackUnitPrice = partId
-                    ? this.resolvePriceFromCommonPrices((partMap as any).get(partId)?.commonPrices)
-                    : 0;
-                  const unitPrice = partId
-                    ? (explicitUnitPrice ?? fallbackUnitPrice)
-                    : null;
-
-                  const priceLabel = typeof item.priceLabel === 'string' && item.priceLabel.trim()
-                    ? item.priceLabel.trim().slice(0, 50)
-                    : null;
-
-                  return {
-                    partId: partId ?? null,
-                    orderedQty,
-                    unitPrice,
-                    priceLabel,
-                  };
-                }),
+                create: itemsInput.map(item => this.normalizeDraftItem(item, partMap)),
               }
             : undefined,
         },
@@ -845,38 +899,17 @@ export class OrdersService {
 
         const partMap = partIds.length > 0
           ? await this.loadOrderParts(tx, partIds)
-          : new Map<number, { commonPrices: unknown }>();
+          : new Map<number, OrderPartRecord>();
 
         const effectiveCustomerId = payload.customerId !== undefined
           ? nextCustomerId
           : this.normalizeOptionalId(existing.customerId ?? undefined);
         if (effectiveCustomerId && partIds.length > 0) {
-          this.ensurePartsAssignableToCustomer(partMap as any, effectiveCustomerId);
+          this.ensurePartsAssignableToCustomer(partMap, effectiveCustomerId);
         }
 
         const updateDataByItem = (item: (typeof itemsInput)[number]) => {
-          const partId = this.normalizeOptionalId(item.partId);
-          const orderedQty = typeof item.orderedQty === 'number' && Number.isInteger(item.orderedQty) && item.orderedQty > 0
-            ? item.orderedQty
-            : null;
-          const explicitUnitPrice = typeof item.unitPrice === 'number' && Number.isFinite(item.unitPrice) && item.unitPrice >= 0
-            ? item.unitPrice
-            : undefined;
-          const fallbackUnitPrice = partId
-            ? this.resolvePriceFromCommonPrices((partMap as any).get(partId)?.commonPrices)
-            : 0;
-          const unitPrice = partId
-            ? (explicitUnitPrice ?? fallbackUnitPrice)
-            : null;
-          const priceLabel = typeof item.priceLabel === 'string' && item.priceLabel.trim()
-            ? item.priceLabel.trim().slice(0, 50)
-            : null;
-          return {
-            partId: partId ?? null,
-            orderedQty,
-            unitPrice,
-            priceLabel,
-          };
+          return this.normalizeDraftItem(item, partMap);
         };
 
         const idsToDelete = existingItems
@@ -1028,25 +1061,13 @@ export class OrdersService {
         throw new BadRequestException('订单明细不能为空');
       }
 
-      const customer = await tx.customer.findUnique({
-        where: { id: customerId },
-        select: { id: true, name: true, isActive: true },
+      const customer = await this.loadActiveCustomer(tx, customerId, {
+        missing: `客户 ID${customerId} 不存在`,
+        inactive: '客户已停用，无法用于提交订单',
       });
-      if (!customer) {
-        throw new BadRequestException(`客户 ID${customerId} 不存在`);
-      }
-      if (!customer.isActive) {
-        throw new BadRequestException('客户已停用，无法用于提交订单');
-      }
 
       const responsibleUserId = this.normalizeOptionalId(draft.responsibleUserId ?? undefined) ?? userId;
-      const responsibleUser = await tx.user.findUnique({
-        where: { id: responsibleUserId },
-        select: { id: true, isActive: true },
-      });
-      if (!responsibleUser || !responsibleUser.isActive) {
-        throw new BadRequestException('订单负责人无效或已停用');
-      }
+      const responsibleUser = await this.loadActiveResponsibleUser(tx, responsibleUserId);
 
       const partMap = await this.loadOrderParts(
         tx,
@@ -1054,40 +1075,24 @@ export class OrdersService {
       );
       this.ensurePartsAssignableToCustomer(partMap, customer.id);
 
-      const order = await tx.order.create({
-        data: {
-          customerId: customer.id,
-          responsibleUserId: responsibleUser.id,
-          createdById: userId,
-          customerName: customer.name,
-          status: 'PENDING',
-        },
-      });
-
-      for (const item of completeItems) {
-        const part = partMap.get(item.partId);
-        const unitPrice = this.resolveOrderItemUnitPrice(
-          item.unitPrice ?? 0,
-          part?.commonPrices,
-        );
-
-        const orderItem = await tx.orderItem.create({
-          data: {
-            orderId: order.id,
+      const order = await this.writeOrderWithTasks(tx, {
+        customerId: customer.id,
+        customerName: customer.name,
+        responsibleUserId: responsibleUser.id,
+        createdById: userId,
+        targetDate: draft.targetDate,
+        items: completeItems.map(item => {
+          const part = partMap.get(item.partId);
+          return {
             partId: item.partId,
             orderedQty: item.orderedQty,
-            unitPrice,
-          },
-        });
-
-        await tx.productionTask.create({
-          data: {
-            orderItemId: orderItem.id,
-            targetDate: draft.targetDate,
-            status: 'PENDING',
-          },
-        });
-      }
+            unitPrice: this.resolveOrderItemUnitPrice(
+              item.unitPrice ?? 0,
+              part?.commonPrices,
+            ),
+          };
+        }),
+      }, {});
 
       await tx.orderDraft.delete({ where: { id: draft.id } });
 
