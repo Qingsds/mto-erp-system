@@ -35,7 +35,7 @@ export function useBillingDetailDownloads(billing?: BillingDetail) {
       setActionError(null)
       setIsExportingExcel(true)
       const { exportBillingStatement } = await import("@/lib/documentExport")
-      const filename = exportBillingStatement(billing)
+      const filename = await exportBillingStatement(billing)
       toast.success(`导出成功：${filename}`)
     } catch (error) {
       const message = await resolveActionMessage(error, "Excel 导出失败")

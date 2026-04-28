@@ -54,6 +54,8 @@ export interface SheetPayload {
   rows: RowData[]
   minColWidths: number[]
   contentStartRow: number
+  printTargetWidthWch?: number
+  printHorizontallyCentered?: boolean
   preview: ExportPreviewData
 }
 
@@ -320,6 +322,8 @@ export function buildOrderSheetPayload(
       ? [20, 12, 12, 14, 24]
       : [20, 12, 12, 16],
     contentStartRow: 3,
+    printTargetWidthWch: 88,
+    printHorizontallyCentered: true,
     preview: {
       title: "价格清单",
       filename,
@@ -435,6 +439,8 @@ export function buildDeliverySheetPayload(
       ? [18, 12, 10, 20]
       : [20, 14, 16],
     contentStartRow: 3,
+    printTargetWidthWch: 96,
+    printHorizontallyCentered: true,
     preview: {
       title: "发货单",
       filename,

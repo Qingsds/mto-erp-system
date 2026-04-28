@@ -35,6 +35,8 @@ const BASE_STYLE = {
   alignment: { horizontal: "center", vertical: "center", wrapText: true },
 } as const
 
+const A4_PRINTABLE_WIDTH_WCH = 74
+
 /** 估算显示长度：中文按 2，英文/数字按 1。 */
 function getDisplayLength(value: string | number): number {
   return Array.from(String(value)).reduce((sum, char) => {
@@ -65,6 +67,26 @@ function resolveColumnWidths(
   })
 }
 
+function expandColumnWidthsToPrintableWidth(
+  colWidths: number[],
+  targetTotalWidth = A4_PRINTABLE_WIDTH_WCH,
+): number[] {
+  const currentTotal = colWidths.reduce((sum, width) => sum + width, 0)
+  if (currentTotal <= 0 || currentTotal >= targetTotalWidth) {
+    return colWidths
+  }
+
+  const scale = targetTotalWidth / currentTotal
+  const scaled = colWidths.map(width => Number((width * scale).toFixed(2)))
+  const diff = Number((targetTotalWidth - scaled.reduce((sum, width) => sum + width, 0)).toFixed(2))
+
+  if (scaled.length > 0 && diff !== 0) {
+    scaled[scaled.length - 1] = Number((scaled[scaled.length - 1] + diff).toFixed(2))
+  }
+
+  return scaled
+}
+
 /** 按内容换行需求估算行高，防止单行截断或极端拉伸。 */
 function resolveRowHeight(row: RowData, colWidths: number[]): number {
   const lineCount = row.reduce<number>((maxLines, value, colIndex) => {
@@ -81,7 +103,10 @@ function resolveRowHeight(row: RowData, colWidths: number[]): number {
   return Math.max(22, Math.min(lineCount * 22, 88))
 }
 
-function ensureFitToA4SheetXml(xml: string) {
+function ensureFitToA4SheetXml(
+  xml: string,
+  options?: { horizontallyCentered?: boolean },
+) {
   const withFitFlag = (() => {
     if (xml.includes("<pageSetUpPr")) {
       return xml.replace(/<pageSetUpPr\b[^>]*\/>/, match => {
@@ -99,19 +124,64 @@ function ensureFitToA4SheetXml(xml: string) {
     return xml.replace(/<worksheet\b[^>]*>/, match => `${match}<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>`)
   })()
 
+  const withPrintOptions = (() => {
+    if (!options?.horizontallyCentered) {
+      return withFitFlag
+    }
+
+    if (withFitFlag.includes("<printOptions")) {
+      return withFitFlag.replace(/<printOptions\b[^>]*\/>/, match => {
+        if (/\bhorizontalCentered=/.test(match)) {
+          return match.replace(/\bhorizontalCentered="[^"]*"/, 'horizontalCentered="1"')
+        }
+        return match.replace(/\/>$/, ' horizontalCentered="1"/>')
+      })
+    }
+
+    if (withFitFlag.includes("<pageMargins")) {
+      return withFitFlag.replace(
+        /(<pageMargins\b[^>]*\/>)/,
+        '<printOptions horizontalCentered="1"/>$1',
+      )
+    }
+
+    if (withFitFlag.includes("<sheetData")) {
+      return withFitFlag.replace(
+        /(<\/sheetData>)/,
+        '$1<printOptions horizontalCentered="1"/>',
+      )
+    }
+
+    return withFitFlag.replace(
+      /<\/worksheet>/,
+      '<printOptions horizontalCentered="1"/></worksheet>',
+    )
+  })()
+
   const pageSetupTag =
     '<pageSetup paperSize="9" orientation="portrait" fitToWidth="1" fitToHeight="0"/>'
 
-  if (withFitFlag.includes("<pageSetup")) {
-    return withFitFlag.replace(/<pageSetup\b[^>]*\/>/, pageSetupTag)
+  if (withPrintOptions.includes("<pageSetup")) {
+    return withPrintOptions.replace(/<pageSetup\b[^>]*\/>/, pageSetupTag)
   }
 
-  return withFitFlag.replace(/<\/worksheet>/, `${pageSetupTag}</worksheet>`)
+  if (withPrintOptions.includes("<pageMargins")) {
+    return withPrintOptions.replace(/(<pageMargins\b[^>]*\/>)/, `$1${pageSetupTag}`)
+  }
+
+  if (withPrintOptions.includes("<printOptions")) {
+    return withPrintOptions.replace(/(<printOptions\b[^>]*\/>)/, `$1${pageSetupTag}`)
+  }
+
+  if (withPrintOptions.includes("<sheetData")) {
+    return withPrintOptions.replace(/(<\/sheetData>)/, `$1${pageSetupTag}`)
+  }
+
+  return withPrintOptions.replace(/<\/worksheet>/, `${pageSetupTag}</worksheet>`)
 }
 
 function downloadXlsx(filename: string, bytes: Uint8Array) {
-  const data = new Uint8Array(bytes)
-  const blob = new Blob([data], {
+  const blob = new Blob([bytes], {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   })
   const url = URL.createObjectURL(blob)
@@ -124,7 +194,11 @@ function downloadXlsx(filename: string, bytes: Uint8Array) {
   URL.revokeObjectURL(url)
 }
 
-async function writeWorkbookFitToA4(wb: XLSX.WorkBook, filename: string) {
+async function writeWorkbookFitToA4(
+  wb: XLSX.WorkBook,
+  filename: string,
+  options?: { horizontallyCentered?: boolean },
+) {
   const buffer = XLSX.write(wb, { bookType: "xlsx", type: "array" }) as ArrayBuffer
   const zip = await JSZip.loadAsync(buffer)
 
@@ -136,7 +210,7 @@ async function writeWorkbookFitToA4(wb: XLSX.WorkBook, filename: string) {
     worksheetPaths.map(async path => {
       const sheetXml = await zip.file(path)?.async("string")
       if (!sheetXml) return
-      zip.file(path, ensureFitToA4SheetXml(sheetXml))
+      zip.file(path, ensureFitToA4SheetXml(sheetXml, options))
     }),
   )
 
@@ -149,8 +223,12 @@ function buildWorkbook(
   rows: RowData[],
   minColWidths: number[],
   contentStartRow: number,
+  printTargetWidthWch = A4_PRINTABLE_WIDTH_WCH,
 ) {
-  const colWidths = resolveColumnWidths(rows, minColWidths, contentStartRow)
+  const colWidths = expandColumnWidthsToPrintableWidth(
+    resolveColumnWidths(rows, minColWidths, contentStartRow),
+    printTargetWidthWch,
+  )
   const ws = XLSX.utils.aoa_to_sheet(rows)
   const contentEndRow = rows.length - 1
 
@@ -226,8 +304,11 @@ export function exportOrderPriceSheet(
     payload.rows,
     payload.minColWidths,
     payload.contentStartRow,
+    payload.printTargetWidthWch,
   )
-  return writeWorkbookFitToA4(wb, payload.filename).then(() => payload.filename)
+  return writeWorkbookFitToA4(wb, payload.filename, {
+    horizontallyCentered: payload.printHorizontallyCentered,
+  }).then(() => payload.filename)
 }
 
 export function exportDeliveryNote(
@@ -240,14 +321,17 @@ export function exportDeliveryNote(
     payload.rows,
     payload.minColWidths,
     payload.contentStartRow,
+    payload.printTargetWidthWch,
   )
-  return writeWorkbookFitToA4(wb, payload.filename).then(() => payload.filename)
+  return writeWorkbookFitToA4(wb, payload.filename, {
+    horizontallyCentered: payload.printHorizontallyCentered,
+  }).then(() => payload.filename)
 }
 
 export function exportBillingStatement(
   billing: BillingDetail,
   options?: ExportSheetOptions,
-): string {
+): Promise<string> {
   const payload = buildBillingSheetPayload(billing, options)
   const wb = buildWorkbook(
     payload.sheetName,
@@ -256,7 +340,7 @@ export function exportBillingStatement(
     payload.contentStartRow,
   )
   XLSX.writeFile(wb, payload.filename)
-  return payload.filename
+  return Promise.resolve(payload.filename)
 }
 
 export * from "./documentExportData"
