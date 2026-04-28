@@ -338,9 +338,11 @@ export function exportBillingStatement(
     payload.rows,
     payload.minColWidths,
     payload.contentStartRow,
+    payload.printTargetWidthWch,
   )
-  XLSX.writeFile(wb, payload.filename)
-  return Promise.resolve(payload.filename)
+  return writeWorkbookFitToA4(wb, payload.filename, {
+    horizontallyCentered: payload.printHorizontallyCentered,
+  }).then(() => payload.filename)
 }
 
 export * from "./documentExportData"

@@ -439,6 +439,7 @@ export function buildDeliverySheetPayload(
       ? [18, 12, 10, 20]
       : [20, 14, 16],
     contentStartRow: 3,
+    // 这里是“列宽放大目标”而不是物理 A4 宽度；少列表会先放大，再由 fitToWidth=1 压回一页宽。
     printTargetWidthWch: 96,
     printHorizontallyCentered: true,
     preview: {
