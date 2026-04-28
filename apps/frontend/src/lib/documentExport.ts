@@ -8,6 +8,7 @@
  */
 
 import * as XLSX from "xlsx-js-style"
+import JSZip from "jszip"
 import type { BillingDetail } from "@/hooks/api/useBilling"
 import type { DeliveryDetail } from "@/hooks/api/useDeliveries"
 import type { OrderDetail } from "@/hooks/api/useOrders"
@@ -78,6 +79,69 @@ function resolveRowHeight(row: RowData, colWidths: number[]): number {
   }, 1)
 
   return Math.max(22, Math.min(lineCount * 22, 88))
+}
+
+function ensureFitToA4SheetXml(xml: string) {
+  const withFitFlag = (() => {
+    if (xml.includes("<pageSetUpPr")) {
+      return xml.replace(/<pageSetUpPr\b[^>]*\/>/, match => {
+        if (/\bfitToPage=/.test(match)) {
+          return match.replace(/\bfitToPage="[^"]*"/, 'fitToPage="1"')
+        }
+        return match.replace(/\/>$/, ' fitToPage="1"/>')
+      })
+    }
+
+    if (xml.includes("<sheetPr")) {
+      return xml.replace(/<sheetPr\b[^>]*>/, match => `${match}<pageSetUpPr fitToPage="1"/>`)
+    }
+
+    return xml.replace(/<worksheet\b[^>]*>/, match => `${match}<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>`)
+  })()
+
+  const pageSetupTag =
+    '<pageSetup paperSize="9" orientation="portrait" fitToWidth="1" fitToHeight="0"/>'
+
+  if (withFitFlag.includes("<pageSetup")) {
+    return withFitFlag.replace(/<pageSetup\b[^>]*\/>/, pageSetupTag)
+  }
+
+  return withFitFlag.replace(/<\/worksheet>/, `${pageSetupTag}</worksheet>`)
+}
+
+function downloadXlsx(filename: string, bytes: Uint8Array) {
+  const data = new Uint8Array(bytes)
+  const blob = new Blob([data], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement("a")
+  anchor.href = url
+  anchor.download = filename
+  document.body.appendChild(anchor)
+  anchor.click()
+  anchor.remove()
+  URL.revokeObjectURL(url)
+}
+
+async function writeWorkbookFitToA4(wb: XLSX.WorkBook, filename: string) {
+  const buffer = XLSX.write(wb, { bookType: "xlsx", type: "array" }) as ArrayBuffer
+  const zip = await JSZip.loadAsync(buffer)
+
+  const worksheetPaths = Object.keys(zip.files).filter(path =>
+    /^xl\/worksheets\/sheet\d+\.xml$/.test(path),
+  )
+
+  await Promise.all(
+    worksheetPaths.map(async path => {
+      const sheetXml = await zip.file(path)?.async("string")
+      if (!sheetXml) return
+      zip.file(path, ensureFitToA4SheetXml(sheetXml))
+    }),
+  )
+
+  const bytes = await zip.generateAsync({ type: "uint8array" })
+  downloadXlsx(filename, bytes)
 }
 
 function buildWorkbook(
@@ -155,7 +219,7 @@ function buildWorkbook(
 export function exportOrderPriceSheet(
   order: OrderDetail,
   options?: ExportSheetOptions,
-): string {
+): Promise<string> {
   const payload = buildOrderSheetPayload(order, options)
   const wb = buildWorkbook(
     payload.sheetName,
@@ -163,23 +227,13 @@ export function exportOrderPriceSheet(
     payload.minColWidths,
     payload.contentStartRow,
   )
-  const ws = wb.Sheets[payload.sheetName]
-  if (ws) {
-    ws["!pageSetup"] = {
-      paperSize: 9,
-      orientation: "portrait",
-      fitToWidth: 1,
-      fitToHeight: 0,
-    }
-  }
-  XLSX.writeFile(wb, payload.filename)
-  return payload.filename
+  return writeWorkbookFitToA4(wb, payload.filename).then(() => payload.filename)
 }
 
 export function exportDeliveryNote(
   delivery: DeliveryDetail,
   options?: ExportSheetOptions,
-): string {
+): Promise<string> {
   const payload = buildDeliverySheetPayload(delivery, options)
   const wb = buildWorkbook(
     payload.sheetName,
@@ -187,17 +241,7 @@ export function exportDeliveryNote(
     payload.minColWidths,
     payload.contentStartRow,
   )
-  const ws = wb.Sheets[payload.sheetName]
-  if (ws) {
-    ws["!pageSetup"] = {
-      paperSize: 9,
-      orientation: "portrait",
-      fitToWidth: 1,
-      fitToHeight: 0,
-    }
-  }
-  XLSX.writeFile(wb, payload.filename)
-  return payload.filename
+  return writeWorkbookFitToA4(wb, payload.filename).then(() => payload.filename)
 }
 
 export function exportBillingStatement(
