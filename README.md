@@ -10,15 +10,6 @@
 - **共享类型库**: `@erp/shared-types`
 - **对象存储**: MinIO (用于图纸与印章归档)
 
-## 项目 Skills
-- 项目内置 skill 源目录为 `.codex/skills`
-- 当前 skill 列表：
-  - `mto-erp-change-guard`：用于大改复盘、补丁治理、提交前结构检查与 commit 文案规范
-  - `mto-erp-frontend-ux`：用于 MTO ERP 前端页面重构、设计系统对齐、移动端与交互体验优化
-- 项目已提供一个最小可测试的 skill registry，代码位于 `apps/frontend/src/lib/skills`
-- registry 会读取每个 skill 的 `SKILL.md`、`agents/openai.yaml` 与 `references/*`，并统一输出名称、描述、默认提示词、依赖与原始文档内容
-- 相关测试位于 `apps/frontend/src/lib/skills/registry.spec.ts`
-
 ---
 
 ## 0. 环境要求
