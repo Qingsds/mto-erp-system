@@ -578,18 +578,7 @@ export class ChangePasswordRequest {
   newPassword!: string
 }
 
-export class ExecuteSealRequest {
-  @IsIn(["ORDER", "DELIVERY", "BILLING", "DOCUMENT"])
-  targetType!: DocumentTargetType
-
-  @IsInt()
-  @Min(1)
-  targetId!: number
-
-  @IsInt()
-  @Min(1)
-  sealId!: number
-
+export class SealPlacementRequest {
   @IsInt()
   @Min(1)
   pageIndex!: number
@@ -608,4 +597,57 @@ export class ExecuteSealRequest {
   @Min(0.01)
   @Max(1)
   widthRatio!: number
+}
+
+export class SeamSealRequest {
+  @IsBoolean()
+  @IsOptional()
+  enabled?: boolean
+}
+
+export class ExecuteSealRequest {
+  @IsIn(["ORDER", "DELIVERY", "BILLING", "DOCUMENT"])
+  targetType!: DocumentTargetType
+
+  @IsInt()
+  @Min(1)
+  targetId!: number
+
+  @IsInt()
+  @Min(1)
+  sealId!: number
+
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  pageIndex?: number
+
+  @IsNumber()
+  @Min(0)
+  @Max(1)
+  @IsOptional()
+  xRatio?: number
+
+  @IsNumber()
+  @Min(0)
+  @Max(1)
+  @IsOptional()
+  yRatio?: number
+
+  @IsNumber()
+  @Min(0.01)
+  @Max(1)
+  @IsOptional()
+  widthRatio?: number
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SealPlacementRequest)
+  @IsOptional()
+  placements?: SealPlacementRequest[]
+
+  @ValidateNested()
+  @Type(() => SeamSealRequest)
+  @IsOptional()
+  seamSeal?: SeamSealRequest
 }

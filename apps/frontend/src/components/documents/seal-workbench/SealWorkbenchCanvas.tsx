@@ -28,6 +28,7 @@ import {
   SEAL_WORKBENCH_A4_ASPECT_RATIO,
   SEAL_WORKBENCH_PREVIEW_MAX_WIDTH,
   clamp,
+  isSameSealPlacement,
   type SealPlacement,
 } from "./types"
 
@@ -44,15 +45,6 @@ interface SealWorkbenchCanvasProps {
 }
 
 type InteractionMode = "idle" | "dragging" | "resizing"
-
-function isSamePlacement(left: SealPlacement, right: SealPlacement) {
-  return (
-    left.pageIndex === right.pageIndex &&
-    left.xRatio === right.xRatio &&
-    left.yRatio === right.yRatio &&
-    left.widthRatio === right.widthRatio
-  )
-}
 
 function clampPlacement(params: {
   placement: SealPlacement
@@ -303,14 +295,14 @@ export function SealWorkbenchCanvas({
     })
 
     setDraftPlacement(currentPlacement =>
-      isSamePlacement(currentPlacement, nextPlacement)
+      isSameSealPlacement(currentPlacement, nextPlacement)
         ? currentPlacement
         : nextPlacement,
     )
   }, [isInteracting, placement, renderSize.height, renderSize.width, sealAspectRatio])
 
   useEffect(() => {
-    if (isInteracting || isSamePlacement(resolvedPlacement, placement)) {
+    if (isInteracting || isSameSealPlacement(resolvedPlacement, placement)) {
       return
     }
 

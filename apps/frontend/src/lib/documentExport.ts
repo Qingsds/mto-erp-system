@@ -18,6 +18,7 @@ import {
   buildOrderSheetPayload,
   type ExportSheetOptions,
   type RowData,
+  type SheetPayload,
 } from "./documentExportData"
 export { resolveSettlementQty } from "@/domain/orders/pricing"
 
@@ -181,7 +182,11 @@ function ensureFitToA4SheetXml(
 }
 
 function downloadXlsx(filename: string, bytes: Uint8Array) {
-  const blob = new Blob([bytes], {
+  const arrayBuffer = bytes.buffer.slice(
+    bytes.byteOffset,
+    bytes.byteOffset + bytes.byteLength,
+  ) as ArrayBuffer
+  const blob = new Blob([arrayBuffer], {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   })
   const url = URL.createObjectURL(blob)
@@ -229,12 +234,44 @@ function buildWorkbook(
     resolveColumnWidths(rows, minColWidths, contentStartRow),
     printTargetWidthWch,
   )
+  const ws = buildWorksheet(rows, colWidths, contentStartRow)
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, sheetName)
+  return wb
+}
+
+function appendSheetToWorkbook(wb: XLSX.WorkBook, payload: SheetPayload) {
+  const colWidths = expandColumnWidthsToPrintableWidth(
+    resolveColumnWidths(
+      payload.rows,
+      payload.minColWidths,
+      payload.contentStartRow,
+    ),
+    payload.printTargetWidthWch,
+  )
+  const ws = buildWorksheet(
+    payload.rows,
+    colWidths,
+    payload.contentStartRow,
+  )
+  XLSX.utils.book_append_sheet(wb, ws, payload.sheetName)
+}
+
+function buildWorkbookFromSheets(sheets: SheetPayload[]) {
+  const wb = XLSX.utils.book_new()
+  sheets.forEach(sheet => appendSheetToWorkbook(wb, sheet))
+  return wb
+}
+
+function buildWorksheet(
+  rows: RowData[],
+  colWidths: number[],
+  contentStartRow: number,
+) {
   const ws = XLSX.utils.aoa_to_sheet(rows)
   const contentEndRow = rows.length - 1
 
-  // 标题行/表头行使用固定高度，其余行按内容自适应高度。
   ws["!cols"] = colWidths.map(wch => ({ wch }))
-  // 采用较窄页边距，降低打印时横向分页概率。
   ws["!margins"] = {
     left: 0.25,
     right: 0.25,
@@ -250,7 +287,6 @@ function buildWorkbook(
     return { hpt: resolveRowHeight(row, colWidths) }
   })
 
-  // 公司名与单据名横跨全列，视觉上形成两级标题。
   ws["!merges"] = [
     { s: { r: 0, c: 0 }, e: { r: 0, c: colWidths.length - 1 } },
     { s: { r: 1, c: 0 }, e: { r: 1, c: colWidths.length - 1 } },
@@ -272,7 +308,6 @@ function buildWorkbook(
       if (!cell) continue
 
       const style: Record<string, unknown> = { ...BASE_STYLE }
-      // 不同行区分字体层级：主标题 > 副标题 > 表头 > 内容。
       if (rowIndex === 0) {
         style.font = { name: CELL_FONT, sz: 16, bold: true }
       } else if (rowIndex === 1) {
@@ -289,9 +324,7 @@ function buildWorkbook(
     }
   }
 
-  const wb = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(wb, ws, sheetName)
-  return wb
+  return ws
 }
 
 export function exportOrderPriceSheet(
@@ -333,15 +366,9 @@ export function exportBillingStatement(
   options?: ExportSheetOptions,
 ): Promise<string> {
   const payload = buildBillingSheetPayload(billing, options)
-  const wb = buildWorkbook(
-    payload.sheetName,
-    payload.rows,
-    payload.minColWidths,
-    payload.contentStartRow,
-    payload.printTargetWidthWch,
-  )
+  const wb = buildWorkbookFromSheets(payload.sheets)
   return writeWorkbookFitToA4(wb, payload.filename, {
-    horizontallyCentered: payload.printHorizontallyCentered,
+    horizontallyCentered: true,
   }).then(() => payload.filename)
 }
 

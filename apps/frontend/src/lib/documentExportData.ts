@@ -59,6 +59,12 @@ export interface SheetPayload {
   preview: ExportPreviewData
 }
 
+export interface WorkbookPayload {
+  filename: string
+  sheets: SheetPayload[]
+  preview: ExportPreviewData
+}
+
 export const DEFAULT_EXPORT_OPTIONS: Required<ExportSheetOptions> = {
   showStatus: true,
   showRemarks: true,
@@ -457,60 +463,210 @@ export function buildDeliverySheetPayload(
 export function buildBillingSheetPayload(
   billing: BillingDetail,
   options?: ExportSheetOptions,
-): SheetPayload {
+): WorkbookPayload {
   const resolved = resolveExportOptions(options)
   const today = formatToday(resolved.dateFormat)
   const billingDate = formatDateOnly(billing.createdAt, resolved.dateFormat)
-  const rowsWithRemarks = buildBillingDetailRows(billing, resolved.dateFormat)
-
-  const detailRows: RowData[] = resolved.showRemarks
-    ? rowsWithRemarks.map(row => [...row])
-    : rowsWithRemarks.map(([itemName, source, note, amount]) => [
-        itemName,
-        source,
-        note,
-        amount,
-      ])
-
-  const headers = resolved.showRemarks
-    ? ["项目", "来源", "说明", "金额", "日期"]
-    : ["项目", "来源", "说明", "金额"]
-
-  const linkedCount = billing.items.filter(item => !!item.deliveryItem).length
-  const extraCount = billing.items.length - linkedCount
-  const totalAmount = decimalToNum(billing.totalAmount)
-  const summary: RowData = resolved.showRemarks
-    ? ["汇总", `${billing.items.length} 项`, `发货 ${linkedCount} 项 / 附加 ${extraCount} 项`, formatMoney(totalAmount), "—"]
-    : ["汇总", `${billing.items.length} 项`, `发货 ${linkedCount} 项 / 附加 ${extraCount} 项`, formatMoney(totalAmount)]
-
-  const metaRow = buildBillingMetaRow(billing, resolved, billingDate, today)
-  const rows: RowData[] = [
-    ["濮阳市瑞海隆鑫设备制造有限公司"],
-    ["对账单"],
-    metaRow,
-    headers,
-    ...detailRows,
-    summary,
-  ]
   const filename = `${formatBillingNo(billing.id)}-对账单-${today}.xlsx`
+  const metaRow = buildBillingMetaRow(billing, resolved, billingDate, today)
+  const orderGroups = buildBillingOrderGroups(billing, resolved.dateFormat)
+  const totalAmount = orderGroups.reduce((sum, group) => sum + group.amount, 0)
+  const summaryHeaders = ["订单号", "日期", "应收金额（元）"]
+  const summaryRows: RowData[] = orderGroups.map(group => [
+    formatOrderNo(group.orderId),
+    group.dateRange,
+    formatMoney(group.amount),
+  ])
+  const summary: RowData = ["合计", "", formatMoney(totalAmount)]
 
-  return {
+  const summarySheet: SheetPayload = {
     sheetName: "对账单",
     filename,
-    rows,
-    minColWidths: resolved.showRemarks
-      ? [18, 14, 24, 14, 14]
-      : [18, 14, 26, 14],
+    rows: [
+      ["濮阳市瑞海隆鑫设备制造有限公司"],
+      ["对账单"],
+      metaRow,
+      summaryHeaders,
+      ...summaryRows,
+      summary,
+    ],
+    minColWidths: [24, 24, 18],
     contentStartRow: 3,
+    printTargetWidthWch: 74,
+    printHorizontallyCentered: true,
     preview: {
       title: "对账单",
       filename,
       meta: filterPreviewMeta(metaRow),
-      headers,
-      rows: detailRows,
-      totalRows: detailRows.length,
+      headers: summaryHeaders,
+      rows: summaryRows,
+      totalRows: summaryRows.length,
       summary,
     },
+  }
+
+  const detailSheets = orderGroups.map(group => {
+    const headers = ["日期", "名称", "单位", "数量", "单价（元）", "总价（元）"]
+    const detailRows: RowData[] = group.rows.map(row => [
+      row.date,
+      row.name,
+      row.unit,
+      row.quantity,
+      formatMoney(row.unitPrice),
+      formatMoney(row.amount),
+    ])
+    const totalQty = group.rows.reduce((sum, row) => sum + row.quantity, 0)
+    const detailSummary: RowData = ["合计", "", "", totalQty, "", formatMoney(group.amount)]
+    const orderNo = formatOrderNo(group.orderId)
+    const safeSheetOrderNo = orderNo.replace(/[:\\/?*[\]]/g, "")
+    const orderMetaRow = filterPreviewMeta([
+      `订单号：${orderNo}`,
+      resolved.showCustomer ? `客户：${billing.customerName}` : "",
+      `日期：${group.dateRange}`,
+    ])
+
+    return {
+      sheetName: `发货单-${safeSheetOrderNo}`.slice(0, 31),
+      filename,
+      rows: [
+        ["濮阳市瑞海隆鑫设备制造有限公司"],
+        ["发货单"],
+        orderMetaRow,
+        headers,
+        ...detailRows,
+        detailSummary,
+      ],
+      minColWidths: [14, 26, 8, 10, 12, 14],
+      contentStartRow: 3,
+      printTargetWidthWch: 96,
+      printHorizontallyCentered: true,
+      preview: {
+        title: "发货单",
+        filename,
+        meta: orderMetaRow,
+        headers,
+        rows: detailRows,
+        totalRows: detailRows.length,
+        summary: detailSummary,
+      },
+    } satisfies SheetPayload
+  })
+
+  return {
+    filename,
+    sheets: [summarySheet, ...detailSheets],
+    preview: summarySheet.preview,
+  }
+}
+
+interface BillingOrderGroup {
+  orderId: number
+  rows: BillingOrderDetailRow[]
+  amount: number
+  dateRange: string
+}
+
+interface BillingOrderDetailRow {
+  date: string
+  name: string
+  unit: string
+  quantity: number
+  unitPrice: number
+  amount: number
+}
+
+function buildBillingOrderGroups(
+  billing: BillingDetail,
+  dateFormat: ExportDateFormat,
+): BillingOrderGroup[] {
+  const groups = new Map<
+    number,
+    {
+      orderId: number
+      rows: BillingOrderDetailRow[]
+      amount: number
+      dates: string[]
+    }
+  >()
+
+  for (const item of billing.items) {
+    const deliveryItem = item.deliveryItem
+    if (!deliveryItem) continue
+
+    const orderId = deliveryItem.orderItem.orderId
+    const date = formatDateOnly(deliveryItem.deliveryNote.deliveryDate, dateFormat)
+    const shortageQty = Math.max(
+      deliveryItem.orderItem.orderedQty - deliveryItem.orderItem.shippedQty,
+      0,
+    )
+    const baseName = deliveryItem.orderItem.part.name
+    const name = shortageQty > 0 ? `${baseName}（缺件 ${shortageQty}）` : baseName
+    const amount = formatMoney(decimalToNum(item.amount))
+    const row: BillingOrderDetailRow = {
+      date,
+      name,
+      unit: "件",
+      quantity: deliveryItem.shippedQty,
+      unitPrice: formatMoney(decimalToNum(deliveryItem.orderItem.unitPrice)),
+      amount,
+    }
+
+    const group = groups.get(orderId)
+    if (group) {
+      group.rows.push(row)
+      group.amount += amount
+      group.dates.push(date)
+    } else {
+      groups.set(orderId, {
+        orderId,
+        rows: [row],
+        amount,
+        dates: [date],
+      })
+    }
+  }
+
+  return Array.from(groups.values())
+    .sort((a, b) => a.orderId - b.orderId)
+    .map(group => {
+      const sortedDates = group.dates.slice().sort()
+      const startDate = sortedDates[0] ?? ""
+      const endDate = sortedDates[sortedDates.length - 1] ?? ""
+      return {
+        orderId: group.orderId,
+        rows: group.rows.sort((a, b) => a.date.localeCompare(b.date)),
+        amount: formatMoney(group.amount),
+        dateRange: startDate === endDate ? startDate : `${startDate}-${endDate}`,
+      }
+    })
+}
+
+function buildBillingPreviewPayload(
+  billing: BillingDetail,
+  options?: ExportSheetOptions,
+): ExportPreviewData {
+  const resolved = resolveExportOptions(options)
+  const today = formatToday(resolved.dateFormat)
+  const billingDate = formatDateOnly(billing.createdAt, resolved.dateFormat)
+  const filename = `${formatBillingNo(billing.id)}-对账单-${today}.xlsx`
+  const metaRow = buildBillingMetaRow(billing, resolved, billingDate, today)
+  const groups = buildBillingOrderGroups(billing, resolved.dateFormat)
+  const headers = ["订单号", "日期", "应收金额（元）"]
+  const rows: RowData[] = groups.slice(0, PREVIEW_ROW_LIMIT).map(group => [
+    formatOrderNo(group.orderId),
+    group.dateRange,
+    formatMoney(group.amount),
+  ])
+  const totalAmount = groups.reduce((sum, group) => sum + group.amount, 0)
+
+  return {
+    title: "对账单",
+    filename,
+    meta: filterPreviewMeta(metaRow),
+    headers,
+    rows,
+    totalRows: groups.length,
+    summary: ["合计", "", formatMoney(totalAmount)],
   }
 }
 
@@ -647,48 +803,5 @@ export function getBillingExportPreview(
   billing: BillingDetail,
   options?: ExportSheetOptions,
 ): ExportPreviewData {
-  const resolved = resolveExportOptions(options)
-  const today = formatToday(resolved.dateFormat)
-  const billingDate = formatDateOnly(billing.createdAt, resolved.dateFormat)
-  const headers = resolved.showRemarks
-    ? ["项目", "来源", "说明", "金额", "日期"]
-    : ["项目", "来源", "说明", "金额"]
-
-  const rowsWithRemarks = buildBillingDetailRows(billing, resolved.dateFormat)
-  const previewRows: RowData[] = rowsWithRemarks
-    .slice(0, PREVIEW_ROW_LIMIT)
-    .map(row => (
-      resolved.showRemarks
-        ? [...row]
-        : [row[0], row[1], row[2], row[3]]
-    ))
-
-  const linkedCount = billing.items.filter(item => !!item.deliveryItem).length
-  const extraCount = billing.items.length - linkedCount
-  const summary: RowData = resolved.showRemarks
-    ? [
-        "汇总",
-        `${billing.items.length} 项`,
-        `发货 ${linkedCount} 项 / 附加 ${extraCount} 项`,
-        formatMoney(decimalToNum(billing.totalAmount)),
-        "—",
-      ]
-    : [
-        "汇总",
-        `${billing.items.length} 项`,
-        `发货 ${linkedCount} 项 / 附加 ${extraCount} 项`,
-        formatMoney(decimalToNum(billing.totalAmount)),
-      ]
-  const metaRow = buildBillingMetaRow(billing, resolved, billingDate, today)
-  const filename = `${formatBillingNo(billing.id)}-对账单-${today}.xlsx`
-
-  return {
-    title: "对账单",
-    filename,
-    meta: filterPreviewMeta(metaRow),
-    headers,
-    rows: previewRows,
-    totalRows: billing.items.length,
-    summary,
-  }
+  return buildBillingPreviewPayload(billing, options)
 }

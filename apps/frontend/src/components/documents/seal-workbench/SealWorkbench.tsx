@@ -9,7 +9,7 @@
  * 印章选择、页码切换、坐标编排与拖拽交互统一收口在这里。
  */
 
-import { useMemo, useState, type ReactNode } from "react"
+import { useCallback, useMemo, useState, type ReactNode } from "react"
 import { PageContentWrapper } from "@/components/common/PageContentWrapper"
 import { DetailPageToolbar } from "@/components/common/DetailPageToolbar"
 import { TopLevelPageHeaderWrapper } from "@/components/common/TopLevelPageHeaderWrapper"
@@ -21,6 +21,7 @@ import { SealWorkbenchCanvas } from "./SealWorkbenchCanvas"
 import { SealWorkbenchSidebar } from "./SealWorkbenchSidebar"
 import {
   createDefaultSealPlacement,
+  isSameSealPlacement,
   type SealPlacement,
 } from "./types"
 
@@ -43,7 +44,12 @@ interface SealWorkbenchProps {
   onSubmit: (payload: {
     sealId: number
     placement: SealPlacement
+    placements: SealPlacement[]
+    seamSealEnabled: boolean
   }) => Promise<void>
+  enableSeamSeal?: boolean
+  defaultSeamSealEnabled?: boolean
+  requirePageConfirmation?: boolean
 }
 
 export function SealWorkbench({
@@ -63,6 +69,9 @@ export function SealWorkbench({
   submitLoadingLabel = "盖章归档中…",
   extraActions,
   onSubmit,
+  enableSeamSeal = false,
+  defaultSeamSealEnabled = false,
+  requirePageConfirmation = false,
 }: SealWorkbenchProps) {
   const { isMobile } = useUIStore()
   const [pageCount, setPageCount] = useState(0)
@@ -76,6 +85,15 @@ export function SealWorkbench({
     1: createDefaultSealPlacement(1),
   })
   const [actionError, setActionError] = useState<string | null>(null)
+  const [seamSealEnabled, setSeamSealEnabled] = useState(
+    defaultSeamSealEnabled,
+  )
+  const [confirmedPages, setConfirmedPages] = useState<Set<number>>(
+    () => new Set(),
+  )
+  const [skippedPages, setSkippedPages] = useState<Set<number>>(
+    () => new Set(),
+  )
 
   const { data: seals = [] } = useGetSeals()
   const activeSeals = useMemo(
@@ -107,18 +125,50 @@ export function SealWorkbench({
     }
   }, [placementsByPage, resolvedPageIndex])
 
-  const handlePlacementChange = (nextPlacement: SealPlacement) => {
+  const resolvedPageCount = Math.max(pageCount, resolvedPageIndex, 1)
+  const confirmedPageCount = requirePageConfirmation
+    ? Array.from(confirmedPages).filter(
+        page => page >= 1 && page <= resolvedPageCount,
+      ).length
+    : resolvedPageCount
+  const skippedPageCount = requirePageConfirmation
+    ? Array.from(skippedPages).filter(
+        page => page >= 1 && page <= resolvedPageCount,
+      ).length
+    : 0
+  const processedPageCount = confirmedPageCount + skippedPageCount
+  const allPagesConfirmed =
+    !requirePageConfirmation || processedPageCount >= resolvedPageCount
+
+  const handlePlacementChange = useCallback((nextPlacement: SealPlacement) => {
+    const currentPlacement = placementsByPage[nextPlacement.pageIndex]
+    if (currentPlacement && isSameSealPlacement(currentPlacement, nextPlacement)) {
+      return
+    }
+
     setActionError(null)
     setPlacementsByPage(currentPlacements => ({
       ...currentPlacements,
-      [resolvedPageIndex]: {
+      [nextPlacement.pageIndex]: {
         ...nextPlacement,
-        pageIndex: resolvedPageIndex,
       },
     }))
-  }
 
-  const handlePageChange = (pageIndex: number) => {
+    setConfirmedPages(currentPages => {
+      if (!currentPages.has(nextPlacement.pageIndex)) return currentPages
+      const nextPages = new Set(currentPages)
+      nextPages.delete(nextPlacement.pageIndex)
+      return nextPages
+    })
+    setSkippedPages(currentPages => {
+      if (!currentPages.has(nextPlacement.pageIndex)) return currentPages
+      const nextPages = new Set(currentPages)
+      nextPages.delete(nextPlacement.pageIndex)
+      return nextPages
+    })
+  }, [placementsByPage])
+
+  const handlePageChange = useCallback((pageIndex: number) => {
     setActionError(null)
     setCurrentPageIndex(pageIndex)
     setPlacementsByPage(currentPlacements => {
@@ -131,18 +181,36 @@ export function SealWorkbench({
         [pageIndex]: createDefaultSealPlacement(pageIndex),
       }
     })
-  }
+  }, [])
 
-  const handlePageCountChange = (nextPageCount: number) => {
-    setPageCount(nextPageCount)
+  const handlePageCountChange = useCallback((nextPageCount: number) => {
+    setPageCount(currentPageCount =>
+      currentPageCount === nextPageCount ? currentPageCount : nextPageCount,
+    )
+    setConfirmedPages(currentPages => {
+      const nextPages = new Set<number>()
+      currentPages.forEach(page => {
+        if (page <= nextPageCount) nextPages.add(page)
+      })
+      return nextPages
+    })
+    setSkippedPages(currentPages => {
+      const nextPages = new Set<number>()
+      currentPages.forEach(page => {
+        if (page <= nextPageCount) nextPages.add(page)
+      })
+      return nextPages
+    })
 
     if (nextPageCount <= 0) {
       return
     }
 
-    const nextPageIndex = Math.min(currentPageIndex, nextPageCount)
-
     setPlacementsByPage(currentPlacements => {
+      const currentKnownPages = Object.keys(currentPlacements).map(Number)
+      const nextPageIndex = currentKnownPages.length > 0
+        ? Math.min(Math.max(...currentKnownPages), nextPageCount)
+        : 1
       if (currentPlacements[nextPageIndex]) {
         return currentPlacements
       }
@@ -152,7 +220,7 @@ export function SealWorkbench({
         [nextPageIndex]: createDefaultSealPlacement(nextPageIndex),
       }
     })
-  }
+  }, [])
 
   const sealPreview = useSealPreviewUrl(
     selectedSealId ?? undefined,
@@ -161,21 +229,92 @@ export function SealWorkbench({
   const resolvedActionError =
     actionError ?? previewError ?? sealPreview.previewError
 
-  const handleSubmit = async () => {
+  const handleConfirmCurrentPage = useCallback(() => {
+    setActionError(null)
+    setConfirmedPages(currentPages => {
+      const nextPages = new Set(currentPages)
+      nextPages.add(resolvedPageIndex)
+      return nextPages
+    })
+    setSkippedPages(currentPages => {
+      if (!currentPages.has(resolvedPageIndex)) return currentPages
+      const nextPages = new Set(currentPages)
+      nextPages.delete(resolvedPageIndex)
+      return nextPages
+    })
+    setPlacementsByPage(currentPlacements => ({
+      ...currentPlacements,
+      [resolvedPageIndex]: effectivePlacement,
+    }))
+
+    if (resolvedPageIndex < resolvedPageCount) {
+      handlePageChange(resolvedPageIndex + 1)
+    }
+  }, [effectivePlacement, handlePageChange, resolvedPageCount, resolvedPageIndex])
+
+  const handleSkipCurrentPage = useCallback(() => {
+    setActionError(null)
+    setSkippedPages(currentPages => {
+      const nextPages = new Set(currentPages)
+      nextPages.add(resolvedPageIndex)
+      return nextPages
+    })
+    setConfirmedPages(currentPages => {
+      if (!currentPages.has(resolvedPageIndex)) return currentPages
+      const nextPages = new Set(currentPages)
+      nextPages.delete(resolvedPageIndex)
+      return nextPages
+    })
+
+    if (resolvedPageIndex < resolvedPageCount) {
+      handlePageChange(resolvedPageIndex + 1)
+    }
+  }, [handlePageChange, resolvedPageCount, resolvedPageIndex])
+
+  const handleSubmit = useCallback(async () => {
     if (!selectedSealId) return
 
     try {
       setActionError(null)
+      if (!allPagesConfirmed) {
+        setActionError("请先逐页确认或跳过")
+        return
+      }
+      const placements = Array.from({ length: resolvedPageCount })
+        .map((_, index) => {
+          const pageIndex = index + 1
+          return (
+            placementsByPage[pageIndex] ??
+            createDefaultSealPlacement(pageIndex)
+          )
+        })
+        .filter(placement => confirmedPages.has(placement.pageIndex))
+      if (placements.length === 0 && !(enableSeamSeal && seamSealEnabled)) {
+        setActionError("至少确认一页盖章，或开启骑缝章")
+        return
+      }
       await onSubmit({
         sealId: selectedSealId,
         placement: effectivePlacement,
+        placements,
+        seamSealEnabled: enableSeamSeal && seamSealEnabled,
       })
     } catch (error) {
       setActionError(
         error instanceof Error ? error.message : "盖章归档失败",
       )
     }
-  }
+  }, [
+    allPagesConfirmed,
+    confirmedPages,
+    effectivePlacement,
+    enableSeamSeal,
+    onSubmit,
+    placementsByPage,
+    resolvedPageCount,
+    seamSealEnabled,
+    selectedSealId,
+  ])
 
   const desktopWorkbench = (
     <div className='grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]'>
@@ -199,11 +338,23 @@ export function SealWorkbench({
         actionError={resolvedActionError}
         isSubmitting={isSubmitting}
         isPreviewLoading={isPreviewLoading}
+        requirePageConfirmation={requirePageConfirmation}
+        isCurrentPageConfirmed={confirmedPages.has(resolvedPageIndex)}
+        isCurrentPageSkipped={skippedPages.has(resolvedPageIndex)}
+        confirmedPageCount={confirmedPageCount}
+        skippedPageCount={skippedPageCount}
+        processedPageCount={processedPageCount}
+        allPagesConfirmed={allPagesConfirmed}
         submitLabel={submitLabel}
         submitLoadingLabel={submitLoadingLabel}
+        enableSeamSeal={enableSeamSeal}
+        seamSealEnabled={seamSealEnabled}
         onSelectSeal={setManualSealId}
         onPageChange={handlePageChange}
         onPlacementChange={handlePlacementChange}
+        onConfirmCurrentPage={handleConfirmCurrentPage}
+        onSkipCurrentPage={handleSkipCurrentPage}
+        onSeamSealEnabledChange={setSeamSealEnabled}
         onSubmit={() => void handleSubmit()}
       />
     </div>

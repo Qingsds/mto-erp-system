@@ -132,7 +132,7 @@ export function BillingDetailMobileActions({
           )}
         </Button>
       )}
-      {status === "DRAFT" ? (
+      {status === "DRAFT" || status === "SEALED" ? (
         <div className='flex min-w-0 flex-1 flex-col gap-1'>
           <Button
             className='h-10 min-w-0 w-full'
@@ -141,7 +141,11 @@ export function BillingDetailMobileActions({
           >
             <i className='ri-award-line mr-1.5 shrink-0' />
             <span className='truncate'>
-              {isSealDisabledOnMobile ? "仅桌面端支持盖章" : "盖章归档"}
+              {isSealDisabledOnMobile
+                ? "仅桌面端支持盖章"
+                : status === "SEALED"
+                  ? "重新盖章"
+                  : "盖章归档"}
             </span>
           </Button>
           {isSealDisabledOnMobile && (
@@ -150,7 +154,8 @@ export function BillingDetailMobileActions({
             </p>
           )}
         </div>
-      ) : (
+      ) : null}
+      {status === "SEALED" && (
         <Button
           className='h-10 min-w-0 flex-1'
           onClick={onMarkPaid}

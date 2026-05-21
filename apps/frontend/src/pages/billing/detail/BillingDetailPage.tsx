@@ -100,7 +100,7 @@ export function BillingDetailPage() {
     )
   }
 
-  const canSeal = billing.status === "DRAFT"
+  const canSeal = billing.status === "DRAFT" || billing.status === "SEALED"
   const canMarkPaid = billing.status === "SEALED"
   const canDownloadPdf = billing.status !== "DRAFT" && !!latestDocument
   const desktopActions = !isMobile && (
@@ -158,7 +158,7 @@ export function BillingDetailPage() {
           }}
         >
           <i className='ri-award-line mr-1.5' />
-          盖章归档
+          {billing.status === "SEALED" ? "重新盖章" : "盖章归档"}
         </Button>
       )}
       {canMarkPaid && (
@@ -250,8 +250,11 @@ export function BillingDetailPage() {
           onDownloadPdf={() => latestDocument && void downloadPdf(latestDocument)}
           onOpenSeal={() => {
             clearActionError()
+            navigate({
+              to: "/billing/$id/seal",
+              params: { id: String(billing.id) },
+            })
           }}
-          isSealDisabledOnMobile
           onMarkPaid={() => void handleMarkPaid()}
         />
       )}

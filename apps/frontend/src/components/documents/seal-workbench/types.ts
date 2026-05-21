@@ -23,6 +23,15 @@ export function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max)
 }
 
+export function isSameSealPlacement(left: SealPlacement, right: SealPlacement) {
+  return (
+    left.pageIndex === right.pageIndex &&
+    Math.abs(left.xRatio - right.xRatio) < 0.0001 &&
+    Math.abs(left.yRatio - right.yRatio) < 0.0001 &&
+    Math.abs(left.widthRatio - right.widthRatio) < 0.0001
+  )
+}
+
 /**
  * 默认把印章放在页面右下留白区域。
  *

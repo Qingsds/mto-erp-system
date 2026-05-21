@@ -10,11 +10,15 @@
 
 import type { SealListItem } from "@/hooks/api/useSeals"
 import { Button } from "@/components/ui/button"
-import {
-  MAX_SEAL_WIDTH_RATIO,
-  MIN_SEAL_WIDTH_RATIO,
-  type SealPlacement,
-} from "./types"
+import { type SealPlacement } from "./types"
+
+const SEAL_SIZE_OPTIONS = [
+  { label: "小", value: 0.12 },
+  { label: "偏小", value: 0.15 },
+  { label: "标准", value: 0.18 },
+  { label: "偏大", value: 0.2 },
+  { label: "大", value: 0.24 },
+] as const
 
 interface SealWorkbenchSidebarProps {
   title: string
@@ -26,11 +30,23 @@ interface SealWorkbenchSidebarProps {
   actionError: string | null
   isSubmitting: boolean
   isPreviewLoading: boolean
+  requirePageConfirmation?: boolean
+  isCurrentPageConfirmed?: boolean
+  isCurrentPageSkipped?: boolean
+  confirmedPageCount?: number
+  skippedPageCount?: number
+  processedPageCount?: number
+  allPagesConfirmed?: boolean
   submitLabel: string
   submitLoadingLabel: string
+  enableSeamSeal?: boolean
+  seamSealEnabled?: boolean
   onSelectSeal: (sealId: number) => void
   onPageChange: (pageIndex: number) => void
   onPlacementChange: (placement: SealPlacement) => void
+  onConfirmCurrentPage?: () => void
+  onSkipCurrentPage?: () => void
+  onSeamSealEnabledChange?: (enabled: boolean) => void
   onSubmit: () => void
 }
 
@@ -44,13 +60,32 @@ export function SealWorkbenchSidebar({
   actionError,
   isSubmitting,
   isPreviewLoading,
+  requirePageConfirmation = false,
+  isCurrentPageConfirmed = false,
+  isCurrentPageSkipped = false,
+  confirmedPageCount = 0,
+  skippedPageCount = 0,
+  processedPageCount = confirmedPageCount,
+  allPagesConfirmed = true,
   submitLabel,
   submitLoadingLabel,
+  enableSeamSeal = false,
+  seamSealEnabled = false,
   onSelectSeal,
   onPageChange,
   onPlacementChange,
+  onConfirmCurrentPage,
+  onSkipCurrentPage,
+  onSeamSealEnabledChange,
   onSubmit,
 }: SealWorkbenchSidebarProps) {
+  const commitWidthRatio = (value: number) => {
+    onPlacementChange({
+      ...placement,
+      widthRatio: value,
+    })
+  }
+
   return (
     <aside className='flex h-full flex-col border border-border bg-card'>
       <div className='border-b border-border px-4 py-3'>
@@ -131,29 +166,95 @@ export function SealWorkbenchSidebar({
             </select>
           </label>
 
-          <label className='flex flex-col gap-2'>
+          <div className='flex flex-col gap-2'>
             <div className='flex items-center justify-between gap-3'>
-              <span className='text-[11px] text-muted-foreground'>印章宽度</span>
+              <span className='text-[11px] text-muted-foreground'>印章大小</span>
               <span className='font-mono text-xs text-foreground'>
                 {(placement.widthRatio * 100).toFixed(0)}%
               </span>
             </div>
-            <input
-              type='range'
-              min={MIN_SEAL_WIDTH_RATIO}
-              max={MAX_SEAL_WIDTH_RATIO}
-              step={0.01}
-              value={placement.widthRatio}
-              onChange={event =>
-                onPlacementChange({
-                  ...placement,
-                  widthRatio: Number(event.target.value),
-                })
-              }
-              disabled={!selectedSealId}
-            />
-          </label>
+            <div className='grid grid-cols-5 gap-1.5'>
+              {SEAL_SIZE_OPTIONS.map(option => {
+                const isSelected =
+                  Math.abs(placement.widthRatio - option.value) < 0.005
+                return (
+                  <Button
+                    key={option.value}
+                    type='button'
+                    variant={isSelected ? "default" : "outline"}
+                    className='h-8 px-1 text-[11px]'
+                    onClick={() => commitWidthRatio(option.value)}
+                    disabled={!selectedSealId}
+                  >
+                    {option.label}
+                  </Button>
+                )
+              })}
+            </div>
+          </div>
+
+          {requirePageConfirmation && (
+            <div className='space-y-2 border-t border-border pt-3'>
+              <div className='flex items-center justify-between gap-3 text-[11px] text-muted-foreground'>
+                <span>
+                  已处理 {processedPageCount}/{pageCount || 0} 页
+                </span>
+                <span>
+                  当前页
+                  {isCurrentPageConfirmed
+                    ? "已确认"
+                    : isCurrentPageSkipped
+                      ? "已跳过"
+                      : "未处理"}
+                </span>
+              </div>
+              <div className='grid grid-cols-2 gap-2'>
+                <Button
+                  type='button'
+                  variant={isCurrentPageConfirmed ? "outline" : "default"}
+                  className='h-9'
+                  onClick={onConfirmCurrentPage}
+                  disabled={!selectedSealId || pageCount <= 0 || isPreviewLoading}
+                >
+                  <i className='ri-check-line mr-1.5' />
+                  确认本页
+                </Button>
+                <Button
+                  type='button'
+                  variant={isCurrentPageSkipped ? "default" : "outline"}
+                  className='h-9'
+                  onClick={onSkipCurrentPage}
+                  disabled={pageCount <= 0 || isPreviewLoading}
+                >
+                  <i className='ri-skip-right-line mr-1.5' />
+                  跳过本页
+                </Button>
+              </div>
+              <p className='text-[11px] text-muted-foreground'>
+                已盖章 {confirmedPageCount} 页，已跳过 {skippedPageCount} 页。
+              </p>
+            </div>
+          )}
         </section>
+
+        {enableSeamSeal && (
+          <section className='space-y-3 border-t border-border pt-4'>
+            <label className='flex items-center justify-between gap-3'>
+              <span className='text-xs font-medium text-foreground'>骑缝章</span>
+              <input
+                type='checkbox'
+                className='h-4 w-4 accent-primary'
+                checked={seamSealEnabled}
+                onChange={event =>
+                  onSeamSealEnabledChange?.(event.target.checked)
+                }
+              />
+            </label>
+            <p className='text-[11px] text-muted-foreground'>
+              开启后按页数切片，固定盖在每页右侧。
+            </p>
+          </section>
+        )}
 
         <section className='space-y-2 border-t border-border pt-4 text-[11px] text-muted-foreground'>
           <p>坐标模式：左上角为锚点，按相对页面尺寸保存。</p>
@@ -165,7 +266,12 @@ export function SealWorkbenchSidebar({
         <Button
           className='h-10 w-full'
           onClick={onSubmit}
-          disabled={!selectedSealId || isSubmitting || seals.length === 0}
+          disabled={
+            !selectedSealId ||
+            isSubmitting ||
+            seals.length === 0 ||
+            (requirePageConfirmation && !allPagesConfirmed)
+          }
         >
           {isSubmitting ? (
             <>

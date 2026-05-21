@@ -54,7 +54,7 @@ export function BillingSealPage() {
     )
   }
 
-  if (billing.status !== "DRAFT") {
+  if (billing.status === "PAID") {
     return (
       <div className='flex flex-1 flex-col overflow-hidden'>
         <DetailPageToolbar
@@ -69,7 +69,7 @@ export function BillingSealPage() {
             <i className='ri-information-line text-3xl text-muted-foreground/60' />
             <p className='mt-3 text-sm font-medium'>当前状态不可再次盖章</p>
             <p className='mt-2 text-xs text-muted-foreground'>
-              只有草稿状态的对账单允许进入盖章归档工作台。
+              已结清的对账单不允许重新盖章。
             </p>
             <Button className='mt-4 h-9 w-full' variant='outline' onClick={backToDetail}>
               返回对账详情
@@ -95,7 +95,10 @@ export function BillingSealPage() {
       isSubmitting={executeSeal.isPending}
       submitLabel='确认盖章'
       submitLoadingLabel='归档中…'
-      onSubmit={async ({ sealId, placement }) => {
+      enableSeamSeal
+      defaultSeamSealEnabled
+      requirePageConfirmation
+      onSubmit={async ({ sealId, placement, placements, seamSealEnabled }) => {
         await executeSeal.mutateAsync({
           targetType: "BILLING",
           targetId: billing.id,
@@ -104,6 +107,8 @@ export function BillingSealPage() {
           xRatio: placement.xRatio,
           yRatio: placement.yRatio,
           widthRatio: placement.widthRatio,
+          placements,
+          seamSeal: { enabled: seamSealEnabled },
         })
         backToDetail()
       }}

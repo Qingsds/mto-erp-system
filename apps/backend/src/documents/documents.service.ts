@@ -19,6 +19,7 @@ import type { AuthenticatedRequest } from '../auth/auth-request';
 import { StorageService } from '../storage/storage.service';
 import {
   applySealToBillingPdfBuffer,
+  type BillingSealPlacement,
   createBillingPdfBuffer,
 } from './billing-pdf';
 
@@ -180,6 +181,13 @@ export class DocumentsService {
                 orderItem: {
                   include: {
                     part: true,
+                    order: {
+                      select: {
+                        id: true,
+                        customerName: true,
+                        createdAt: true,
+                      },
+                    },
                   },
                 },
               },
@@ -281,6 +289,7 @@ export class DocumentsService {
     payload: ExecuteSealRequest,
     auditContext: SealAuditContext,
   ) {
+    const placements = this.resolveBillingSealPlacements(payload);
     const seal = await this.prisma.client.seal.findUnique({
       where: { id: payload.sealId },
     });
@@ -289,8 +298,8 @@ export class DocumentsService {
     }
 
     const billing = await this.getBillingPdfSource(payload.targetId);
-    if (billing.status !== 'DRAFT') {
-      throw new BadRequestException('当前对账单状态不允许重复盖章');
+    if (billing.status !== 'DRAFT' && billing.status !== 'SEALED') {
+      throw new BadRequestException('当前对账单状态不允许重新盖章');
     }
 
     const now = new Date();
@@ -310,12 +319,8 @@ export class DocumentsService {
       finalSignedPdf = await applySealToBillingPdfBuffer({
         originalPdf: archivedPdf,
         sealImageBytes,
-        placement: {
-          pageIndex: payload.pageIndex,
-          xRatio: payload.xRatio,
-          yRatio: payload.yRatio,
-          widthRatio: payload.widthRatio,
-        },
+        placements,
+        seamSeal: payload.seamSeal,
       });
     } catch (error) {
       if (
@@ -386,18 +391,20 @@ export class DocumentsService {
           },
         });
 
-        await tx.sealUsageLog.create({
-          data: {
-            sealId: payload.sealId,
-            userId: auditContext.userId,
-            documentId: document.id,
-            ipAddress: auditContext.ipAddress,
-            pageIndex: payload.pageIndex,
-            xRatio: payload.xRatio,
-            yRatio: payload.yRatio,
-            widthRatio: payload.widthRatio,
-          },
-        });
+        if (placements.length > 0) {
+          await tx.sealUsageLog.createMany({
+            data: placements.map((placement) => ({
+              sealId: payload.sealId,
+              userId: auditContext.userId,
+              documentId: document.id,
+              ipAddress: auditContext.ipAddress,
+              pageIndex: placement.pageIndex,
+              xRatio: placement.xRatio,
+              yRatio: placement.yRatio,
+              widthRatio: placement.widthRatio,
+            })),
+          });
+        }
 
         await tx.billingStatement.update({
           where: { id: payload.targetId },
@@ -409,6 +416,50 @@ export class DocumentsService {
     } catch {
       throw new InternalServerErrorException('对账单归档记录写入失败');
     }
+  }
+
+  private resolveSingleSealPlacement(
+    payload: ExecuteSealRequest,
+  ): BillingSealPlacement {
+    const placement = {
+      pageIndex: payload.pageIndex,
+      xRatio: payload.xRatio,
+      yRatio: payload.yRatio,
+      widthRatio: payload.widthRatio,
+    };
+
+    if (
+      !Number.isFinite(placement.pageIndex) ||
+      !Number.isFinite(placement.xRatio) ||
+      !Number.isFinite(placement.yRatio) ||
+      !Number.isFinite(placement.widthRatio)
+    ) {
+      throw new BadRequestException('印章位置参数缺失');
+    }
+
+    return placement as BillingSealPlacement;
+  }
+
+  private resolveBillingSealPlacements(
+    payload: ExecuteSealRequest,
+  ): BillingSealPlacement[] {
+    const placements = Array.isArray(payload.placements)
+      ? payload.placements
+      : [this.resolveSingleSealPlacement(payload)];
+
+    if (
+      placements.some(
+        (placement) =>
+          !Number.isFinite(placement.pageIndex) ||
+          !Number.isFinite(placement.xRatio) ||
+          !Number.isFinite(placement.yRatio) ||
+          !Number.isFinite(placement.widthRatio),
+      )
+    ) {
+      throw new BadRequestException('印章位置参数缺失');
+    }
+
+    return placements as BillingSealPlacement[];
   }
 
   private async createGenericDraftDocumentRecord(params: {
@@ -573,6 +624,7 @@ export class DocumentsService {
     payload: ExecuteSealRequest,
     auditContext: SealAuditContext,
   ) {
+    const placement = this.resolveSingleSealPlacement(payload);
     const [seal, document] = await Promise.all([
       this.prisma.client.seal.findUnique({
         where: { id: payload.sealId },
@@ -615,12 +667,7 @@ export class DocumentsService {
       signedPdf = await applySealToBillingPdfBuffer({
         originalPdf,
         sealImageBytes,
-        placement: {
-          pageIndex: payload.pageIndex,
-          xRatio: payload.xRatio,
-          yRatio: payload.yRatio,
-          widthRatio: payload.widthRatio,
-        },
+        placement,
       });
     } catch (error) {
       if (error instanceof Error && error.message.trim()) {
@@ -670,10 +717,10 @@ export class DocumentsService {
             userId: auditContext.userId,
             documentId: document.id,
             ipAddress: auditContext.ipAddress,
-            pageIndex: payload.pageIndex,
-            xRatio: payload.xRatio,
-            yRatio: payload.yRatio,
-            widthRatio: payload.widthRatio,
+            pageIndex: placement.pageIndex,
+            xRatio: placement.xRatio,
+            yRatio: placement.yRatio,
+            widthRatio: placement.widthRatio,
           },
         });
 
