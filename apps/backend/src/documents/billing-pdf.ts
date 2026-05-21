@@ -878,6 +878,36 @@ function assertSealPlacement(
   }
 }
 
+function clampSealPlacementToPage(params: {
+  pageWidth: number;
+  pageHeight: number;
+  sealAspectRatio: number;
+  placement: BillingSealPlacement;
+}): BillingSealPlacement {
+  const { pageWidth, pageHeight, sealAspectRatio, placement } = params;
+  const pageAspectRatio = pageWidth / pageHeight;
+  const xRatio = Math.min(Math.max(placement.xRatio, 0), 1);
+  const yRatio = Math.min(Math.max(placement.yRatio, 0), 1);
+  const maxWidthByX = 1 - xRatio;
+  const maxWidthByY = (1 - yRatio) / (sealAspectRatio * pageAspectRatio);
+  const maxWidthRatio = Math.max(
+    0.01,
+    Math.min(placement.widthRatio, maxWidthByX, maxWidthByY),
+  );
+  const widthRatio = Math.min(
+    Math.max(placement.widthRatio, 0.01),
+    maxWidthRatio,
+  );
+  const heightRatio = widthRatio * sealAspectRatio * pageAspectRatio;
+
+  return {
+    ...placement,
+    xRatio: Math.min(xRatio, Math.max(0, 1 - widthRatio)),
+    yRatio: Math.min(yRatio, Math.max(0, 1 - heightRatio)),
+    widthRatio,
+  };
+}
+
 export async function applySealToBillingPdfBuffer(params: {
   originalPdf: Uint8Array;
   sealImageBytes: Uint8Array;
@@ -909,17 +939,24 @@ export async function applySealToBillingPdfBuffer(params: {
 
     const pageSize = targetPage.getSize();
 
+    const safePlacement = clampSealPlacementToPage({
+      pageWidth: pageSize.width,
+      pageHeight: pageSize.height,
+      sealAspectRatio,
+      placement: currentPlacement,
+    });
+
     assertSealPlacement(
       pageSize.width,
       pageSize.height,
       sealAspectRatio,
-      currentPlacement,
+      safePlacement,
     );
 
-    const width = pageSize.width * currentPlacement.widthRatio;
+    const width = pageSize.width * safePlacement.widthRatio;
     const height = width * sealAspectRatio;
-    const x = pageSize.width * currentPlacement.xRatio;
-    const y = pageSize.height - pageSize.height * currentPlacement.yRatio - height;
+    const x = pageSize.width * safePlacement.xRatio;
+    const y = pageSize.height - pageSize.height * safePlacement.yRatio - height;
 
     targetPage.drawImage(sealImage, {
       x,

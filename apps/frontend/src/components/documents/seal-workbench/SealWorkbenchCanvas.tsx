@@ -301,14 +301,6 @@ export function SealWorkbenchCanvas({
     )
   }, [isInteracting, placement, renderSize.height, renderSize.width, sealAspectRatio])
 
-  useEffect(() => {
-    if (isInteracting || isSameSealPlacement(resolvedPlacement, placement)) {
-      return
-    }
-
-    onPlacementChange(resolvedPlacement)
-  }, [isInteracting, onPlacementChange, placement, resolvedPlacement])
-
   const overlayHeightRatio = useMemo(() => {
     if (!sealAspectRatio || renderSize.width <= 0 || renderSize.height <= 0) {
       return 0
