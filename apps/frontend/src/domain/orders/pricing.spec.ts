@@ -44,6 +44,7 @@ describe("Pricing Domain Logic", () => {
   describe("computeListOrderAmount", () => {
     const mockOrder: OrderListItem = {
       id: 1,
+      customerId: 1,
       customerNo: "C001",
       customerName: "Test Customer",
       status: "PENDING",

@@ -14,16 +14,19 @@ import { OrdersService } from './orders.service';
 import {
   ApiResponse,
   CloseShortOrderRequest,
+  CreateMergedOrderRequest,
   CreateOrderRequest,
   CreateOrderDraftRequest,
   CreateQuickOrderRequest,
   PaginatedOrderDrafts,
   OrderDraftDetail,
   SubmitOrderDraftResponse,
+  UpdateMergedOrderRequest,
   UpdateOrderDraftRequest,
 } from '@erp/shared-types';
 import { OrderStatus } from '@erp/database';
 import type { AuthenticatedRequest } from '../auth/auth-request';
+import { Roles } from '../auth/roles.decorator';
 
 @Controller('api/orders')
 export class OrdersController {
@@ -109,6 +112,53 @@ export class OrdersController {
   ): Promise<ApiResponse<SubmitOrderDraftResponse>> {
     const result = await this.ordersService.submitDraft(id, request.user.id, request.user.role);
     return { code: 200, message: '提交成功', data: result };
+  }
+
+  @Post('merged')
+  @Roles('ADMIN')
+  async createMergedOrder(
+    @Body() body: CreateMergedOrderRequest,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<ApiResponse> {
+    const result = await this.ordersService.createMergedOrder(body, request.user.id);
+    return { code: 200, message: '合并订单创建成功', data: result };
+  }
+
+  @Get('merged')
+  async listMergedOrders(
+    @Query('page') page: number = 1,
+    @Query('pageSize') pageSize: number = 20,
+    @Query('keyword') keyword?: string,
+  ): Promise<ApiResponse> {
+    const result = await this.ordersService.listMergedOrders(page, pageSize, keyword);
+    return { code: 200, message: '查询成功', data: result };
+  }
+
+  @Get('merged/:id')
+  async getMergedOrder(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<ApiResponse> {
+    const result = await this.ordersService.getMergedOrder(id);
+    return { code: 200, message: '查询成功', data: result };
+  }
+
+  @Patch('merged/:id')
+  @Roles('ADMIN')
+  async updateMergedOrder(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: UpdateMergedOrderRequest,
+  ): Promise<ApiResponse> {
+    const result = await this.ordersService.updateMergedOrder(id, body);
+    return { code: 200, message: '合并订单已更新', data: result };
+  }
+
+  @Delete('merged/:id')
+  @Roles('ADMIN')
+  async dissolveMergedOrder(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<ApiResponse<{ ok: true }>> {
+    await this.ordersService.dissolveMergedOrder(id);
+    return { code: 200, message: '合并关系已解除', data: { ok: true } };
   }
 
   /**

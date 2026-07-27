@@ -6,7 +6,7 @@
  * - 管理零件明细区的新增、选择与金额汇总
  */
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { useFieldArray, type UseFormReturn } from "react-hook-form"
 import {
   apiPricesToForm,
@@ -33,6 +33,7 @@ interface OrderNewFormProps {
   onSubmit: (values: OrderFormInput) => Promise<void>
   onSaveDraft?: () => void
   onDeleteDraft?: () => void
+  exportAction?: ReactNode
   onCancel: () => void
   toolbarTitle?: string
   submitLabel?: string
@@ -45,6 +46,7 @@ export function OrderNewForm({
   onSubmit,
   onSaveDraft,
   onDeleteDraft,
+  exportAction,
   onCancel,
   toolbarTitle,
   submitLabel,
@@ -172,6 +174,7 @@ export function OrderNewForm({
           onSubmit={() => { void submitForm() }}
           onSaveDraft={onSaveDraft}
           onDeleteDraft={onDeleteDraft}
+          exportAction={exportAction}
           showQuickActions={!isMobile}
           submitLabel={submitLabel}
         />

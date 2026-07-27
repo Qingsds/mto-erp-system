@@ -17,12 +17,16 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import type {
   ApiResponse,
   CreateOrderDraftRequest,
+  CreateMergedOrderRequest,
+  MergedOrderDetail,
+  PaginatedMergedOrders,
   OrderStatusType,
   CreateQuickOrderRequest,
   OrderDraftDetail,
   PaginatedOrderDrafts,
   SubmitOrderDraftResponse,
   UpdateOrderDraftRequest,
+  UpdateMergedOrderRequest,
 } from "@erp/shared-types"
 import request  from "@/lib/utils/request"
 import { toast } from "@/lib/toast"
@@ -64,6 +68,7 @@ export interface OrderItemWithPart {
 /** 对应 Order + include: { items: true } 的形态（列表页） */
 export interface OrderListItem {
   id:           number
+  customerId:   number | null
   customerNo:   string  // 注：后端无 orderNo 字段，展示时用 id 生成
   customerName: string
   status:       OrderStatusType
@@ -73,6 +78,10 @@ export interface OrderListItem {
   createdBy?: UserRef | null
   /** 后端聚合总金额（兼容旧快照数据回退计算）。 */
   totalAmount?: number
+  mergedOrder?: {
+    id: number
+    mergedNo: string
+  } | null
   items: {
     id:         number
     orderId:    number
@@ -156,6 +165,12 @@ export interface OrdersParams {
 }
 
 export interface OrderDraftsParams {
+  page?: number
+  pageSize?: number
+  keyword?: string
+}
+
+export interface MergedOrdersParams {
   page?: number
   pageSize?: number
   keyword?: string
@@ -324,6 +339,85 @@ export function useSubmitOrderDraft() {
       qc.invalidateQueries({ queryKey: ORDER_DRAFT_KEYS.detail(id) })
     },
     onError: (e: Error) => toast.error(`提交失败：${e.message}`),
+  })
+}
+
+const MERGED_ORDER_KEYS = {
+  all: ["merged-orders"] as const,
+  list: (params: MergedOrdersParams) => ["merged-orders", "list", params] as const,
+  detail: (id: number) => ["merged-orders", "detail", id] as const,
+}
+
+export function useGetMergedOrders(
+  params: MergedOrdersParams,
+  options?: { enabled?: boolean },
+) {
+  return useQuery({
+    queryKey: MERGED_ORDER_KEYS.list(params),
+    queryFn: () =>
+      request
+        .get<unknown, ApiResponse<PaginatedMergedOrders>>("/api/orders/merged", { params })
+        .then(res => res.data!),
+    placeholderData: previous => previous,
+    enabled: options?.enabled,
+  })
+}
+
+export function useGetMergedOrder(id?: number) {
+  return useQuery({
+    queryKey: MERGED_ORDER_KEYS.detail(id!),
+    queryFn: () =>
+      request
+        .get<unknown, ApiResponse<MergedOrderDetail>>(`/api/orders/merged/${id}`)
+        .then(res => res.data!),
+    enabled: !!id,
+  })
+}
+
+export function useCreateMergedOrder() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: CreateMergedOrderRequest) =>
+      request
+        .post<unknown, ApiResponse<MergedOrderDetail>>("/api/orders/merged", payload)
+        .then(res => res.data!),
+    onSuccess: () => {
+      toast.success("合并订单已创建")
+      queryClient.invalidateQueries({ queryKey: MERGED_ORDER_KEYS.all })
+      queryClient.invalidateQueries({ queryKey: ["orders"] })
+    },
+    onError: (error: Error) => toast.error(`合并失败：${error.message}`),
+  })
+}
+
+export function useUpdateMergedOrder() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: number; payload: UpdateMergedOrderRequest }) =>
+      request
+        .patch<unknown, ApiResponse<MergedOrderDetail>>(`/api/orders/merged/${id}`, payload)
+        .then(res => res.data!),
+    onSuccess: (_, variables) => {
+      toast.success("合并订单已更新")
+      queryClient.invalidateQueries({ queryKey: MERGED_ORDER_KEYS.all })
+      queryClient.invalidateQueries({ queryKey: MERGED_ORDER_KEYS.detail(variables.id) })
+      queryClient.invalidateQueries({ queryKey: ["orders"] })
+    },
+    onError: (error: Error) => toast.error(`更新失败：${error.message}`),
+  })
+}
+
+export function useDissolveMergedOrder() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) =>
+      request.delete<unknown, ApiResponse<{ ok: true }>>(`/api/orders/merged/${id}`),
+    onSuccess: () => {
+      toast.success("合并关系已解除")
+      queryClient.invalidateQueries({ queryKey: MERGED_ORDER_KEYS.all })
+      queryClient.invalidateQueries({ queryKey: ["orders"] })
+    },
+    onError: (error: Error) => toast.error(`解除失败：${error.message}`),
   })
 }
 

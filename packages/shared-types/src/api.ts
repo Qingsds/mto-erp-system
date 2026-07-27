@@ -9,6 +9,7 @@ import {
   IsOptional,
   IsArray,
   ArrayMaxSize,
+  ArrayMinSize,
   ArrayUnique,
   ValidateNested,
   IsNotEmpty,
@@ -346,6 +347,12 @@ export interface OrderDraftItemDetail {
   orderedQty?: number | null
   unitPrice?: string | null
   priceLabel?: string | null
+  part?: {
+    id: number
+    partNumber: string
+    name: string
+    material: string
+  } | null
 }
 
 export interface OrderDraftDetail {
@@ -369,6 +376,92 @@ export interface PaginatedOrderDrafts {
 
 export interface SubmitOrderDraftResponse {
   orderId: number
+}
+
+export type MergedOrderStatusType = "ACTIVE" | "DISSOLVED"
+
+export class CreateMergedOrderRequest {
+  @IsArray({ message: "请选择需要合并的订单" })
+  @ArrayMinSize(2, { message: "至少选择两张订单" })
+  @ArrayUnique({ message: "合并订单不能重复" })
+  @IsInt({ each: true, message: "订单 ID 必须是整数" })
+  @Min(1, { each: true, message: "订单 ID 不能小于 1" })
+  orderIds!: number[]
+
+  @IsString({ message: "备注必须是字符串" })
+  @MaxLength(500, { message: "备注不能超过 500 个字符" })
+  @IsOptional()
+  remark?: string
+}
+
+export class UpdateMergedOrderRequest {
+  @IsArray({ message: "请选择需要合并的订单" })
+  @ArrayMinSize(2, { message: "至少保留两张订单" })
+  @ArrayUnique({ message: "合并订单不能重复" })
+  @IsInt({ each: true, message: "订单 ID 必须是整数" })
+  @Min(1, { each: true, message: "订单 ID 不能小于 1" })
+  @IsOptional()
+  orderIds?: number[]
+
+  @IsString({ message: "备注必须是字符串" })
+  @MaxLength(500, { message: "备注不能超过 500 个字符" })
+  @IsOptional()
+  remark?: string
+}
+
+export interface MergedOrderSourceItem {
+  id: number
+  orderedQty: number
+  part: {
+    id: number
+    partNumber: string
+    name: string
+    material: string
+  }
+}
+
+export interface MergedOrderSourceOrder {
+  id: number
+  customerId: number | null
+  customerName: string
+  status: OrderStatusType
+  createdAt: string
+  items: MergedOrderSourceItem[]
+}
+
+export interface MergedOrderDetail {
+  id: number
+  mergedNo: string
+  customerId: number
+  customerName: string
+  remark: string | null
+  status: MergedOrderStatusType
+  createdAt: string
+  updatedAt: string
+  createdBy: { id: number; realName: string; role: UserRoleType }
+  orders: MergedOrderSourceOrder[]
+}
+
+export interface MergedOrderListItem {
+  id: number
+  mergedNo: string
+  customerId: number
+  customerName: string
+  remark: string | null
+  status: MergedOrderStatusType
+  createdAt: string
+  updatedAt: string
+  orderCount: number
+  orderDateStart: string | null
+  orderDateEnd: string | null
+  createdBy: { id: number; realName: string; role: UserRoleType }
+}
+
+export interface PaginatedMergedOrders {
+  total: number
+  data: MergedOrderListItem[]
+  page: number
+  pageSize: number
 }
 
 // ==========================================

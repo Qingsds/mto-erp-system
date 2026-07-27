@@ -31,6 +31,7 @@ interface ExportPreviewDialogProps {
   isPreparing?: boolean
   isExporting?: boolean
   error?: string | null
+  showOptions?: boolean
   onConfirm: () => Promise<void> | void
 }
 
@@ -43,6 +44,7 @@ export function ExportPreviewDialog({
   isPreparing = false,
   isExporting = false,
   error = null,
+  showOptions = true,
   onConfirm,
 }: ExportPreviewDialogProps) {
   const previewRows = preview?.rows ?? []
@@ -72,7 +74,11 @@ export function ExportPreviewDialog({
       open={open}
       onOpenChange={onOpenChange}
       title='导出前预览'
-      description='导出前可调整字段显示与日期格式，确认后再生成 Excel 文件。'
+      description={
+        showOptions
+          ? "导出前可调整字段显示与日期格式，确认后再生成 Excel 文件。"
+          : "请核对明细内容，确认后生成 Excel 文件。"
+      }
       bodyClassName='overflow-y-auto px-4 py-4 sm:px-6 sm:py-5'
       footer={
         <div className='flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
@@ -101,7 +107,8 @@ export function ExportPreviewDialog({
           </div>
         )}
 
-        <div className='grid grid-cols-1 gap-3 border border-border bg-muted/20 p-3 sm:grid-cols-2 lg:grid-cols-3'>
+        {showOptions && (
+          <div className='grid grid-cols-1 gap-3 border border-border bg-muted/20 p-3 sm:grid-cols-2 lg:grid-cols-3'>
             <div className='flex flex-wrap items-center justify-between gap-2 text-sm sm:col-span-2 lg:col-span-3'>
               <span className='text-muted-foreground'>字段显示</span>
               <div className='flex items-center gap-1'>
@@ -217,7 +224,8 @@ export function ExportPreviewDialog({
                 ))}
               </select>
             </label>
-        </div>
+          </div>
+        )}
 
         <div className='overflow-hidden border border-border'>
           <div className='border-b border-border bg-muted/20 px-4 py-3'>

@@ -10,6 +10,7 @@
 import type { BillingDetail } from "@/hooks/api/useBilling"
 import type { DeliveryDetail } from "@/hooks/api/useDeliveries"
 import type { OrderDetail } from "@/hooks/api/useOrders"
+import type { MergedOrderDetail, OrderDraftDetail } from "@erp/shared-types"
 import { formatBillingNo } from "@/hooks/api/useBilling"
 import {
   formatDeliveryNo,
@@ -56,6 +57,8 @@ export interface SheetPayload {
   contentStartRow: number
   printTargetWidthWch?: number
   printHorizontallyCentered?: boolean
+  printOrientation?: "portrait" | "landscape"
+  detailRowHeight?: number
   preview: ExportPreviewData
 }
 
@@ -556,6 +559,179 @@ export function buildBillingSheetPayload(
     filename,
     sheets: [summarySheet, ...detailSheets],
     preview: summarySheet.preview,
+  }
+}
+
+function buildHandwrittenDetailPreview(
+  title: string,
+  filename: string,
+  meta: RowData,
+  headers: string[],
+  detailRows: RowData[],
+  summary: RowData,
+): ExportPreviewData {
+  return {
+    title,
+    filename,
+    meta: filterPreviewMeta(meta),
+    headers,
+    rows: detailRows.slice(0, PREVIEW_ROW_LIMIT),
+    totalRows: detailRows.length,
+    summary,
+  }
+}
+
+export function buildOrderDetailSheetPayload(order: OrderDetail): SheetPayload {
+  const today = formatToday(DEFAULT_EXPORT_OPTIONS.dateFormat)
+  const orderDate = formatDateOnly(order.createdAt, DEFAULT_EXPORT_OPTIONS.dateFormat)
+  const headers = ["零件名称", "材质", "数量", "实际数量", "原因"]
+  const detailRows = order.items.map(item => [
+    item.part.name,
+    item.part.material,
+    item.orderedQty,
+    "",
+    "",
+  ])
+  const totalQty = order.items.reduce((sum, item) => sum + item.orderedQty, 0)
+  const summary: RowData = ["合计", "", totalQty, "", ""]
+  const meta: RowData = [
+    `订单号：${formatOrderNo(order.id)}`,
+    `客户：${order.customerName}`,
+    "",
+    "",
+    `订单日期：${orderDate}`,
+  ]
+  const filename = `${formatOrderNo(order.id)}-订单明细表-${today}.xlsx`
+  return {
+    sheetName: "订单明细表",
+    filename,
+    rows: [
+      ["濮阳市瑞海隆鑫设备制造有限公司"],
+      ["订单明细表"],
+      meta,
+      headers,
+      ...detailRows,
+      summary,
+    ],
+    minColWidths: [20, 14, 8, 14, 18],
+    contentStartRow: 3,
+    printTargetWidthWch: 74,
+    printHorizontallyCentered: true,
+    printOrientation: "portrait",
+    detailRowHeight: 30,
+    preview: buildHandwrittenDetailPreview(
+      "订单明细表", filename, meta, headers, detailRows, summary,
+    ),
+  }
+}
+
+export function buildOrderDraftDetailSheetPayload(
+  draft: OrderDraftDetail,
+): SheetPayload {
+  const today = formatToday(DEFAULT_EXPORT_OPTIONS.dateFormat)
+  const draftDate = formatDateOnly(draft.createdAt, DEFAULT_EXPORT_OPTIONS.dateFormat)
+  const headers = ["零件名称", "材质", "数量", "实际数量", "原因"]
+  const exportableItems = draft.items.filter(item => item.part)
+  const detailRows = exportableItems.map(item => [
+    item.part?.name ?? "未选择零件",
+    item.part?.material ?? "",
+    item.orderedQty ?? "",
+    "",
+    "",
+  ])
+  const totalQty = exportableItems.reduce((sum, item) => sum + (item.orderedQty ?? 0), 0)
+  const summary: RowData = ["合计", "", totalQty, "", ""]
+  const draftNo = `DRAFT-${String(draft.id).padStart(6, "0")}`
+  const meta: RowData = [
+    `草稿号：${draftNo}`,
+    `客户：${draft.customerName?.trim() || "未选择客户"}`,
+    "",
+    "",
+    `创建日期：${draftDate}`,
+  ]
+  const filename = `${draftNo}-订单明细表-${today}.xlsx`
+  return {
+    sheetName: "订单明细表",
+    filename,
+    rows: [
+      ["濮阳市瑞海隆鑫设备制造有限公司"],
+      ["订单草稿明细表"],
+      meta,
+      headers,
+      ...detailRows,
+      summary,
+    ],
+    minColWidths: [20, 14, 8, 14, 18],
+    contentStartRow: 3,
+    printTargetWidthWch: 74,
+    printHorizontallyCentered: true,
+    printOrientation: "portrait",
+    detailRowHeight: 30,
+    preview: buildHandwrittenDetailPreview(
+      "订单草稿明细表", filename, meta, headers, detailRows, summary,
+    ),
+  }
+}
+
+export function buildMergedOrderDetailSheetPayload(
+  mergedOrder: MergedOrderDetail,
+): SheetPayload {
+  const today = formatToday(DEFAULT_EXPORT_OPTIONS.dateFormat)
+  const headers = [
+    "订单日期",
+    "原订单号",
+    "零件名称",
+    "材质",
+    "数量",
+    "实际数量",
+    "原因",
+  ]
+  const sortedOrders = mergedOrder.orders.slice().sort((left, right) =>
+    left.createdAt.localeCompare(right.createdAt) || left.id - right.id,
+  )
+  const detailRows = sortedOrders.flatMap(order =>
+    order.items.map(item => [
+      formatDateOnly(order.createdAt, DEFAULT_EXPORT_OPTIONS.dateFormat),
+      formatOrderNo(order.id),
+      item.part.name,
+      item.part.material,
+      item.orderedQty,
+      "",
+      "",
+    ]),
+  )
+  const totalQty = sortedOrders.reduce(
+    (sum, order) => sum + order.items.reduce((itemSum, item) => itemSum + item.orderedQty, 0),
+    0,
+  )
+  const summary: RowData = ["合计", "", "", "", totalQty, "", ""]
+  const meta: RowData = [
+    `合并单号：${mergedOrder.mergedNo}`,
+    `客户：${mergedOrder.customerName}`,
+    `包含订单：${mergedOrder.orders.length} 张`,
+  ]
+  const safeCustomerName = mergedOrder.customerName.replace(/[\\/:*?"<>|]/g, "-")
+  const filename = `${mergedOrder.mergedNo}-${safeCustomerName}-合并明细表-${today}.xlsx`
+  return {
+    sheetName: "合并订单明细表",
+    filename,
+    rows: [
+      ["濮阳市瑞海隆鑫设备制造有限公司"],
+      ["合并订单明细表"],
+      meta,
+      headers,
+      ...detailRows,
+      summary,
+    ],
+    minColWidths: [11, 13, 16, 10, 7, 9, 14],
+    contentStartRow: 3,
+    printTargetWidthWch: 86,
+    printHorizontallyCentered: true,
+    printOrientation: "portrait",
+    detailRowHeight: 30,
+    preview: buildHandwrittenDetailPreview(
+      "合并订单明细表", filename, meta, headers, detailRows, summary,
+    ),
   }
 }
 

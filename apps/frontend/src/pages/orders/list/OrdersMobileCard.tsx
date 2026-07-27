@@ -14,21 +14,35 @@ import { OrderStatusBadge } from "../shared/OrderStatusBadge"
 interface OrdersMobileCardProps {
   order: OrderListItem
   onClick: () => void
+  selected?: boolean
+  selectionDisabledReason?: string | null
+  onSelectionChange?: () => void
 }
 
 export function OrdersMobileCard({
   order,
   onClick,
+  selected = false,
+  selectionDisabledReason,
+  onSelectionChange,
 }: OrdersMobileCardProps) {
   const canViewMoney = useCanViewMoney()
   const totalAmount = computeListOrderAmount(order)
 
   return (
-    <button
-      type='button'
-      onClick={onClick}
-      className='flex w-full flex-col gap-3 border border-border bg-card px-3 py-3 text-left transition-colors active:bg-muted/50'
-    >
+    <div className='relative flex w-full flex-col gap-3 border border-border bg-card px-3 py-3 text-left transition-colors'>
+      {onSelectionChange && (
+        <input
+          type='checkbox'
+          checked={selected}
+          disabled={!!selectionDisabledReason}
+          title={selectionDisabledReason ?? undefined}
+          aria-label={`选择订单 ${formatOrderNo(order.id)}`}
+          onChange={onSelectionChange}
+          className='absolute right-3 top-11 h-5 w-5 accent-primary disabled:opacity-30'
+        />
+      )}
+      <button type='button' onClick={onClick} className='w-full text-left'>
       <div className='flex items-start justify-between gap-3'>
         <div className='min-w-0'>
           <p className='truncate text-sm font-medium text-foreground'>
@@ -37,9 +51,16 @@ export function OrdersMobileCard({
           <p className='mt-0.5 font-mono text-[11px] text-muted-foreground'>
             {formatOrderNo(order.id)}
           </p>
+          {order.mergedOrder && (
+            <p className='mt-1 font-mono text-[11px] text-muted-foreground'>
+              已合并至 {order.mergedOrder.mergedNo}
+            </p>
+          )}
         </div>
 
-        <OrderStatusBadge status={order.status} />
+        <div className={onSelectionChange ? 'pr-8' : ''}>
+          <OrderStatusBadge status={order.status} />
+        </div>
       </div>
 
       <div className='flex items-end justify-between gap-3'>
@@ -69,6 +90,7 @@ export function OrdersMobileCard({
           </div>
         )}
       </div>
-    </button>
+      </button>
+    </div>
   )
 }

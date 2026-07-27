@@ -6,6 +6,7 @@
 
 import { DetailPageToolbar } from "@/components/common/DetailPageToolbar"
 import { Button } from "@/components/ui/button"
+import type { ReactNode } from "react"
 
 interface OrderNewToolbarProps {
   title?: string
@@ -15,6 +16,7 @@ interface OrderNewToolbarProps {
   onSubmit: () => void
   onSaveDraft?: () => void
   onDeleteDraft?: () => void
+  exportAction?: ReactNode
   showQuickActions?: boolean
   submitLabel?: string
 }
@@ -27,6 +29,7 @@ export function OrderNewToolbar({
   onSubmit,
   onSaveDraft,
   onDeleteDraft,
+  exportAction,
   showQuickActions = true,
   submitLabel = "创建订单",
 }: OrderNewToolbarProps) {
@@ -38,6 +41,7 @@ export function OrderNewToolbar({
       onBack={onCancel}
       actions={showQuickActions ? (
         <>
+          {exportAction}
           {onSaveDraft && (
             <Button
               variant='outline'
@@ -90,6 +94,8 @@ export function OrderNewToolbar({
             )}
           </Button>
         </>
+      ) : exportAction ? (
+        exportAction
       ) : undefined}
     />
   )

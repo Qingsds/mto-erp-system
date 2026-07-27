@@ -31,6 +31,7 @@ import { Route as BillingNewRouteImport } from './routes/billing.new'
 import { Route as BillingIdRouteImport } from './routes/billing.$id'
 import { Route as BillingIdIndexRouteImport } from './routes/billing.$id.index'
 import { Route as SealsIdLogsRouteImport } from './routes/seals.$id.logs'
+import { Route as OrdersMergedIdRouteImport } from './routes/orders.merged.$id'
 import { Route as OrdersDraftsIdRouteImport } from './routes/orders.drafts.$id'
 import { Route as BillingIdSealRouteImport } from './routes/billing.$id.seal'
 
@@ -144,6 +145,11 @@ const SealsIdLogsRoute = SealsIdLogsRouteImport.update({
   path: '/$id/logs',
   getParentRoute: () => SealsRoute,
 } as any)
+const OrdersMergedIdRoute = OrdersMergedIdRouteImport.update({
+  id: '/merged/$id',
+  path: '/merged/$id',
+  getParentRoute: () => OrdersRoute,
+} as any)
 const OrdersDraftsIdRoute = OrdersDraftsIdRouteImport.update({
   id: '/drafts/$id',
   path: '/drafts/$id',
@@ -178,6 +184,7 @@ export interface FileRoutesByFullPath {
   '/parts/$id': typeof PartsIdRoute
   '/billing/$id/seal': typeof BillingIdSealRoute
   '/orders/drafts/$id': typeof OrdersDraftsIdRoute
+  '/orders/merged/$id': typeof OrdersMergedIdRoute
   '/seals/$id/logs': typeof SealsIdLogsRoute
   '/billing/$id/': typeof BillingIdIndexRoute
 }
@@ -203,6 +210,7 @@ export interface FileRoutesByTo {
   '/parts/$id': typeof PartsIdRoute
   '/billing/$id/seal': typeof BillingIdSealRoute
   '/orders/drafts/$id': typeof OrdersDraftsIdRoute
+  '/orders/merged/$id': typeof OrdersMergedIdRoute
   '/seals/$id/logs': typeof SealsIdLogsRoute
   '/billing/$id': typeof BillingIdIndexRoute
 }
@@ -230,6 +238,7 @@ export interface FileRoutesById {
   '/parts/$id': typeof PartsIdRoute
   '/billing/$id/seal': typeof BillingIdSealRoute
   '/orders/drafts/$id': typeof OrdersDraftsIdRoute
+  '/orders/merged/$id': typeof OrdersMergedIdRoute
   '/seals/$id/logs': typeof SealsIdLogsRoute
   '/billing/$id/': typeof BillingIdIndexRoute
 }
@@ -258,6 +267,7 @@ export interface FileRouteTypes {
     | '/parts/$id'
     | '/billing/$id/seal'
     | '/orders/drafts/$id'
+    | '/orders/merged/$id'
     | '/seals/$id/logs'
     | '/billing/$id/'
   fileRoutesByTo: FileRoutesByTo
@@ -283,6 +293,7 @@ export interface FileRouteTypes {
     | '/parts/$id'
     | '/billing/$id/seal'
     | '/orders/drafts/$id'
+    | '/orders/merged/$id'
     | '/seals/$id/logs'
     | '/billing/$id'
   id:
@@ -309,6 +320,7 @@ export interface FileRouteTypes {
     | '/parts/$id'
     | '/billing/$id/seal'
     | '/orders/drafts/$id'
+    | '/orders/merged/$id'
     | '/seals/$id/logs'
     | '/billing/$id/'
   fileRoutesById: FileRoutesById
@@ -483,6 +495,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SealsIdLogsRouteImport
       parentRoute: typeof SealsRoute
     }
+    '/orders/merged/$id': {
+      id: '/orders/merged/$id'
+      path: '/merged/$id'
+      fullPath: '/orders/merged/$id'
+      preLoaderRoute: typeof OrdersMergedIdRouteImport
+      parentRoute: typeof OrdersRoute
+    }
     '/orders/drafts/$id': {
       id: '/orders/drafts/$id'
       path: '/drafts/$id'
@@ -568,6 +587,7 @@ interface OrdersRouteChildren {
   OrdersNewRoute: typeof OrdersNewRoute
   OrdersQuickRoute: typeof OrdersQuickRoute
   OrdersDraftsIdRoute: typeof OrdersDraftsIdRoute
+  OrdersMergedIdRoute: typeof OrdersMergedIdRoute
 }
 
 const OrdersRouteChildren: OrdersRouteChildren = {
@@ -575,6 +595,7 @@ const OrdersRouteChildren: OrdersRouteChildren = {
   OrdersNewRoute: OrdersNewRoute,
   OrdersQuickRoute: OrdersQuickRoute,
   OrdersDraftsIdRoute: OrdersDraftsIdRoute,
+  OrdersMergedIdRoute: OrdersMergedIdRoute,
 }
 
 const OrdersRouteWithChildren =

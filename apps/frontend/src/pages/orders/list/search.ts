@@ -9,7 +9,8 @@
 import type { OrderStatusType } from "@erp/shared-types"
 
 export type OrderStatusFilter = OrderStatusType | "all"
-export type OrdersTab = "orders" | "drafts"
+export type OrdersTab = "orders" | "drafts" | "merged"
+export type OrdersViewFilter = OrderStatusFilter | "drafts" | "merged"
 
 export interface OrdersPageSearch {
   keyword?: string
@@ -25,7 +26,7 @@ const ORDER_STATUS_SET = new Set<OrderStatusType>([
   "CLOSED_SHORT",
 ])
 
-const ORDERS_TAB_SET = new Set<OrdersTab>(["orders", "drafts"])
+const ORDERS_TAB_SET = new Set<OrdersTab>(["orders", "drafts", "merged"])
 
 function normalizeKeyword(value: unknown): string | undefined {
   if (typeof value !== "string") {
@@ -61,7 +62,7 @@ export function validateOrdersPageSearch(
 ): OrdersPageSearch {
   const keyword = normalizeKeyword(search.keyword)
   const tab = normalizeTab(search.tab)
-  const status = tab === "drafts" ? undefined : normalizeStatus(search.status)
+  const status = tab && tab !== "orders" ? undefined : normalizeStatus(search.status)
   const page = normalizePage(search.page)
 
   return {

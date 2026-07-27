@@ -318,6 +318,17 @@ export function getLayoutLocation(pathname: string): LayoutLocation {
     }
   }
 
+  if (pathname.startsWith("/orders/merged/")) {
+    return {
+      pageLabel: "合并订单详情",
+      mobileLabel: "合并详情",
+      breadcrumbs: [
+        { label: "订单管理", to: "/orders?tab=merged" },
+        { label: "合并订单详情" },
+      ],
+    }
+  }
+
   if (pathname.startsWith("/orders/")) {
     return {
       pageLabel: "订单详情",

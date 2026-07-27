@@ -13,42 +13,44 @@ datasource db {
 // ==========================================
 
 model User {
-  id       Int     @id @default(autoincrement())
+  id           Int      @id @default(autoincrement())
   /// 系统登录账号 (全局唯一)
-  username String  @unique @db.VarChar(50)
+  username     String   @unique @db.VarChar(50)
   /// 登录密码哈希值，服务端使用 scrypt 生成并校验
-  passwordHash String @map("password_hash") @db.VarChar(255)
+  passwordHash String   @map("password_hash") @db.VarChar(255)
   /// 操作人员真实姓名，用于日志和界面展示
-  realName String  @map("real_name") @db.VarChar(50)
+  realName     String   @map("real_name") @db.VarChar(50)
   /// 账号角色：ADMIN 为管理员，USER 为普通用户
-  role     UserRole @default(USER)
+  role         UserRole @default(USER)
   /// 账号状态标识：true为正常，false为已禁用
-  isActive Boolean @default(true) @map("is_active")
+  isActive     Boolean  @default(true) @map("is_active")
 
   /// 关联：该用户执行过的所有盖章审计日志
-  sealLogs SealUsageLog[]
+  sealLogs                 SealUsageLog[]
   /// 关联：该用户创建的通用归档文档
-  createdDocuments Document[]
+  createdDocuments         Document[]
   /// 关联：单据内留言
-  taskMessages TaskMessage[]
+  taskMessages             TaskMessage[]
   /// 关联：全局系统通知
-  notifications SystemNotification[]
+  notifications            SystemNotification[]
   /// 关联：负责跟进的订单
-  responsibleOrders Order[] @relation("OrderResponsibleUser")
+  responsibleOrders        Order[]              @relation("OrderResponsibleUser")
   /// 关联：创建的订单
-  createdOrders Order[] @relation("OrderCreatedByUser")
+  createdOrders            Order[]              @relation("OrderCreatedByUser")
   /// 关联：执行短交结案的订单
-  closedShortOrders Order[] @relation("OrderClosedShortByUser")
+  closedShortOrders        Order[]              @relation("OrderClosedShortByUser")
   /// 关联：草稿订单负责人
-  responsibleOrderDrafts OrderDraft[] @relation("OrderDraftResponsibleUser")
+  responsibleOrderDrafts   OrderDraft[]         @relation("OrderDraftResponsibleUser")
   /// 关联：创建的订单草稿
-  createdOrderDrafts OrderDraft[] @relation("OrderDraftCreatedByUser")
+  createdOrderDrafts       OrderDraft[]         @relation("OrderDraftCreatedByUser")
+  /// 关联：创建的合并订单
+  createdMergedOrders      MergedOrder[]
   /// 关联：创建的发货单
-  createdDeliveries DeliveryNote[]
+  createdDeliveries        DeliveryNote[]
   /// 关联：创建的对账单
   createdBillingStatements BillingStatement[]
   /// 关联：最近一次状态更新的生产任务
-  updatedProductionTasks ProductionTask[] @relation("TaskStatusUpdatedByUser")
+  updatedProductionTasks   ProductionTask[]     @relation("TaskStatusUpdatedByUser")
 
   @@map("user")
 }
@@ -78,13 +80,13 @@ model Part {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   /// 关联：该零件对应的所有版本工程图纸
-  drawings   PartDrawing[]
+  drawings        PartDrawing[]
   /// 关联：所有包含此零件的订单明细
-  orderItems OrderItem[]
+  orderItems      OrderItem[]
   /// 关联：草稿中的订单明细（可为空）
   orderDraftItems OrderDraftItem[]
   /// 关联：客户-零件多对多映射
-  customers  CustomerPart[]
+  customers       CustomerPart[]
 
   @@map("part")
 }
@@ -131,18 +133,20 @@ model Customer {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   /// 关联：该客户名下的订单（新数据使用 customerId 外键关联）
-  orders Order[]
+  orders       Order[]
   /// 关联：该客户名下的订单草稿（可为空）
-  orderDrafts OrderDraft[]
+  orderDrafts  OrderDraft[]
   /// 关联：客户与零件多对多映射表
-  parts CustomerPart[]
+  parts        CustomerPart[]
+  /// 关联：该客户名下的合并订单
+  mergedOrders MergedOrder[]
 
   @@map("customer")
 }
 
 model CustomerPart {
-  customerId Int @map("customer_id")
-  partId     Int @map("part_id")
+  customerId Int      @map("customer_id")
+  partId     Int      @map("part_id")
   createdAt  DateTime @default(now()) @map("created_at")
 
   customer Customer @relation(fields: [customerId], references: [id])
@@ -157,34 +161,36 @@ model CustomerPart {
 // ==========================================
 
 model Order {
-  id           Int         @id @default(autoincrement())
+  id                Int         @id @default(autoincrement())
   /// 交易客户主数据 ID（新数据使用外键，旧数据允许为空）
-  customerId   Int?        @map("customer_id")
+  customerId        Int?        @map("customer_id")
   /// 订单负责人（旧数据允许为空）
-  responsibleUserId Int?   @map("responsible_user_id")
+  responsibleUserId Int?        @map("responsible_user_id")
   /// 订单创建人（旧数据允许为空）
-  createdById Int?         @map("created_by_id")
+  createdById       Int?        @map("created_by_id")
   /// 短交结案操作人（旧数据允许为空）
-  closedShortById Int?     @map("closed_short_by_id")
+  closedShortById   Int?        @map("closed_short_by_id")
   /// 交易客户或采购方公司名称
-  customerName String      @map("customer_name") @db.VarChar(100)
+  customerName      String      @map("customer_name") @db.VarChar(100)
   /// 订单整体履约状态 (PENDING待履约, PARTIAL_SHIPPED部分发货, SHIPPED发货完成)
-  status       OrderStatus @default(PENDING)
-  createdAt    DateTime    @default(now()) @map("created_at")
+  status            OrderStatus @default(PENDING)
+  createdAt         DateTime    @default(now()) @map("created_at")
   /// 短交结案时间（旧数据允许为空）
-  closedShortAt DateTime?  @map("closed_short_at")
-  reason       String?     @db.VarChar(100)
+  closedShortAt     DateTime?   @map("closed_short_at")
+  reason            String?     @db.VarChar(100)
 
-  customer   Customer? @relation(fields: [customerId], references: [id])
-  responsibleUser User? @relation("OrderResponsibleUser", fields: [responsibleUserId], references: [id])
-  createdBy User? @relation("OrderCreatedByUser", fields: [createdById], references: [id])
-  closedShortBy User? @relation("OrderClosedShortByUser", fields: [closedShortById], references: [id])
+  customer         Customer?        @relation(fields: [customerId], references: [id])
+  responsibleUser  User?            @relation("OrderResponsibleUser", fields: [responsibleUserId], references: [id])
+  createdBy        User?            @relation("OrderCreatedByUser", fields: [createdById], references: [id])
+  closedShortBy    User?            @relation("OrderClosedShortByUser", fields: [closedShortById], references: [id])
   /// 关联：该订单包含的所有的零件购买明细
-  items      OrderItem[]
+  items            OrderItem[]
   /// 关联：针对该订单进行的所有批次发货记录
-  deliveries DeliveryNote[]
+  deliveries       DeliveryNote[]
   /// 关联：基于该订单生成的防篡改电子合同等归档文件
-  documents  Document[]
+  documents        Document[]
+  /// 关联：当前所属的合并订单（同一时间最多一个）
+  mergedMembership MergedOrderItem?
 
   @@index([customerId])
   @@index([responsibleUserId])
@@ -193,21 +199,59 @@ model Order {
   @@map("order")
 }
 
-model OrderDraft {
-  id        Int      @id @default(autoincrement())
-  customerId Int?    @map("customer_id")
-  customerName String? @map("customer_name") @db.VarChar(100)
-  responsibleUserId Int? @map("responsible_user_id")
-  targetDate DateTime? @map("target_date")
-  remark    String?  @db.VarChar(500)
-  createdById Int    @map("created_by_id")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+model MergedOrder {
+  id          Int               @id @default(autoincrement())
+  mergedNo    String            @unique @map("merged_no") @db.VarChar(30)
+  customerId  Int               @map("customer_id")
+  remark      String?           @db.VarChar(500)
+  createdById Int               @map("created_by_id")
+  status      MergedOrderStatus @default(ACTIVE)
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
 
-  customer Customer? @relation(fields: [customerId], references: [id])
-  responsibleUser User? @relation("OrderDraftResponsibleUser", fields: [responsibleUserId], references: [id])
-  createdBy User @relation("OrderDraftCreatedByUser", fields: [createdById], references: [id])
-  items OrderDraftItem[]
+  customer  Customer          @relation(fields: [customerId], references: [id])
+  createdBy User              @relation(fields: [createdById], references: [id])
+  orders    MergedOrderItem[]
+
+  @@index([customerId])
+  @@index([createdById])
+  @@index([status, createdAt])
+  @@map("merged_order")
+}
+
+model MergedOrderItem {
+  id            Int      @id @default(autoincrement())
+  mergedOrderId Int      @map("merged_order_id")
+  orderId       Int      @unique @map("order_id")
+  addedAt       DateTime @default(now()) @map("added_at")
+
+  mergedOrder MergedOrder @relation(fields: [mergedOrderId], references: [id], onDelete: Cascade)
+  order       Order       @relation(fields: [orderId], references: [id])
+
+  @@index([mergedOrderId])
+  @@map("merged_order_item")
+}
+
+enum MergedOrderStatus {
+  ACTIVE
+  DISSOLVED
+}
+
+model OrderDraft {
+  id                Int       @id @default(autoincrement())
+  customerId        Int?      @map("customer_id")
+  customerName      String?   @map("customer_name") @db.VarChar(100)
+  responsibleUserId Int?      @map("responsible_user_id")
+  targetDate        DateTime? @map("target_date")
+  remark            String?   @db.VarChar(500)
+  createdById       Int       @map("created_by_id")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  customer        Customer?        @relation(fields: [customerId], references: [id])
+  responsibleUser User?            @relation("OrderDraftResponsibleUser", fields: [responsibleUserId], references: [id])
+  createdBy       User             @relation("OrderDraftCreatedByUser", fields: [createdById], references: [id])
+  items           OrderDraftItem[]
 
   @@index([customerId])
   @@index([responsibleUserId])
@@ -217,15 +261,15 @@ model OrderDraft {
 }
 
 model OrderDraftItem {
-  id        Int     @id @default(autoincrement())
-  draftId   Int     @map("draft_id")
-  partId    Int?    @map("part_id")
-  orderedQty Int?   @map("ordered_qty")
-  unitPrice Decimal? @map("unit_price") @db.Decimal(10, 2)
-  priceLabel String? @map("price_label") @db.VarChar(50)
+  id         Int      @id @default(autoincrement())
+  draftId    Int      @map("draft_id")
+  partId     Int?     @map("part_id")
+  orderedQty Int?     @map("ordered_qty")
+  unitPrice  Decimal? @map("unit_price") @db.Decimal(10, 2)
+  priceLabel String?  @map("price_label") @db.VarChar(50)
 
-  draft     OrderDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
-  part      Part?      @relation(fields: [partId], references: [id])
+  draft OrderDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  part  Part?      @relation(fields: [partId], references: [id])
 
   @@index([draftId])
   @@index([partId])
@@ -268,22 +312,22 @@ model OrderItem {
 // ==========================================
 
 model ProductionTask {
-  id            Int      @id @default(autoincrement())
-  orderItemId   Int      @unique @map("order_item_id")
+  id                    Int        @id @default(autoincrement())
+  orderItemId           Int        @unique @map("order_item_id")
   /// 最近一次状态更新操作人（旧数据允许为空）
-  lastStatusUpdatedById Int? @map("last_status_updated_by_id")
+  lastStatusUpdatedById Int?       @map("last_status_updated_by_id")
   /// 最近一次状态更新时间（旧数据允许为空）
-  lastStatusUpdatedAt DateTime? @map("last_status_updated_at")
+  lastStatusUpdatedAt   DateTime?  @map("last_status_updated_at")
   /// 订单周期/目标交货期
-  targetDate    DateTime @map("target_date")
+  targetDate            DateTime   @map("target_date")
   /// 待排产、生产中、质检中、已入库
-  status        TaskStatus @default(PENDING)
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  status                TaskStatus @default(PENDING)
+  createdAt             DateTime   @default(now()) @map("created_at")
+  updatedAt             DateTime   @updatedAt @map("updated_at")
 
-  orderItem     OrderItem @relation(fields: [orderItemId], references: [id])
-  lastStatusUpdatedBy User? @relation("TaskStatusUpdatedByUser", fields: [lastStatusUpdatedById], references: [id])
-  messages      TaskMessage[]
+  orderItem           OrderItem     @relation(fields: [orderItemId], references: [id])
+  lastStatusUpdatedBy User?         @relation("TaskStatusUpdatedByUser", fields: [lastStatusUpdatedById], references: [id])
+  messages            TaskMessage[]
 
   @@index([lastStatusUpdatedById])
   @@map("production_task")
@@ -303,8 +347,8 @@ model TaskMessage {
   content          String   @db.Text
   createdAt        DateTime @default(now()) @map("created_at")
 
-  task             ProductionTask @relation(fields: [productionTaskId], references: [id])
-  user             User           @relation(fields: [userId], references: [id])
+  task ProductionTask @relation(fields: [productionTaskId], references: [id])
+  user User           @relation(fields: [userId], references: [id])
 
   @@map("task_message")
 }
@@ -320,7 +364,7 @@ model SystemNotification {
   relatedId   Int?     @map("related_id")
   createdAt   DateTime @default(now()) @map("created_at")
 
-  user        User     @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id])
 
   @@unique([userId, dedupeKey])
   @@map("system_notification")
@@ -339,8 +383,8 @@ model DeliveryNote {
   /// 针对整个发货批次的物流信息或异常备注
   remark       String?  @db.VarChar(500)
 
-  order     Order          @relation(fields: [orderId], references: [id])
-  createdBy User?          @relation(fields: [createdById], references: [id])
+  order     Order           @relation(fields: [orderId], references: [id])
+  createdBy User?           @relation(fields: [createdById], references: [id])
   /// 关联：该单据包含的所有出库零件明细行
   items     DeliveryItem[]
   /// 关联：发货现场照片
@@ -402,7 +446,7 @@ model BillingStatement {
   items     BillingItem[]
   /// 关联：基于该对账单生成的最终财务电子账单文档
   documents Document[]
-  createdBy User? @relation(fields: [createdById], references: [id])
+  createdBy User?         @relation(fields: [createdById], references: [id])
 
   @@index([createdById])
   @@map("billing_statement")
@@ -430,15 +474,15 @@ model BillingItem {
 // ==========================================
 
 model Seal {
-  id       Int     @id @default(autoincrement())
+  id              Int     @id @default(autoincrement())
   /// 公司印章名称 (如：财务专用章、合同专用章)
-  name     String  @db.VarChar(50)
+  name            String  @db.VarChar(50)
   /// 当前可用于预览与真实盖章的处理后印章图
-  fileKey  String  @map("file_key") @db.VarChar(255)
+  fileKey         String  @map("file_key") @db.VarChar(255)
   /// 用户最初上传的原始 PNG，用于回溯和重跑清洗算法
   originalFileKey String? @map("original_file_key") @db.VarChar(255)
   /// 印章启用状态，停用的印章无法被用于新的防篡改文件合成
-  isActive Boolean @default(true) @map("is_active")
+  isActive        Boolean @default(true) @map("is_active")
 
   /// 关联：这枚印章被使用的全部历史审计记录
   logs SealUsageLog[]
@@ -447,26 +491,26 @@ model Seal {
 }
 
 model Document {
-  id          Int      @id @default(autoincrement())
+  id             Int      @id @default(autoincrement())
   /// 最终展示给用户查看的文件名称
-  fileName    String   @map("file_name") @db.VarChar(255)
+  fileName       String   @map("file_name") @db.VarChar(255)
   /// 文档来源类型：BILLING 为业务生成，GENERIC_UPLOAD 为管理员上传
-  sourceType  String   @default("BILLING") @map("source_type") @db.VarChar(50)
+  sourceType     String   @default("BILLING") @map("source_type") @db.VarChar(50)
   /// 上传时的原始文件名；业务自动生成文档时可为空
-  sourceFileName String? @map("source_file_name") @db.VarChar(255)
+  sourceFileName String?  @map("source_file_name") @db.VarChar(255)
   /// 上传源文件的 MIME 类型；业务自动生成文档时默认为 application/pdf
-  sourceMimeType String? @map("source_mime_type") @db.VarChar(100)
+  sourceMimeType String?  @map("source_mime_type") @db.VarChar(100)
   /// 原始未盖章的纯净版 PDF 在存储中的路径
-  originalKey String   @map("original_key") @db.VarChar(255)
+  originalKey    String   @map("original_key") @db.VarChar(255)
   /// 经服务端合成印章并彻底展平(防修改)后的 PDF 存储路径
-  signedKey   String?  @map("signed_key") @db.VarChar(255)
+  signedKey      String?  @map("signed_key") @db.VarChar(255)
   /// 最终合成文件的 SHA-256 哈希值，用于后续防伪证与法律效力校验
-  fileHash    String?  @map("file_hash") @db.Char(64)
+  fileHash       String?  @map("file_hash") @db.Char(64)
   /// 文件盖章状态 (DRAFT未盖章, SIGNED已盖章防篡改)
-  status      String   @default("DRAFT") @db.VarChar(50)
-  createdAt   DateTime @default(now()) @map("created_at")
+  status         String   @default("DRAFT") @db.VarChar(50)
+  createdAt      DateTime @default(now()) @map("created_at")
   /// 创建这份文档的管理员；旧数据允许为空
-  createdById Int?     @map("created_by_id")
+  createdById    Int?     @map("created_by_id")
 
   /// [外键分离设计] 取代容易产生孤儿数据的多态设计，用三个可选外键明确单据归属
   /// 关联：对应的原始业务订单 (可选)

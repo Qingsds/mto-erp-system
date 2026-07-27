@@ -10,12 +10,16 @@ interface DocumentExportActionButtonProps {
   label: string
   onClick: () => void
   compactOnMobile?: boolean
+  disabled?: boolean
+  loading?: boolean
 }
 
 export function DocumentExportActionButton({
   label,
   onClick,
   compactOnMobile = true,
+  disabled = false,
+  loading = false,
 }: DocumentExportActionButtonProps) {
   return (
     <Button
@@ -27,8 +31,9 @@ export function DocumentExportActionButton({
           : "h-8 px-2.5 text-xs"
       }
       onClick={onClick}
+      disabled={disabled || loading}
     >
-      <i className='ri-download-2-line sm:mr-1.5' />
+      <i className={loading ? 'ri-loader-4-line animate-spin sm:mr-1.5' : 'ri-download-2-line sm:mr-1.5'} />
       <span className={compactOnMobile ? "hidden sm:inline" : ""}>
         {label}
       </span>
