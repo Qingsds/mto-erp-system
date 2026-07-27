@@ -16,9 +16,11 @@ import {
   buildSheetPayloadXlsx,
 } from "./documentExport";
 import {
+  buildDeliverySheetPayload,
   buildMergedOrderDetailSheetPayload,
   buildOrderDetailSheetPayload,
   buildOrderDraftDetailSheetPayload,
+  buildOrderSheetPayload,
 } from "./documentExportData";
 
 function createOrderFixture(status: OrderDetail["status"]): OrderDetail {
@@ -258,6 +260,24 @@ describe("buildBillingDetailRows", () => {
 });
 
 describe("export preview config", () => {
+  it("订单价格清单与发货单使用客户、订单号、类型、日期命名", () => {
+    const order = createOrderFixture("PENDING");
+    const delivery = createDeliveryFixture();
+    const orderPayload = buildOrderSheetPayload(order);
+    const deliveryPayload = buildDeliverySheetPayload(delivery);
+
+    expect(orderPayload.filename).toMatch(
+      /^测试客户-ORD-000101-价格清单-\d{4}-\d{2}-\d{2}\.xlsx$/,
+    );
+    expect(deliveryPayload.filename).toMatch(
+      /^测试客户-ORD-000101-发货单-\d{4}-\d{2}-\d{2}\.xlsx$/,
+    );
+    expect(getOrderExportPreview(order).filename).toBe(orderPayload.filename);
+    expect(getDeliveryExportPreview(delivery).filename).toBe(
+      deliveryPayload.filename,
+    );
+  });
+
   it("可隐藏备注列", () => {
     const orderPreview = getOrderExportPreview(
       createOrderFixture("PARTIAL_SHIPPED"),
@@ -374,6 +394,9 @@ describe("handwritten order detail sheets", () => {
     expect(payload.rows[4]).toEqual(["联轴器", "45#钢", 10, "", ""]);
     expect(payload.rows[5]).toEqual(["压板", "Q235", 5, "", ""]);
     expect(payload.rows[6]).toEqual(["合计", "", 15, "", ""]);
+    expect(payload.filename).toMatch(
+      /^测试客户-ORD-000101-订单明细表-\d{4}-\d{2}-\d{2}\.xlsx$/,
+    );
     expect(payload.printOrientation).toBe("portrait");
     expect(payload.detailRowHeight).toBe(30);
   });
@@ -413,6 +436,9 @@ describe("handwritten order detail sheets", () => {
     expect(payload.rows[4]).toEqual(["联轴器", "45#钢", "", "", ""]);
     expect(payload.rows[5]).toEqual(["合计", "", 0, "", ""]);
     expect(payload.preview.totalRows).toBe(1);
+    expect(payload.filename).toMatch(
+      /^未选择客户-DRAFT-000031-订单草稿明细表-\d{4}-\d{2}-\d{2}\.xlsx$/,
+    );
     expect(payload.printOrientation).toBe("portrait");
   });
 
@@ -500,6 +526,9 @@ describe("handwritten order detail sheets", () => {
     ]);
     expect(payload.rows[6]).toEqual(["合计", "", "", "", 10, "", ""]);
     expect(payload.preview.totalRows).toBe(2);
+    expect(payload.filename).toMatch(
+      /^测试客户-MRG-20260727-000007-合并订单明细表-\d{4}-\d{2}-\d{2}\.xlsx$/,
+    );
     expect(payload.printOrientation).toBe("portrait");
   });
 

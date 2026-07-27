@@ -79,6 +79,35 @@ export const DEFAULT_EXPORT_OPTIONS: Required<ExportSheetOptions> = {
 
 const PREVIEW_ROW_LIMIT = 8
 
+function sanitizeFilenameSegment(
+  value: string | null | undefined,
+  fallback: string,
+): string {
+  const sanitized = (value ?? "")
+    .trim()
+    .replace(/[\\/:*?"<>|]/g, "-")
+    .split("")
+    .map((character) => character.charCodeAt(0) <= 31 ? "-" : character)
+    .join("")
+    .replace(/[. ]+$/g, "")
+
+  return sanitized || fallback
+}
+
+function buildExportFilename(
+  customerName: string | null | undefined,
+  orderNo: string,
+  documentType: string,
+  date: string,
+): string {
+  return [
+    sanitizeFilenameSegment(customerName, "未选择客户"),
+    sanitizeFilenameSegment(orderNo, "未编号"),
+    sanitizeFilenameSegment(documentType, "导出文件"),
+    sanitizeFilenameSegment(date, "0000-00-00"),
+  ].join("-") + ".xlsx"
+}
+
 /** 合并用户配置与默认配置，避免下游判断 undefined。 */
 function resolveExportOptions(
   options?: ExportSheetOptions,
@@ -321,7 +350,12 @@ export function buildOrderSheetPayload(
     summary,
   ]
 
-  const filename = `${formatOrderNo(order.id)}-价格清单-${today}.xlsx`
+  const filename = buildExportFilename(
+    order.customerName,
+    formatOrderNo(order.id),
+    "价格清单",
+    today,
+  )
 
   return {
     sheetName: "价格清单",
@@ -438,7 +472,12 @@ export function buildDeliverySheetPayload(
     summary,
   ]
 
-  const filename = `${formatDeliveryNo(delivery.id)}-发货单-${today}.xlsx`
+  const filename = buildExportFilename(
+    delivery.order?.customerName,
+    formatOrderNo(delivery.orderId),
+    "发货单",
+    today,
+  )
 
   return {
     sheetName: "发货单",
@@ -601,7 +640,12 @@ export function buildOrderDetailSheetPayload(order: OrderDetail): SheetPayload {
     "",
     `订单日期：${orderDate}`,
   ]
-  const filename = `${formatOrderNo(order.id)}-订单明细表-${today}.xlsx`
+  const filename = buildExportFilename(
+    order.customerName,
+    formatOrderNo(order.id),
+    "订单明细表",
+    today,
+  )
   return {
     sheetName: "订单明细表",
     filename,
@@ -649,7 +693,12 @@ export function buildOrderDraftDetailSheetPayload(
     "",
     `创建日期：${draftDate}`,
   ]
-  const filename = `${draftNo}-订单明细表-${today}.xlsx`
+  const filename = buildExportFilename(
+    draft.customerName,
+    draftNo,
+    "订单草稿明细表",
+    today,
+  )
   return {
     sheetName: "订单明细表",
     filename,
@@ -710,8 +759,12 @@ export function buildMergedOrderDetailSheetPayload(
     `客户：${mergedOrder.customerName}`,
     `包含订单：${mergedOrder.orders.length} 张`,
   ]
-  const safeCustomerName = mergedOrder.customerName.replace(/[\\/:*?"<>|]/g, "-")
-  const filename = `${mergedOrder.mergedNo}-${safeCustomerName}-合并明细表-${today}.xlsx`
+  const filename = buildExportFilename(
+    mergedOrder.customerName,
+    mergedOrder.mergedNo,
+    "合并订单明细表",
+    today,
+  )
   return {
     sheetName: "合并订单明细表",
     filename,
@@ -906,7 +959,12 @@ export function getOrderExportPreview(
     : ["汇总", totalQty, "", formatMoney(totalAmount)]
 
   const metaRow = buildOrderMetaRow(order, resolved, orderDate, today)
-  const filename = `${formatOrderNo(order.id)}-价格清单-${today}.xlsx`
+  const filename = buildExportFilename(
+    order.customerName,
+    formatOrderNo(order.id),
+    "价格清单",
+    today,
+  )
 
   return {
     title: "价格清单",
@@ -958,7 +1016,12 @@ export function getDeliveryExportPreview(
     ? ["汇总", "", totalQty, ""]
     : ["汇总", "", totalQty]
   const metaRow = buildDeliveryMetaRow(delivery, resolved, deliveryDate, today)
-  const filename = `${formatDeliveryNo(delivery.id)}-发货单-${today}.xlsx`
+  const filename = buildExportFilename(
+    delivery.order?.customerName,
+    formatOrderNo(delivery.orderId),
+    "发货单",
+    today,
+  )
 
   return {
     title: "发货单",
